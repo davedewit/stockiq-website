@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-03-17T00:40:32.096492",
+  "stock_pages": {
+    "total": 3467,
+    "with_news": 1594,
+    "percentage": 46.0,
+    "by_article_count": {
+      "1_article": 957,
+      "2_articles": 353,
+      "3_articles": 284
+    },
+    "total_articles": 2515
+  },
+  "news_html": {
+    "stock_articles": 1594,
+    "general_news": 30,
+    "total_articles": 1624
+  }
+}

@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Block backup files
+Disallow: /*.bak*
+
+# Block specific redirect URLs that cause indexing issues
+Disallow: /www.stockiq.tech/
+Disallow: /*www.stockiq.tech*
+
+Sitemap: https://stockiq.tech/sitemap.xml
+
+# Additional crawl instructions
+Crawl-delay: 1

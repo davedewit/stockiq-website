@@ -1,0 +1,241 @@
+<!-- Market Data Sidebar Widget -->
+<div style="border-radius: 8px; padding: 8px; margin-bottom: 20px;">
+    <div style="text-align: center; padding: 8px; background: #000; border-radius: 6px; margin-bottom: 10px;">
+        <span style="color: #4ade80; font-size: 12px;">● U.S. markets open in <span id="market-countdown-sidebar">--</span></span>
+    </div>
+    
+    <div id="market-tabs-sidebar" style="display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; scrollbar-width: thin;">
+        <button class="market-tab-sidebar" data-tab="us">US</button>
+        <button class="market-tab-sidebar" data-tab="europe">Europe</button>
+        <button class="market-tab-sidebar" data-tab="asia">Asia</button>
+        <button class="market-tab-sidebar active" data-tab="cryptocurrencies">Crypto</button>
+        <button class="market-tab-sidebar" data-tab="rates">Rates</button>
+        <button class="market-tab-sidebar" data-tab="commodities">Commodities</button>
+        <button class="market-tab-sidebar" data-tab="currencies">Currencies</button>
+    </div>
+    
+    <div id="market-data-sidebar-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <!-- Data will be populated here -->
+    </div>
+    
+    <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+        <button id="nav-left-sidebar" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;">‹</button>
+        <button id="nav-right-sidebar" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;">›</button>
+    </div>
+    
+    <div id="loading-sidebar" style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 12px;">
+        Loading...
+    </div>
+</div>
+
+<style>
+#market-tabs-sidebar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+#market-tabs-sidebar::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
+}
+
+.market-tab-sidebar {
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.market-tab-sidebar:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.market-tab-sidebar.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.market-item-sidebar {
+    padding: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+.market-item-sidebar-name {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.market-item-sidebar-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.market-item-sidebar-chart {
+    height: 30px;
+    margin: 4px 0;
+}
+
+.market-item-sidebar-change {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.market-item-sidebar-change.positive {
+    color: #22c55e;
+}
+
+.market-item-sidebar-change.negative {
+    color: #ef4444;
+}
+</style>
+
+<script>
+const LAMBDA_URL_SIDEBAR = 'https://zmtmcklg3szgnutgnz6iu45bqy0uiype.lambda-url.us-east-1.on.aws/';
+let marketDataSidebar = {};
+let currentTabSidebar = 'cryptocurrencies';
+
+async function fetchMarketDataSidebar() {
+    try {
+        const response = await fetch(LAMBDA_URL_SIDEBAR);
+        const data = await response.json();
+        marketDataSidebar = data;
+        document.getElementById('loading-sidebar').style.display = 'none';
+        renderMarketDataSidebar(currentTabSidebar);
+    } catch (error) {
+        console.error('Error fetching market data:', error);
+        document.getElementById('loading-sidebar').innerHTML = 'Failed to load';
+    }
+}
+
+function renderMarketDataSidebar(tab) {
+    const container = document.getElementById('market-data-sidebar-container');
+    const data = marketDataSidebar[tab];
+    
+    if (!data) return;
+    
+    container.innerHTML = '';
+    
+    const entries = Object.entries(data).slice(0, 6);
+    
+    entries.forEach(([name, info]) => {
+        if (info.error) return;
+        
+        const isPositive = info.change >= 0;
+        const changeClass = isPositive ? 'positive' : 'negative';
+        const changeSymbol = isPositive ? '+' : '';
+        const chartColor = isPositive ? '#22c55e' : '#ef4444';
+        
+        const item = document.createElement('div');
+        item.className = 'market-item-sidebar';
+        item.innerHTML = `
+            <div class="market-item-sidebar-name">${name}</div>
+            <div class="market-item-sidebar-value">${formatValueSidebar(info.value, tab)}</div>
+            <svg class="market-item-sidebar-chart" width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">
+                <polyline points="${generateSparkline(isPositive)}" stroke="${chartColor}" stroke-width="1.5" fill="none" opacity="0.8"/>
+            </svg>
+            <div class="market-item-sidebar-change ${changeClass}">
+                ${changeSymbol}${info.change.toFixed(2)} (${changeSymbol}${info.changePercent.toFixed(2)}%)
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function generateSparkline(isPositive) {
+    const points = [];
+    const segments = 20;
+    const baseY = 15;
+    const amplitude = 8;
+    
+    for (let i = 0; i <= segments; i++) {
+        const x = (i / segments) * 100;
+        const randomVariation = (Math.random() - 0.5) * amplitude;
+        const trend = isPositive ? -i * 0.3 : i * 0.3;
+        const y = baseY + randomVariation + trend;
+        points.push(`${x},${Math.max(2, Math.min(28, y))}`);
+    }
+    
+    return points.join(' ');
+}
+
+function formatValueSidebar(value, category) {
+    if (category === 'cryptocurrencies') {
+        return value >= 1000 ? value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(4);
+    }
+    return value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+document.querySelectorAll('.market-tab-sidebar').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.market-tab-sidebar').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentTabSidebar = tab.dataset.tab;
+        renderMarketDataSidebar(currentTabSidebar);
+    });
+});
+
+function updateMarketCountdownSidebar() {
+    const now = new Date();
+    const ny = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+    const hours = ny.getHours();
+    const day = ny.getDay();
+    
+    const isWeekday = day >= 1 && day <= 5;
+    const isOpen = isWeekday && hours >= 9.5 && hours < 16;
+    
+    if (isOpen) {
+        const close = new Date(ny);
+        close.setHours(16, 0, 0, 0);
+        const diff = close - ny;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        document.getElementById('market-countdown-sidebar').textContent = `${h}h ${m}m`;
+    } else {
+        document.getElementById('market-countdown-sidebar').textContent = 'Closed';
+    }
+}
+
+const tabOrder = ['us', 'europe', 'asia', 'cryptocurrencies', 'rates', 'commodities', 'currencies'];
+let currentTabIndex = 3; // Start with crypto
+
+document.getElementById('nav-left-sidebar').addEventListener('click', () => {
+    currentTabIndex = (currentTabIndex - 1 + tabOrder.length) % tabOrder.length;
+    switchToTab(tabOrder[currentTabIndex]);
+});
+
+document.getElementById('nav-right-sidebar').addEventListener('click', () => {
+    currentTabIndex = (currentTabIndex + 1) % tabOrder.length;
+    switchToTab(tabOrder[currentTabIndex]);
+});
+
+function switchToTab(tabName) {
+    document.querySelectorAll('.market-tab-sidebar').forEach(t => t.classList.remove('active'));
+    const targetTab = document.querySelector(`[data-tab="${tabName}"]`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        targetTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    currentTabSidebar = tabName;
+    renderMarketDataSidebar(tabName);
+}
+
+fetchMarketDataSidebar();
+updateMarketCountdownSidebar();
+setInterval(updateMarketCountdownSidebar, 60000);
+setInterval(fetchMarketDataSidebar, 300000);
+</script>

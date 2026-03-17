@@ -1,0 +1,6 @@
+# robots.txt for HTTP version - blocks all crawling to prevent redirect indexing
+User-agent: *
+Disallow: /
+
+# Redirect crawlers to HTTPS version
+Sitemap: https://stockiq.tech/sitemap.xml

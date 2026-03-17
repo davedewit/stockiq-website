@@ -1,0 +1,197 @@
+<!-- Market Data Widget - Add this to your index.html -->
+<div id="market-data-widget" style="background: var(--card-bg); border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid var(--border-color);">
+    <div style="text-align: center; padding: 10px; background: #000; border-radius: 8px; margin-bottom: 15px;">
+        <span style="color: #4ade80; font-size: 14px;">● U.S. markets open in <span id="market-countdown">--</span></span>
+    </div>
+    
+    <!-- Tabs -->
+    <div id="market-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px;">
+        <button class="market-tab active" data-tab="us">US</button>
+        <button class="market-tab" data-tab="europe">Europe</button>
+        <button class="market-tab" data-tab="asia">Asia</button>
+        <button class="market-tab" data-tab="cryptocurrencies">Cryptocurrencies</button>
+        <button class="market-tab" data-tab="rates">Rates</button>
+        <button class="market-tab" data-tab="commodities">Commodities</button>
+        <button class="market-tab" data-tab="currencies">Currencies</button>
+    </div>
+    
+    <!-- Data Display -->
+    <div style="position: relative;">
+        <div id="market-data-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; overflow: hidden;">
+            <!-- Data will be populated here -->
+        </div>
+        
+        <!-- Navigation Arrows -->
+        <button id="scroll-left" style="position: absolute; left: -10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.7); border: 1px solid var(--border-color); color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: none;">‹</button>
+        <button id="scroll-right" style="position: absolute; right: -10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.7); border: 1px solid var(--border-color); color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">›</button>
+    </div>
+    
+    <div id="loading-indicator" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+        Loading market data...
+    </div>
+</div>
+
+<style>
+.market-tab {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.market-tab:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.market-tab.active {
+    background: #3b82f6;
+    color: white;
+}
+
+.market-item {
+    padding: 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.market-item-name {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.market-item-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+}
+
+.market-item-change {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.market-item-change.positive {
+    color: #22c55e;
+}
+
+.market-item-change.negative {
+    color: #ef4444;
+}
+
+.market-chart {
+    height: 40px;
+    margin: 8px 0;
+}
+
+@media (max-width: 768px) {
+    #market-data-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+<script>
+const LAMBDA_URL = 'https://zmtmcklg3szgnutgnz6iu45bqy0uiype.lambda-url.us-east-1.on.aws/';
+let marketData = {};
+let currentTab = 'us';
+let scrollPosition = 0;
+
+// Fetch market data
+async function fetchMarketData() {
+    try {
+        const response = await fetch(LAMBDA_URL);
+        const data = await response.json();
+        marketData = data;
+        document.getElementById('loading-indicator').style.display = 'none';
+        renderMarketData(currentTab);
+    } catch (error) {
+        console.error('Error fetching market data:', error);
+        document.getElementById('loading-indicator').innerHTML = 'Failed to load market data';
+    }
+}
+
+// Render market data for selected tab
+function renderMarketData(tab) {
+    const container = document.getElementById('market-data-container');
+    const data = marketData[tab];
+    
+    if (!data) return;
+    
+    container.innerHTML = '';
+    
+    Object.entries(data).forEach(([name, info]) => {
+        if (info.error) return;
+        
+        const isPositive = info.change >= 0;
+        const changeClass = isPositive ? 'positive' : 'negative';
+        const changeSymbol = isPositive ? '+' : '';
+        
+        const item = document.createElement('div');
+        item.className = 'market-item';
+        item.innerHTML = `
+            <div class="market-item-name">${name}</div>
+            <div class="market-item-value">${formatValue(info.value, tab)}</div>
+            <div class="market-item-change ${changeClass}">
+                ${changeSymbol}${info.change.toFixed(2)} (${changeSymbol}${info.changePercent.toFixed(2)}%)
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// Format value based on category
+function formatValue(value, category) {
+    if (category === 'cryptocurrencies') {
+        return value >= 1000 ? value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(4);
+    }
+    return value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// Tab switching
+document.querySelectorAll('.market-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.market-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentTab = tab.dataset.tab;
+        scrollPosition = 0;
+        renderMarketData(currentTab);
+    });
+});
+
+// Market countdown timer
+function updateMarketCountdown() {
+    const now = new Date();
+    const ny = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+    const hours = ny.getHours();
+    const day = ny.getDay();
+    
+    // Market hours: Mon-Fri 9:30 AM - 4:00 PM ET
+    const isWeekday = day >= 1 && day <= 5;
+    const isOpen = isWeekday && hours >= 9.5 && hours < 16;
+    
+    if (isOpen) {
+        const close = new Date(ny);
+        close.setHours(16, 0, 0, 0);
+        const diff = close - ny;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        document.getElementById('market-countdown').textContent = `${h}h ${m}m`;
+    } else {
+        document.getElementById('market-countdown').textContent = 'Closed';
+    }
+}
+
+// Initialize
+fetchMarketData();
+updateMarketCountdown();
+setInterval(updateMarketCountdown, 60000);
+setInterval(fetchMarketData, 300000); // Refresh every 5 minutes
+</script>
