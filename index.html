@@ -1263,9 +1263,9 @@ container.appendChild(div);
 });
 };
 
-window.renderActiveTickers = function(tickers, preserveExisting) {
+window.renderActiveTickers = function(tickers) {
 const container = document.getElementById('active-tickers-container');
-if (!preserveExisting) {
+const cachedPrices = JSON.parse(localStorage.getItem('activeTickerPrices') || '{}');
 container.innerHTML = '';
 tickers.forEach((ticker, idx) => {
 const div = document.createElement('div');
@@ -1278,16 +1278,15 @@ div.onclick = () => window.location.href = `analysis.html?symbol=${ticker}&optio
 div.innerHTML = `
 <div style="flex: 1;">
 <div style="color: #3b82f6; font-size: 0.75rem; font-weight: 600; margin-bottom: 1px;">${ticker}</div>
-<div id="active-name-${ticker.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="color: var(--text-secondary); font-size: 0.65rem;">${ticker}</div>
+<div id="active-name-${ticker.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="color: var(--text-secondary); font-size: 0.65rem;">${cachedPrices[ticker]?.name || ticker}</div>
 </div>
 <div style="text-align: right;">
-<div id="active-price-${ticker.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="color: var(--text-primary); font-size: 0.75rem; font-weight: 600; margin-bottom: 1px;">--</div>
-<div id="active-change-${ticker.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="font-size: 0.65rem;">--</div>
+<div id="active-price-${ticker.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="color: var(--text-primary); font-size: 0.75rem; font-weight: 600; margin-bottom: 1px;">${cachedPrices[ticker]?.price ? (typeof cachedPrices[ticker].price === 'number' ? cachedPrices[ticker].price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : cachedPrices[ticker].price) : '--'}</div>
+<div id="active-change-${ticker.toLowerCase().replace(/[^a-z0-9]/g, '')}" style="font-size: 0.65rem; color: #3b82f6;">${cachedPrices[ticker]?.changePercent !== undefined ? `${cachedPrices[ticker].changePercent >= 0 ? '+' : ''}${cachedPrices[ticker].change.toFixed(2)} (${cachedPrices[ticker].changePercent >= 0 ? '+' : ''}${cachedPrices[ticker].changePercent.toFixed(2)}%)` : '--'}</div>
 </div>
 `;
 container.appendChild(div);
 });
-}
 };
 
 let todayActive = JSON.parse(localStorage.getItem('activeTickersList') || '[]').slice(0, 5);
@@ -2420,10 +2419,10 @@ const priceCache = {};
 Object.keys(result.data).forEach(ticker => {
 const data = result.data[ticker];
 if (!data.error) {
-const randomDelay = (0 + Math.random() * 20) * 1000;
-setTimeout(() => {
-// Read cache inside setTimeout to get most recent values
 const oldCache = JSON.parse(localStorage.getItem('activeTickerPrices') || '{}');
+const hasCache = oldCache[ticker]?.price !== undefined;
+const randomDelay = hasCache ? (0 + Math.random() * 20) * 1000 : 0;
+setTimeout(() => {
 const changeSign = data.changePercent >= 0 ? '+' : '';
 const color = data.changePercent >= 0 ? '#22c55e' : '#ef4444';
 const tickerId = ticker.toLowerCase().replace(/[^a-z0-9]/g, '');
