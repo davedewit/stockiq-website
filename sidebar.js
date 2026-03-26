@@ -73,9 +73,6 @@ function renderMarketDataSidebar(tab) {
     container.innerHTML = '';
     container.style.display = 'grid';
 
-    const newsPanel = document.getElementById('news-panel');
-    if (newsPanel) newsPanel.scrollTop = 0;
-
     const entries = Object.entries(data).slice(0, 6);
     entries.forEach(([name, info]) => {
         if (info.error) return;

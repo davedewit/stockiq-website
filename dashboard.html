@@ -832,6 +832,23 @@
             }
         }
     </script>
+    <style>
+    /* Disable tap highlight on mobile */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    
+    /* Desktop hover for clickable items */
+    @media (hover: hover) {
+      .market-item-sidebar:hover,
+      .news-item:hover,
+      .ticker-item:hover {
+        background: var(--hover-bg) !important;
+        transition: background 0.2s;
+      }
+    }
+    </style>
 </head>
 <body>
     <!-- Promotional Banner -->
@@ -1091,8 +1108,13 @@
                 <h3 style="color: var(--text-primary); margin: 0; font-size: 1rem;">📰 Market News</h3>
                 <a href="news.html" style="color: #007bff; text-decoration: none; font-size: 0.85rem;">View All →</a>
             </div>
-            <div id="news-ticker" style="max-height: 375px; overflow-y: auto; position: relative; scrollbar-width: none; -ms-overflow-style: none;">
-            <style>#news-ticker::-webkit-scrollbar { display: none; }</style>
+            <div id="news-ticker" style="max-height: 375px; overflow-y: auto; position: relative; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
+            <style>
+            #news-ticker::-webkit-scrollbar { display: none; }
+            @media (max-width: 768px) {
+              #news-ticker { max-height: none !important; overflow-y: visible !important; }
+            }
+            </style>
             <div id="news-items" style="padding-bottom: 40px;">
                 <!-- News items loaded from news.js -->
             </div>
@@ -4884,7 +4906,7 @@ ${analysis.report}
     <div id="mobile-sidebar-overlay" onclick="closeMobileSidebar()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; opacity: 0; transition: opacity 0.3s ease;"></div>
     
     <!-- Mobile Sidebar Modal -->
-    <div id="mobile-sidebar-modal" style="display: none; position: fixed; top: 0; right: -100%; width: 90%; max-width: 400px; height: 100%; background: var(--card-bg); z-index: 10001; overflow-y: auto; transition: right 0.3s ease; box-shadow: -4px 0 20px rgba(0,0,0,0.3);">
+    <div id="mobile-sidebar-modal" style="display: none; position: fixed; top: 0; right: -100%; width: 90%; max-width: 400px; height: 100%; background: var(--card-bg); z-index: 10001; overflow-y: auto; -webkit-overflow-scrolling: touch; transition: right 0.3s ease; box-shadow: -4px 0 20px rgba(0,0,0,0.3);">
         <div style="position: sticky; top: 0; background: var(--card-bg); padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; z-index: 1;">
             <h3 style="margin: 0; color: var(--text-primary);">Market Data</h3>
             <button onclick="closeMobileSidebar()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-primary);">×</button>

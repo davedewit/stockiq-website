@@ -730,7 +730,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const option = urlParams2.get('option');
     const subOption = urlParams2.get('subOption');
     
-    if (autorun === 'true' && option === '72' && coinSymbol) {
+    if (autorun === 'true' && isBotOrCrawler()) {
+        console.log('🤖 Bot detected, skipping autorun analysis');
+    } else if (autorun === 'true' && option === '72' && coinSymbol) {
         // Auto-run single coin analysis
         selectOption(7);
         requestAnimationFrame(() => {

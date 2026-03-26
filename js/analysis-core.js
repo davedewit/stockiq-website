@@ -27,6 +27,15 @@ async function loadAnalysisModule(option) {
     });
 }
 
+// Bot/crawler detection
+function isBotOrCrawler() {
+    const ua = navigator.userAgent.toLowerCase();
+    const botPatterns = ['bot', 'crawler', 'spider', 'google', 'bing', 'yahoo', 'baidu',
+                         'slurp', 'duckduckbot', 'yandex', 'facebookexternalhit',
+                         'twitterbot', 'linkedinbot', 'whatsapp', 'telegram', 'headless'];
+    return botPatterns.some(p => ua.includes(p));
+}
+
 // URL parameter handling - immediate processing
 function handleURLParams() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -46,8 +55,12 @@ function handleURLParams() {
         if (optionSection) optionSection.style.display = 'block';
         if (backBtn) backBtn.style.display = 'block';
         
-        // Auto-run if specified
+        // Auto-run if specified - skip for bots
         if (autorun === 'true' && subOption && typeof runAnalysis === 'function') {
+            if (isBotOrCrawler()) {
+                console.log('🤖 Bot detected, skipping autorun analysis');
+                return;
+            }
             setTimeout(() => runAnalysis(optionNum, subOption), 100);
         }
     }
