@@ -66,6 +66,5 @@ function handleURLParams() {
     }
 }
 
-// Run immediately and on DOM ready
-handleURLParams();
+// Run on DOM ready only
 document.addEventListener('DOMContentLoaded', handleURLParams);

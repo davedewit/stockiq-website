@@ -73,6 +73,18 @@
     </script>
     <link rel="stylesheet" href="styles.css?v=1760536562">
     <script src="theme.js"></script>
+    <script>
+        // Prevent flash of wrong content when URL has ?option= param
+        (function() {
+            const option = new URLSearchParams(window.location.search).get('option');
+            if (!option) return;
+            const n = parseInt(option);
+            if (isNaN(n)) return;
+            const style = document.createElement('style');
+            style.textContent = '#main-menu{display:none!important}#option-' + n + '{display:block!important}#back-btn{display:block!important}';
+            document.head.appendChild(style);
+        })();
+    </script>
     <script src="auth.js?v=20250115"></script>
     <script>
         // Touch swipe functionality
