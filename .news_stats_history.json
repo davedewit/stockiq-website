@@ -1,19 +1,19 @@
 {
-  "timestamp": "2026-03-26T14:15:38.066280",
+  "timestamp": "2026-03-31T11:17:36.076854",
   "stock_pages": {
     "total": 3467,
-    "with_news": 2099,
-    "percentage": 60.5,
+    "with_news": 2166,
+    "percentage": 62.5,
     "by_article_count": {
-      "1_article": 896,
-      "2_articles": 496,
-      "3_articles": 707
+      "1_article": 849,
+      "2_articles": 514,
+      "3_articles": 803
     },
-    "total_articles": 4009
+    "total_articles": 4286
   },
   "news_html": {
-    "stock_articles": 2099,
-    "general_news": 48,
-    "total_articles": 2147
+    "stock_articles": 2166,
+    "general_news": 54,
+    "total_articles": 2220
   }
 }

@@ -32,8 +32,16 @@ function isBotOrCrawler() {
     const ua = navigator.userAgent.toLowerCase();
     const botPatterns = ['bot', 'crawler', 'spider', 'google', 'bing', 'yahoo', 'baidu',
                          'slurp', 'duckduckbot', 'yandex', 'facebookexternalhit',
-                         'twitterbot', 'linkedinbot', 'whatsapp', 'telegram', 'headless'];
-    return botPatterns.some(p => ua.includes(p));
+                         'twitterbot', 'linkedinbot', 'whatsapp', 'telegram', 'headless',
+                         'googleweblight', 'adsbot', 'mediapartners'];
+    if (botPatterns.some(p => ua.includes(p))) return true;
+
+    // Detect headless Chrome (used by Googlebot renderer) - missing features real browsers have
+    if (typeof navigator.webdriver !== 'undefined' && navigator.webdriver) return true;
+    if (!window.chrome && ua.includes('chrome')) return true;
+    if (typeof window.outerWidth === 'undefined' || window.outerWidth === 0) return true;
+
+    return false;
 }
 
 // URL parameter handling - immediate processing
