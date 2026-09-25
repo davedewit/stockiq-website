@@ -3,11 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="canonical" href="https://stockiq.tech/data-deletion.html">
-    <meta name="robots" content="index, follow">    <title>Data Deletion Instructions - StockIQ</title>
+    <title>About StockIQ - How Our Stock Analysis Works</title>
+    <meta name="description" content="What StockIQ is, how its stock scores are calculated, where the data comes from, and what the analysis can and cannot tell you.">
+
+    <link rel="canonical" href="https://stockiq.tech/about.html">
     <link rel="icon" type="image/png" sizes="32x32" href="stockiq-logo.png">
     <link rel="icon" type="image/png" sizes="16x16" href="stockiq-logo.png">
     <link rel="shortcut icon" href="favicon.ico">
+    
+    
+    <!-- Schema.org AboutPage markup -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "AboutPage",
+        "name": "About StockIQ",
+        "url": "https://stockiq.tech/about.html",
+        "mainEntity": {
+            "@type": "Organization",
+            "name": "StockIQ",
+            "url": "https://stockiq.tech",
+            "logo": "https://stockiq.tech/stockiq-logo.png",
+            "sameAs": ["https://instagram.com/stockiq.tech"]
+        }
+    }
+    </script>
+
+    
     <style>
         html, body { background: #0f0f0f !important; transition: none !important; }
         [data-theme="light"] html, [data-theme="light"] body { background: #ffffff !important; }
@@ -22,83 +44,69 @@
     </script>
     <link rel="stylesheet" href="styles.css">
     <script src="theme.js"></script>
+    
     <style>
         .top-nav { top: 0 !important; }
         body { padding-top: 64px !important; }
         .mobile-menu { top: 64px !important; height: calc(100vh - 64px) !important; }
         #trial-status-display { top: 60px !important; }
         
-        .deletion-container {
-            max-width: 700px;
+        .about-container {
+            max-width: 800px;
             margin: 80px auto;
             padding: 40px 30px;
             background: var(--card-bg);
             border-radius: 12px;
             border: 1px solid var(--border-color);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        
-        .deletion-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        .deletion-header h1 {
             color: var(--text-primary);
-            margin-bottom: 10px;
-            font-size: 2rem;
+            line-height: 1.7;
         }
-        
-        .deletion-content {
+
+        .about-container h2 {
             color: var(--text-primary);
-            line-height: 1.6;
+            margin: 35px 0 12px;
+            font-size: 1.4rem;
         }
-        
-        .deletion-content h2 {
-            color: var(--text-primary);
-            margin-top: 30px;
-            margin-bottom: 15px;
-            font-size: 1.3rem;
+
+        .about-container ul {
+            padding-left: 22px;
         }
-        
-        .deletion-content p {
-            margin-bottom: 15px;
+
+        .about-container li {
+            margin-bottom: 6px;
         }
-        
-        .deletion-content ol {
-            margin-bottom: 20px;
-            padding-left: 20px;
+
+        .weights-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
         }
-        
-        .deletion-content li {
-            margin-bottom: 10px;
+
+        .weights-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border-color);
         }
-        
-        .contact-box {
+
+        .weights-table td:last-child {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .about-note {
             background: var(--bg-secondary);
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border-left: 4px solid #007bff;
+            border-left: 4px solid #f59e0b;
+            padding: 15px 20px;
+            border-radius: 6px;
         }
-        
-        .email-link {
-            color: #007bff;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        .email-link:hover {
-            text-decoration: underline;
-        }
-        
+
         @media (max-width: 768px) {
-            .deletion-container {
+            .about-container {
                 margin: 20px;
                 padding: 30px 20px;
             }
         }
     </style>
+</head>
 </head>
 <body>
     <nav class="top-nav">
@@ -157,50 +165,56 @@
         </div>
     </nav>
 
-    <div class="deletion-container">
-        <div class="deletion-header">
-            <h1>Data Deletion Instructions</h1>
+
+    <div class="about-container">
+        <h1 style="text-align: center; color: var(--text-primary); margin-bottom: 30px;">About StockIQ</h1>
+
+        <p>StockIQ is a stock and crypto research tool for individual investors. You enter a ticker or run a screener, and StockIQ pulls market data, calculates technical and fundamental indicators, and produces a report with a single weighted score and a plain-English explanation of what is driving it.</p>
+
+        <h2>How the score is calculated</h2>
+        <p>Every stock is scored on 12 factors. The weights are fixed and published here, so you can see exactly why a stock scores the way it does:</p>
+        <table class="weights-table">
+            <tr><td>RSI</td><td>20%</td></tr>
+            <tr><td>MACD</td><td>20%</td></tr>
+            <tr><td>Short-term momentum</td><td>18%</td></tr>
+            <tr><td>Volume</td><td>10%</td></tr>
+            <tr><td>Medium-term momentum</td><td>8%</td></tr>
+            <tr><td>Long-term momentum</td><td>6%</td></tr>
+            <tr><td>Financial health</td><td>6%</td></tr>
+            <tr><td>Bollinger Bands</td><td>5%</td></tr>
+            <tr><td>Sentiment</td><td>3%</td></tr>
+            <tr><td>Market conditions</td><td>3%</td></tr>
+            <tr><td>Risk</td><td>2%</td></tr>
+            <tr><td>Moving-average trend</td><td>1%</td></tr>
+        </table>
+        <p>The weighting leans heavily towards momentum and technical indicators, so StockIQ is best suited to short- and medium-term trading decisions rather than long-term valuation.</p>
+
+        <h2>Where the data comes from</h2>
+        <ul>
+            <li>Price, volume and company data from Yahoo Finance and Finnhub</li>
+            <li>News summaries generated with AI from published financial news</li>
+            <li>Analysis runs on AWS, with screeners processing large batches of stocks in parallel</li>
+        </ul>
+
+        <h2>What you can analyse</h2>
+        <ul>
+            <li>Individual stocks and ETFs</li>
+            <li>Trading signals</li>
+            <li>Screeners for US, European, Asian and other markets</li>
+            <li>A crypto screener</li>
+        </ul>
+
+        <h2>Pricing</h2>
+        <p>New users get 15 free analyses over a 3-day trial, with no credit card required. After that, plans are Starter ($4.99/month), Pro ($14.99/month) and Elite ($49.99/month). See the <a href="refunds.html" style="color: #007bff;">refund policy</a> for cancellations.</p>
+
+        <h2>Important: this is not financial advice</h2>
+        <div class="about-note">
+            <p style="margin: 0 0 10px;">StockIQ provides general information and automated analysis only. It does not take into account your objectives, financial situation or needs, and it is not a recommendation to buy or sell any security.</p>
+            <p style="margin: 0;">Scores and signals are calculated from historical and current data and can be wrong. Past performance is not a reliable indicator of future results. Consider seeking advice from a licensed financial adviser before making investment decisions.</p>
         </div>
 
-        <div class="deletion-content">
-            <p>If you have used Facebook Login to access StockIQ and want to delete your data, you can request deletion through the following methods:</p>
-
-            <h2>Method 1: Facebook Settings</h2>
-            <ol>
-                <li>Go to your Facebook Settings & Privacy</li>
-                <li>Click on "Settings"</li>
-                <li>Select "Apps and Websites"</li>
-                <li>Find "StockIQ" in your app list</li>
-                <li>Click "Remove" to revoke access and delete associated data</li>
-            </ol>
-
-            <h2>Method 2: Direct Request</h2>
-            <div class="contact-box">
-                <p><strong>Email us directly:</strong></p>
-                <p>Send a data deletion request to: <a href="mailto:privacy@stockiq.tech" class="email-link">privacy@stockiq.tech</a></p>
-                <p><strong>Include in your email:</strong></p>
-                <ul>
-                    <li>Your Facebook email address</li>
-                    <li>Subject line: "Data Deletion Request"</li>
-                    <li>Confirmation that you want all your StockIQ data deleted</li>
-                </ul>
-            </div>
-
-            <h2>What Data Gets Deleted</h2>
-            <p>When you request data deletion, we will remove:</p>
-            <ul>
-                <li>Your account information (name, email)</li>
-                <li>Login history and session data</li>
-                <li>Usage analytics and preferences</li>
-                <li>Any stored analysis requests or results</li>
-            </ul>
-
-            <h2>Processing Time</h2>
-            <p>Data deletion requests are processed within <strong>30 days</strong> of receipt. You will receive a confirmation email once your data has been permanently deleted from our systems.</p>
-
-            <h2>Questions?</h2>
-            <p>If you have any questions about data deletion or need assistance, contact us at <a href="mailto:privacy@stockiq.tech" class="email-link">privacy@stockiq.tech</a></p>
-        </div>
+        <h2>Contact</h2>
+        <p>Questions, bug reports or feedback are welcome through the <a href="contact.html" style="color: #007bff;">contact page</a> or on <a href="https://instagram.com/stockiq.tech" target="_blank" style="color: #007bff;">Instagram</a>.</p>
     </div>
 
     <footer class="footer">
