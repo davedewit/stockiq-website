@@ -106,7 +106,14 @@
             }
         }
     </style>
-</head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WVETNMPF8V"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'G-WVETNMPF8V');
+</script>
 </head>
 <body>
     <nav class="top-nav">
@@ -172,7 +179,17 @@
         <p>StockIQ is a stock and crypto research tool for individual investors. You enter a ticker or run a screener, and StockIQ pulls market data, calculates technical and fundamental indicators, and produces a report with a single weighted score and a plain-English explanation of what is driving it.</p>
 
         <h2>How the score is calculated</h2>
-        <p>Every stock is scored on 12 factors. The weights are fixed and published here, so you can see exactly why a stock scores the way it does:</p>
+        <p>StockIQ uses two scoring methods, and every report shows the full breakdown behind its score.</p>
+        <h3>Single-stock analysis: 0&ndash;100 investment score</h3>
+        <p>When you analyse one stock or ETF, the score starts at a neutral 50. Points are then added or taken away for:</p>
+        <ul>
+            <li><strong>Technical signals:</strong> RSI, MACD, and price against its 20-, 50- and 200-day moving averages</li>
+            <li><strong>Fundamentals:</strong> P/E, price-to-book, revenue growth, profit margin, debt, liquidity and return on equity</li>
+            <li><strong>Momentum:</strong> recent price moves and volume, with a penalty for overextended moves</li>
+        </ul>
+        <p>The score is limited to 0&ndash;100. Higher scores mean more positive signals.</p>
+        <h3>Screeners: 12-factor weighted score</h3>
+        <p>The market screeners rank many stocks at once using 12 factors with fixed weights:</p>
         <table class="weights-table">
             <tr><td>RSI</td><td>20%</td></tr>
             <tr><td>MACD</td><td>20%</td></tr>
@@ -187,7 +204,7 @@
             <tr><td>Risk</td><td>2%</td></tr>
             <tr><td>Moving-average trend</td><td>1%</td></tr>
         </table>
-        <p>The weighting leans heavily towards momentum and technical indicators, so StockIQ is best suited to short- and medium-term trading decisions rather than long-term valuation.</p>
+        <p>The screener weighting leans heavily towards momentum and technical indicators, so screener results are best suited to short- and medium-term trading decisions rather than long-term valuation.</p>
 
         <h2>Where the data comes from</h2>
         <ul>
