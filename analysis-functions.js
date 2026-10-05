@@ -636,6 +636,7 @@ function getRerunUrl(item, timestamp) {
         'ASX 100 Screener': 'analysis.html?option=5&subOption=100&autorun=true',
         'ASX 200 Screener': 'analysis.html?option=5&subOption=200&autorun=true',
         'ASX 300 Screener': 'analysis.html?option=5&subOption=300&autorun=true',
+        'Japan Nikkei 225 Screener': 'analysis.html?option=5&subOption=nikkei225&autorun=true',
         'UK FTSE 100 Screener': 'analysis.html?option=4&subOption=ftse100&autorun=true',
         'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
     };
@@ -2438,6 +2439,96 @@ async function runAnalysis(option, subOption, event) {
             result = formatASXResult(apiData, subOption);
             result.csvData = csvData;
 
+        } else if (option === 5 && subOption === 'nikkei225') {
+            // Check access for authenticated users
+            if (typeof authManager !== 'undefined' && authManager.isAuthenticated()) {
+                const canAccess = await authManager.checkStockAnalysisAccess();
+                if (!canAccess) return;
+            }
+            console.log('🚀 OPTION 5.5 SMART SCALING - Japan Nikkei 225 Stock Screener');
+            const nikkei225Universe = [
+                '6758.T','6861.T','6902.T','6954.T','6971.T','6976.T','8035.T','6857.T','6920.T','6723.T',
+                '6762.T','6841.T','6869.T','6963.T','6506.T','6645.T','6702.T','6701.T','6752.T','6501.T',
+                '6503.T','6504.T','6526.T','6770.T','6724.T','6967.T','6844.T','6845.T','6849.T','6674.T',
+                '6707.T','7735.T','4704.T','4812.T','6807.T','9432.T','9433.T','9984.T','4689.T','4755.T',
+                '6098.T','4385.T','2413.T','7751.T','7731.T','7974.T','7832.T','9766.T','7752.T','4901.T',
+                '7203.T','7267.T','7269.T','7270.T','7201.T','7202.T','7205.T','7211.T','7261.T','7272.T',
+                '5108.T','5110.T','7011.T','7013.T','7012.T','6301.T','6326.T','6361.T','6471.T','6481.T',
+                '8306.T','8316.T','8411.T','8308.T','8309.T','8331.T','8354.T','7186.T','8604.T','8601.T',
+                '8630.T','8725.T','8750.T','8795.T','8766.T','8697.T','8802.T','8830.T','3289.T','3003.T',
+                '1925.T','1928.T','8905.T','4502.T','4503.T','4507.T','4519.T','4523.T','4528.T','4543.T',
+                '4578.T','4568.T','4151.T','4506.T','4063.T','4183.T','4188.T','4208.T','4452.T','4911.T',
+                '3407.T','3436.T','5201.T','5214.T','5232.T','5233.T','5301.T','5332.T','5333.T','5401.T',
+                '5406.T','5411.T','5713.T','5711.T','5706.T','5714.T','5802.T','5801.T','5803.T','2502.T',
+                '2503.T','2801.T','2802.T','2914.T','2269.T','2282.T','2501.T','2871.T','2270.T','9983.T',
+                '9843.T','3382.T','8267.T','3099.T','3086.T','7453.T','3197.T','3543.T','8136.T','1605.T',
+                '5019.T','5020.T','9501.T','9502.T','9503.T','9531.T','9532.T','9020.T','9021.T','9022.T',
+                '9202.T','9201.T','9064.T','9147.T','9101.T','9104.T','9107.T','1801.T','1802.T','1803.T',
+                '1812.T','1963.T','8001.T','8002.T','8015.T','8031.T','8053.T','8058.T','2768.T','7911.T',
+                '7912.T','4661.T','6178.T','4739.T','6367.T','6302.T','6305.T','6363.T','6370.T','6473.T',
+                '6588.T','6703.T','6708.T','6853.T','7004.T','7003.T','5631.T','5541.T','1808.T','6366.T',
+                '6756.T','6755.T','6753.T','6767.T','6773.T','9681.T','4565.T','8616.T','8698.T','3034.T'
+            ];
+            const allWorkerUrls = [
+                'https://2g3hj5stpbtprg63efqstjrboy0mwpog.lambda-url.us-east-1.on.aws/',   // stockiq-asia-5-5-worker-1
+                'https://5yzugqqawscfvx5kyqict6x7ha0samau.lambda-url.us-east-1.on.aws/',   // stockiq-asia-5-5-worker-2
+                'https://wfeof7dr5inqc4xhohtdu6n6bi0epuqg.lambda-url.us-east-1.on.aws/',   // stockiq-asia-5-5-worker-3
+                'https://itrpfcyqqn6yzjqn6ky7dynnoe0ixzfk.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-4
+                'https://s6kwr3a6j7u4x2a6gbqnrjj6s40nunos.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-5
+                'https://t4uvfpm7ewvvdfn7xpu7hhj6ua0edjse.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-6
+                'https://76pscw2vi3chb2dxjqtuqrha740gvxwu.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-7
+                'https://4bjpk7ivpav7hoalmiphib4twm0vuwmr.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-8
+                'https://knvjsgs77qj6k7zlpe2jqo2vle0sdtju.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-9
+                'https://hx6hgfuntjvk5tmhqsrywvy5a40wtuyq.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-10
+                'https://uullmljyan3vuybanguja2h5py0jevfr.lambda-url.us-east-1.on.aws/',   // stockiq-asia-5-5-worker-11
+                'https://td2j3copshrmq4vehgpujezsvy0mcwtm.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-12
+                'https://6utz7752pa3l54lujtsnq4gh240oepjs.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-13
+                'https://7fqznbw7547jehwmg5har3zh4q0pdzcq.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-14
+                'https://xxjl5khbatuobsoxwe4csx6bgy0tmkse.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-15
+                'https://ueqire27pt3nzwkgzlal5nnlau0mxnxr.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-16
+                'https://sla4c77w4je62je2p7igbsm76i0tgafz.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-17
+                'https://76vbcb5lp4yp5hgwy3xn72nbm40oofqx.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-18
+                'https://i5vrx42zdwq7yt777ii4nqqgem0ngayb.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-19
+                'https://g3vxxlz4p6s7dum3c6cwwguawe0jladz.lambda-url.us-east-1.on.aws/',  // stockiq-asia-5-5-worker-20
+                'https://3dmddgt36bvz2hqsqj3mghd2540drkom.lambda-url.us-east-1.on.aws/'   // stockiq-asia-5-5-worker-21
+            ];
+            console.log('🧠 Dynamic allocation: 210 base stocks → 21 workers × 10 stocks each');
+            console.log('📊 Processing 210 stocks (21 workers × 10 stocks each)');
+            const startTime = Date.now();
+            console.log('📊 Calling 21 workers for 210 Japan Nikkei stocks...');
+            const workerPayloads = [];
+            for (let i = 0; i < 21; i++) {
+                const startIdx = i * 10;
+                const stockBatch = nikkei225Universe.slice(startIdx, startIdx + 10);
+                workerPayloads.push({ url: allWorkerUrls[i], payload: { stock_batch: stockBatch, worker_id: i + 1 }, workerId: i + 1 });
+            }
+            console.log('📊 Using 21/21 workers for 210 stocks');
+            const promises = workerPayloads.map(async (workerData) => {
+                console.log(`🔄 Starting Worker ${workerData.workerId} (${workerData.payload.stock_batch.length} stocks)...`);
+                const response = await fetch(workerData.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(workerData.payload) });
+                if (!response.ok) throw new Error(`Worker ${workerData.workerId} failed: ${response.status}`);
+                const result = await response.json();
+                console.log(`✅ Worker ${workerData.workerId} completed: ${result.results ? result.results.length : 0} stocks`);
+                return { result, workerId: workerData.workerId };
+            });
+            const allWorkerResults = await Promise.all(promises);
+            const endTime = Date.now();
+            const totalTime = (endTime - startTime) / 1000;
+            console.log(`⚡ All 21 workers completed in ${totalTime}s`);
+            let allResults = [];
+            allWorkerResults.forEach((workerResult) => {
+                if (workerResult.result && workerResult.result.success && workerResult.result.results) {
+                    allResults = allResults.concat(workerResult.result.results);
+                    console.log(`📊 Worker ${workerResult.workerId}: ${workerResult.result.results.length} stocks`);
+                }
+            });
+            allResults.sort((a, b) => (b.total_score || b.score || 0) - (a.total_score || a.score || 0));
+            console.log(`📊 Japan Nikkei 225 Analysis: ${allResults.length}/210 stocks (${((allResults.length/210)*100).toFixed(1)}%)`);
+            const apiData = { success: true, results: allResults, stocks_analyzed: allResults.length, universe_size: 210, processing_time: totalTime };
+            const csvData = generateExcelExport(allResults, 'Japan_Nikkei225_Screener');
+            result = formatNikkeiResult(apiData);
+            result.csvData = csvData;
+
         } else if (option === 4 && subOption === 'ftse100') {
             console.log('🚀 OPTION 5.1 SMART SCALING - UK FTSE 100 Stock Screener');
             const ftse100Universe = ['AZN.L','SHEL.L','LSEG.L','UU.L','ULVR.L','LLOY.L','BARC.L','TSCO.L','VOD.L','GSK.L','BP.L','RIO.L','HSBA.L','GLEN.L','BT-A.L','BATS.L','DGE.L','AAL.L','NWG.L','ANTO.L','REL.L','FLTR.L','FRES.L','CRH.L','JD.L','SMDS.L','OCDO.L','EXPN.L','LGEN.L','AVV.L','PSN.L','BNZL.L','MNDI.L','LAND.L','SBRY.L','WEIR.L','SMIN.L','SGRO.L','STAN.L','BRBY.L','CNA.L','ITRK.L','HLMA.L','PHNX.L','JMAT.L','SMT.L','PTEC.L','BLND.L','MGGT.L','RKT.L','DARK.L','HWDN.L','BDEV.L','FERG.L','CTEC.L','DPLM.L','HIL.L','KGF.L','SPX.L','BKGH.L','SBRE.L','INF.L','ABDN.L','ENIC.L','POLY.L','CRST.L','MCRO.L','CLLN.L','JLEN.L','SCIN.L','NETW.L','FCIT.L','WTAN.L','LWDB.L','IBST.L','DLAR.L','TRIG.L','BBOX.L','TCAP.L','BHMG.L','SSPG.L','CLDN.L','ASHM.L','SAFE.L','BGEO.L','WIZZ.L','REIT.L','GFRD.L','VSVS.L','VMUK.L','BWNG.L','CCEP.L','ENTG.L','AUTO.L','NXT.L','SMN.L','RMV.L','ASC.L','IMB.L','III.L'];
@@ -3042,6 +3133,9 @@ async function saveAnalysisToHistory(result, subOption, option) {
             } else if (subOption === '300') {
                 symbols = ['ASX_SCREENER'];
                 uniqueSymbolsCount = 300;
+            } else if (subOption === 'nikkei225') {
+                symbols = ['JAPAN_SCREENER'];
+                uniqueSymbolsCount = 210;
             } else {
                 symbols = ['ASIA_MARKETS'];
                 uniqueSymbolsCount = 100;
@@ -3103,7 +3197,8 @@ async function saveAnalysisToHistory(result, subOption, option) {
                 '50': 'ASX 50 Screener',
                 '100': 'ASX 100 Screener',
                 '200': 'ASX 200 Screener',
-                '300': 'ASX 300 Screener'
+                '300': 'ASX 300 Screener',
+                'nikkei225': 'Japan Nikkei 225 Screener'
             };
             companyName = subNames[subOption] || 'ASX Stock Screener';
         } else if (option === 6) {
@@ -4749,6 +4844,66 @@ Analysis Date: ${new Date().toLocaleString()}
         document.getElementById('loading').style.display = 'none';
         document.getElementById('results-content').innerHTML = `Error: ${error.message}`;
     });
+}
+
+function formatNikkeiResult(apiData) {
+    const universeSize = 210;
+    let output = `
+============================================================
+🇯🇵 JAPAN NIKKEI 225 RESULTS (REAL-TIME DATA)
+============================================================
+Screening Universe: ${universeSize} Japan Nikkei stocks
+Market Type: Tokyo Stock Exchange
+Universe Size: ${universeSize}
+Analysis Date: ${new Date().toLocaleString()}
+`;
+    if (apiData.results && apiData.results.length > 0) {
+        const sortedResults = [...apiData.results].sort((a, b) => (b.total_score || b.score || 0) - (a.total_score || a.score || 0));
+        const topCount = Math.min(10, sortedResults.length);
+        output += `🟢 TOP ${topCount} BUY OPPORTUNITIES:\n`;
+        sortedResults.slice(0, topCount).forEach((stock, i) => {
+            const symbol = (stock.symbol || 'N/A').padEnd(8);
+            const price = `\u00A5${(stock.current_price || stock.price || 0).toFixed(0)}`.padStart(10);
+            const scoreVal = stock.total_score || stock.score || 0;
+            const score = scoreVal >= 0 ? `+${scoreVal.toFixed(1)}` : `${scoreVal.toFixed(1)}`;
+            const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
+            const ytdVal = stock.ytd_change || 0;
+            const ytd = ytdVal >= 0 ? `+${ytdVal.toFixed(1)}%` : `${ytdVal.toFixed(1)}%`;
+            const vol = `${(stock.volume_ratio || 1).toFixed(1)}x`;
+            output += `${(i+1).toString().padStart(2)}. ${symbol} ${price} | Score: ${score} | RSI: ${rsi} | YTD: ${ytd}, Vol: ${vol}\n`;
+        });
+        output += '\n</pre><div style="margin: 20px 0; padding: 15px; background: var(--card-bg); border-radius: 8px; text-align: center; font-size: 1rem;">📊 Showing top 10 results. For the complete screener report, download from your <a href="dashboard.html" style="color: #007bff; text-decoration: underline; cursor: pointer;">dashboard</a>.</div><pre style="white-space: pre-wrap; font-family: monospace;">\n🎯 TOP 3 DETAILED ANALYSIS:\n';
+        output += '================================================================\n';
+        sortedResults.slice(0, 3).forEach((stock, i) => {
+            const priceVal = stock.price || 0;
+            const scoreVal = stock.total_score || stock.score || 0;
+            output += `${i+1}. ${stock.symbol}: \u00A5${priceVal.toFixed(0)} | ${stock.recommendation || 'HOLD'} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
+            if (stock.score_breakdown && stock.score_breakdown.length > 0) {
+                output += '   📊 Score Breakdown:\n';
+                stock.score_breakdown.forEach(breakdown => {
+                    output += `      ${breakdown}\n`;
+                });
+            }
+            output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
+            output += `   💰 Levels: Support \u00A5${(stock.support || 0).toFixed(0)} | Resistance \u00A5${(stock.resistance || 0).toFixed(0)}\n`;
+            output += `   🎯 Targets: Stop \u00A5${(stock.stop_loss || 0).toFixed(0)} | Take Profit \u00A5${(stock.take_profit || 0).toFixed(0)}\n`;
+            output += `   📊 Strategy: ${stock.strategy_type || 'N/A'} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
+        });
+        const positiveStocks = sortedResults.filter(s => (s.total_score || s.score || 0) > 0).length;
+        const negativeStocks = sortedResults.filter(s => (s.total_score || s.score || 0) < 0).length;
+        const avgScore = sortedResults.reduce((sum, s) => sum + (s.total_score || s.score || 0), 0) / sortedResults.length;
+        output += `\n📊 ANALYSIS SUMMARY:\n`;
+        output += `\u2022 Total stocks analyzed: ${sortedResults.length}\n`;
+        output += `\u2022 Stocks with positive scores: ${positiveStocks}\n`;
+        output += `\u2022 Stocks with negative scores: ${negativeStocks}\n`;
+        output += `\u2022 Average score: ${avgScore.toFixed(1)}\n`;
+        output += `\u2022 Success rate: ${((sortedResults.length/universeSize)*100).toFixed(1)}%\n`;
+    } else {
+        output += 'No results available\n';
+    }
+    output += `\n\u2705 Real-time Japan Nikkei 225 complete!`;
+    const htmlOutput = `<pre style="white-space: pre-wrap; font-family: monospace;">${output}</pre>`;
+    return { type: 'option_5nikkei225_screener', data: htmlOutput };
 }
 
 function formatUKResult(apiData, subOption) {
