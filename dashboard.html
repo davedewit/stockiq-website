@@ -1398,7 +1398,7 @@
             <a href="data-deletion.html" style="color: #007bff; text-decoration: none;">Data Deletion</a> • 
             <a href="news.html" style="color: #007bff; text-decoration: none;">News</a> • 
             <a href="blog.html" style="color: #007bff; text-decoration: none;">Blog</a> • 
-            <a href="about.html" style="color: #007bff; text-decoration: none;">About</a> • <a href="faq.html" style="color: #007bff; text-decoration: none;">FAQ</a>
+            <a href="faq.html" style="color: #007bff; text-decoration: none;">FAQ</a>
         </p>
         <p style="margin-top: 15px;">
             <a href="https://instagram.com/stockiq.tech" target="_blank" rel="noopener noreferrer" style="color: #E4405F; text-decoration: none; font-size: 24px;" title="Follow us on Instagram">
@@ -2861,6 +2861,8 @@ ${analysis.report}
                 'ASX 300 Analysis': 'analysis.html?option=5&subOption=300&autorun=true',
                 'UK FTSE 100 Screener': 'analysis.html?option=4&subOption=ftse100&autorun=true',
                 'UK FTSE 100 Analysis': 'analysis.html?option=4&subOption=ftse100&autorun=true',
+                'Japan Nikkei 225 Screener': 'analysis.html?option=5&subOption=nikkei225&autorun=true',
+                'Japan Nikkei 225 Analysis': 'analysis.html?option=5&subOption=nikkei225&autorun=true',
                 'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
             };
             
@@ -3002,6 +3004,7 @@ ${analysis.report}
             if (symbol.includes('.AX')) return 'stock';
             if (companyName.includes('Coin Analysis')) return 'crypto_single';
             if (companyName.includes('CoinSpot') || companyName.includes('Crypto Universe')) return 'crypto';
+            if (companyName.includes('Japan Nikkei') || symbol === 'JAPAN_SCREENER') return 'japan_screener';
             if (companyName.includes('ASX')) return 'asx_screener';
             if (companyName.includes('UK FTSE') || symbol === 'UK_FTSE_100') {
                 return 'uk_screener';
@@ -3027,7 +3030,8 @@ ${analysis.report}
                 'ASX 50 Screener': '50',
                 'ASX 100 Screener': '100',
                 'ASX 200 Screener': '200',
-                'ASX 300 Screener': '300'
+                'ASX 300 Screener': '300',
+                'Japan Nikkei 225 Screener': 'nikkei225'
             };
             return mappings[companyName] || '3';
         }
@@ -3104,7 +3108,11 @@ ${analysis.report}
             const promises = items.map(async (item) => {
                 let endpoint, payload;
                 
-                if (analysisType === 'us_screener' || analysisType === 'asx_screener' || analysisType === 'uk_screener') {
+                if (analysisType === 'japan_screener') {
+                    // Japan Nikkei now handled by coordinator
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'nikkei225', userId };
+                } else if (analysisType === 'us_screener' || analysisType === 'asx_screener' || analysisType === 'uk_screener') {
                     // Use coordinator for US/ASX/UK screeners
                     endpoint = coordinatorUrl;
                     let option, subOption;
@@ -3598,14 +3606,15 @@ ${analysis.report}
                 }
                 let isCrypto = symbols.length > 0;
                 
-                // If no matches, try stock format: "1. LKE.AX $AUD0.10 | Score" or "1. HSBA.L £1394.00"
+                // If no matches, try stock format: "1. LKE.AX $AUD0.10 | Score" or "1. HSBA.L £1394.00" or "1. 8035.T ¥12345"
+                // Also handles Nikkei format with company name: "1. 8035.T   Tokyo Electron    ¥12345"
                 if (symbols.length === 0) {
-                    listPattern = plainText.match(/^\s*\d+\.\s+([A-Z]{2,5}(?:\.[A-Z]+)?)\s+[$£€]([A-Z]*[0-9.]+)/gm) || [];
+                    listPattern = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{2,10}(?:\.[A-Z]+)?)\s+.{0,30}?[$£€¥]([A-Z]*[0-9.]+)/gm) || [];
                     listPattern.slice(0, 10).forEach(m => {
-                        const match = m.match(/([A-Z]{2,5}(?:\.[A-Z]+)?)\s+[$£€]([A-Z]*[0-9.]+)/);
+                        const match = m.match(/([A-Z0-9]{2,10}(?:\.[A-Z]+)?)\s+.{0,30}?[$£€¥]([A-Z]*[0-9.]+)/);
                         if (match) {
                             const symbol = match[1];
-                            const priceStr = match[2].replace(/[A-Z]+/, ''); // Remove currency prefix
+                            const priceStr = match[2].replace(/[A-Z]+/, '');
                             const price = parseFloat(priceStr);
                             symbols.push(symbol);
                             symbolPriceMap[symbol] = price;

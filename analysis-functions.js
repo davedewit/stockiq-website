@@ -769,14 +769,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             } else {
                 selectOption(parseInt(option));
                 setTimeout(() => {
+                    console.log(`🔍 Autorun: Looking for button with option=${option}, subOption=${subOption}`);
                     const buttons = document.querySelectorAll('.screener-btn');
                     buttons.forEach(btn => {
                         const onclickStr = btn.onclick ? btn.onclick.toString() : '';
-                        if (onclickStr.includes(`runAnalysis(${option}, '${subOption}',`) || onclickStr.includes(`runAnalysis(${option}, '${subOption}')`)) {
+                        const pattern1 = `runAnalysis(${option}, '${subOption}',`;
+                        const pattern2 = `runAnalysis(${option}, '${subOption}')`;
+                        if (onclickStr.includes(pattern1) || onclickStr.includes(pattern2)) {
+                            console.log(`✅ Found matching button:`, btn.textContent.trim());
                             btn.classList.add('active');
                             window.activeAnalysisButton = btn;
                         }
                     });
+                    console.log(`🚀 Running analysis: option=${option}, subOption=${subOption}`);
                     runAnalysis(parseInt(option), subOption);
                 }, 1000);
             }
@@ -4846,6 +4851,75 @@ Analysis Date: ${new Date().toLocaleString()}
     });
 }
 
+const NIKKEI_COMPANY_NAMES = {
+    '6758.T': 'Sony Group', '6861.T': 'Keyence', '6902.T': 'Denso', '6954.T': 'Fanuc',
+    '6971.T': 'Kyocera', '6976.T': 'Murata Mfg', '8035.T': 'Tokyo Electron', '6857.T': 'Advantest',
+    '6920.T': 'Lasertec', '6723.T': 'Renesas Electronics', '6762.T': 'TDK', '6841.T': 'Yokogawa Electric',
+    '6869.T': 'Sysmex', '6963.T': 'Rohm', '6506.T': 'Yaskawa Electric', '6645.T': 'Omron',
+    '6702.T': 'Fujitsu', '6701.T': 'NEC', '6752.T': 'Panasonic Holdings', '6501.T': 'Hitachi',
+    '6503.T': 'Mitsubishi Electric', '6504.T': 'Fuji Electric', '6526.T': 'Socionext',
+    '6770.T': 'Alps Alpine', '6724.T': 'Seiko Epson', '6967.T': 'Shinko Electric',
+    '6844.T': 'Shindengen Electric', '6845.T': 'Azbil', '6849.T': 'Nihon Kohden', '6674.T': 'GS Yuasa',
+    '6707.T': 'Sanken Electric', '7735.T': 'Screen Holdings', '4704.T': 'Trend Micro',
+    '4812.T': 'NTT Data', '6807.T': 'Japan Aviation Electronics', '9432.T': 'NTT',
+    '9433.T': 'KDDI', '9984.T': 'SoftBank Group', '4689.T': 'Z Holdings', '4755.T': 'Rakuten Group',
+    '6098.T': 'Recruit Holdings', '4385.T': 'Mercari', '2413.T': 'M3 Inc', '7751.T': 'Canon',
+    '7731.T': 'Nikon', '7974.T': 'Nintendo', '7832.T': 'Bandai Namco', '9766.T': 'Konami',
+    '7752.T': 'Ricoh', '4901.T': 'Fujifilm Holdings', '7203.T': 'Toyota Motor',
+    '7267.T': 'Honda Motor', '7269.T': 'Suzuki Motor', '7270.T': 'Subaru',
+    '7201.T': 'Nissan Motor', '7202.T': 'Isuzu Motors', '7205.T': 'Hino Motors',
+    '7211.T': 'Mitsubishi Motors', '7261.T': 'Mazda Motor', '7272.T': 'Yamaha Motor',
+    '5108.T': 'Bridgestone', '5110.T': 'Sumitomo Rubber', '7011.T': 'Mitsubishi Heavy Ind',
+    '7013.T': 'IHI Corporation', '7012.T': 'Kawasaki Heavy Ind', '6301.T': 'Komatsu',
+    '6326.T': 'Kubota', '6361.T': 'Ebara', '6471.T': 'NSK', '6481.T': 'THK',
+    '8306.T': 'MUFG', '8316.T': 'SMFG', '8411.T': 'Mizuho Financial',
+    '8308.T': 'Resona Holdings', '8309.T': 'SMBC Trust', '8331.T': 'Chiba Bank',
+    '8354.T': 'Fukuoka Financial', '7186.T': 'Concordia Financial', '8604.T': 'Nomura Holdings',
+    '8601.T': 'Daiwa Securities', '8630.T': 'Sompo Holdings', '8725.T': 'MS&AD Insurance',
+    '8750.T': 'Dai-ichi Life', '8795.T': 'T&D Holdings', '8766.T': 'Tokio Marine',
+    '8697.T': 'Japan Exchange Group', '8802.T': 'Mitsubishi Estate', '8830.T': 'Sumitomo Realty',
+    '3289.T': 'Tokyu Fudosan', '3003.T': 'Hulic', '1925.T': 'Daiwa House', '1928.T': 'Sekisui House',
+    '8905.T': 'AEON Mall', '4502.T': 'Takeda Pharmaceutical', '4503.T': 'Astellas Pharma',
+    '4507.T': 'Shionogi', '4519.T': 'Chugai Pharmaceutical', '4523.T': 'Eisai',
+    '4528.T': 'Ono Pharmaceutical', '4543.T': 'Terumo', '4578.T': 'Otsuka Holdings',
+    '4568.T': 'Daiichi Sankyo', '4151.T': 'Kyowa Kirin', '4506.T': 'Sumitomo Pharma',
+    '4063.T': 'Shin-Etsu Chemical', '4183.T': 'Mitsui Chemicals', '4188.T': 'Mitsubishi Chemical',
+    '4208.T': 'UBE Industries', '4452.T': 'Kao Corporation', '4911.T': 'Shiseido',
+    '3407.T': 'Asahi Kasei', '3436.T': 'SUMCO', '5201.T': 'AGC', '5214.T': 'Nippon Electric Glass',
+    '5232.T': 'Sumitomo Osaka Cement', '5233.T': 'Taiheiyo Cement', '5301.T': 'Tokai Carbon',
+    '5332.T': 'TOTO', '5333.T': 'NGK Insulators', '5401.T': 'Nippon Steel',
+    '5406.T': 'Kobe Steel', '5411.T': 'JFE Holdings', '5713.T': 'Sumitomo Metal Mining',
+    '5711.T': 'Mitsubishi Materials', '5706.T': 'Mitsui Mining & Smelting',
+    '5714.T': 'DOWA Holdings', '5802.T': 'Sumitomo Electric', '5801.T': 'Furukawa Electric',
+    '5803.T': 'Fujikura', '2502.T': 'Asahi Group', '2503.T': 'Kirin Holdings',
+    '2801.T': 'Kikkoman', '2802.T': 'Ajinomoto', '2914.T': 'Japan Tobacco',
+    '2269.T': 'Meiji Holdings', '2282.T': 'NH Foods', '2501.T': 'Sapporo Holdings',
+    '2871.T': 'Nichirei', '2270.T': 'Megmilk Snow Brand', '9983.T': 'Fast Retailing',
+    '9843.T': 'Nitori Holdings', '3382.T': 'Seven & i Holdings', '8267.T': 'AEON',
+    '3099.T': 'Isetan Mitsukoshi', '3086.T': 'J.Front Retailing', '7453.T': 'Ryohin Keikaku',
+    '3197.T': 'Skylark Holdings', '3543.T': 'Colowide', '8136.T': 'Sanrio',
+    '1605.T': 'Inpex', '5019.T': 'Idemitsu Kosan', '5020.T': 'ENEOS Holdings',
+    '9501.T': 'Tokyo Electric Power', '9502.T': 'Chubu Electric Power',
+    '9503.T': 'Kansai Electric Power', '9531.T': 'Tokyo Gas', '9532.T': 'Osaka Gas',
+    '9020.T': 'JR East', '9021.T': 'JR West', '9022.T': 'JR Central',
+    '9202.T': 'ANA Holdings', '9201.T': 'Japan Airlines', '9064.T': 'Yamato Holdings',
+    '9147.T': 'Nippon Express', '9101.T': 'NYK Line', '9104.T': 'Mitsui OSK Lines',
+    '9107.T': 'Kawasaki Kisen', '1801.T': 'Taisei Corporation', '1802.T': 'Obayashi',
+    '1803.T': 'Shimizu Corporation', '1812.T': 'Kajima', '1963.T': 'JGC Holdings',
+    '8001.T': 'Itochu', '8002.T': 'Marubeni', '8015.T': 'Toyota Tsusho',
+    '8031.T': 'Mitsui & Co', '8053.T': 'Sumitomo Corporation', '8058.T': 'Mitsubishi Corporation',
+    '2768.T': 'Sojitz', '7911.T': 'Toppan Holdings', '7912.T': 'Dai Nippon Printing',
+    '4661.T': 'Oriental Land', '6178.T': 'Japan Post Holdings', '4739.T': 'Itochu Techno',
+    '6367.T': 'Daikin Industries', '6302.T': 'Sumitomo Heavy Ind', '6305.T': 'Hitachi Construction',
+    '6363.T': 'Tsurumi Mfg', '6370.T': 'Kurita Water', '6473.T': 'JTEKT',
+    '6588.T': 'Toshiba Tec', '6703.T': 'Oki Electric', '6708.T': 'Eizo Corporation',
+    '6853.T': 'Kyowa Electronic', '7004.T': 'Hitachi Zosen', '7003.T': 'Mitsui Engineering',
+    '5631.T': 'Japan Steel Works', '5541.T': 'Pacific Metals', '1808.T': 'Haseko',
+    '6366.T': 'Chiyoda Corporation', '6756.T': 'Hitachi Kokusai', '6755.T': 'Fujitsu General',
+    '6753.T': 'Sharp Corporation', '6767.T': 'Mitsumi Electric', '6773.T': 'Pioneer',
+    '9681.T': 'Tokyo Dome', '4565.T': 'Sosei Group', '8616.T': 'Tokai Tokyo Financial',
+    '8698.T': 'Monex Group', '3034.T': 'Qol Holdings'
+};
 function formatNikkeiResult(apiData) {
     const universeSize = 210;
     let output = `
@@ -4863,6 +4937,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `🟢 TOP ${topCount} BUY OPPORTUNITIES:\n`;
         sortedResults.slice(0, topCount).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(8);
+            const name = NIKKEI_COMPANY_NAMES[stock.symbol] || stock.symbol;
             const price = `\u00A5${(stock.current_price || stock.price || 0).toFixed(0)}`.padStart(10);
             const scoreVal = stock.total_score || stock.score || 0;
             const score = scoreVal >= 0 ? `+${scoreVal.toFixed(1)}` : `${scoreVal.toFixed(1)}`;
@@ -4870,7 +4945,7 @@ Analysis Date: ${new Date().toLocaleString()}
             const ytdVal = stock.ytd_change || 0;
             const ytd = ytdVal >= 0 ? `+${ytdVal.toFixed(1)}%` : `${ytdVal.toFixed(1)}%`;
             const vol = `${(stock.volume_ratio || 1).toFixed(1)}x`;
-            output += `${(i+1).toString().padStart(2)}. ${symbol} ${price} | Score: ${score} | RSI: ${rsi} | YTD: ${ytd}, Vol: ${vol}\n`;
+            output += `${(i+1).toString().padStart(2)}. ${symbol} ${name.padEnd(22)} ${price} | Score: ${score} | RSI: ${rsi} | YTD: ${ytd}, Vol: ${vol}\n`;
         });
         output += '\n</pre><div style="margin: 20px 0; padding: 15px; background: var(--card-bg); border-radius: 8px; text-align: center; font-size: 1rem;">📊 Showing top 10 results. For the complete screener report, download from your <a href="dashboard.html" style="color: #007bff; text-decoration: underline; cursor: pointer;">dashboard</a>.</div><pre style="white-space: pre-wrap; font-family: monospace;">\n🎯 TOP 3 DETAILED ANALYSIS:\n';
         output += '================================================================\n';
