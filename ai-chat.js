@@ -6,9 +6,13 @@
     const chatHTML = `
         <style>
         @media (min-width: 769px) {
-            body:not(.stock-page) #ai-chat-widget { right: 370px !important; }
-            body.stock-page #ai-chat-widget { right: 20px !important; }
+            #ai-chat-widget { right: 20px !important; }
             #ai-chat-window { right: 0 !important; height: 600px !important; width: 380px !important; }
+        }
+        /* The right-hand news panel only exists on some pages and only shows from 1401px wide:
+           move the chat clear of it there, and nowhere else */
+        @media (min-width: 1401px) {
+            body.has-news-panel #ai-chat-widget { right: 370px !important; }
         }
         @media (max-width: 768px) {
             #ai-chat-widget { right: 20px !important; }
@@ -70,6 +74,10 @@
     // Insert widget into page
     document.addEventListener('DOMContentLoaded', function() {
         document.body.insertAdjacentHTML('beforeend', chatHTML);
+        // Pages with the right-hand news panel (home page) get the chat moved clear of it on wide screens
+        if (document.getElementById('news-panel')) {
+            document.body.classList.add('has-news-panel');
+        }
         
         const chatBtn = document.getElementById('ai-chat-btn');
         const chatWindow = document.getElementById('ai-chat-window');

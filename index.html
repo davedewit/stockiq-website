@@ -1583,7 +1583,7 @@ setInterval(continuousScroll, 50);
 <div class="hero-buttons">
 <a href="analysis.html?option=1" class="cta-primary">🚀 Try StockIQ Analysis Tool</a>
 <a href="analysis.html?option=3" class="cta-secondary">🇺🇸 US Stock Screener</a>
-<a href="#pricing" onclick="viewPricingPlans()" class="cta-secondary">View Pricing Plans</a>
+<a href="#pricing" class="cta-secondary">View Pricing Plans</a>
 </div>
 </div>
 <div class="hero-stats">
@@ -1592,8 +1592,8 @@ setInterval(continuousScroll, 50);
 <div class="stat-label">Stocks Analyzed in Seconds</div>
 </div>
 <div class="stat-item">
-<div class="stat-number">42</div>
-<div class="stat-label">Data Points Per Stock</div>
+<div class="stat-number">12</div>
+<div class="stat-label">Published Scoring Factors</div>
 </div>
 <div class="stat-item">
 <div class="stat-number">600+</div>
@@ -1651,7 +1651,7 @@ setInterval(continuousScroll, 50);
 <div class="trust-indicators" style="display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap; margin-top: 20px;">
 <div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
 <span style="color: #22c55e; font-size: 1.2rem;">🔒</span>
-<span>Bank-Level Security</span>
+<span>Sign-in by AWS Cognito, payments by Stripe</span>
 </div>
 <div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
 <span style="color: #3b82f6; font-size: 1.2rem;">⚡</span>
@@ -1662,6 +1662,30 @@ setInterval(continuousScroll, 50);
 <span>Professional-Grade Analysis</span>
 </div>
 </div>
+</section>
+
+<section id="pricing" style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 40px 30px; border-radius: 12px; margin: 40px 0; text-align: center;">
+<h2 style="margin-bottom: 10px; color: var(--text-primary);">Pricing</h2>
+<p style="margin: 0 auto 30px auto; max-width: 640px; color: var(--text-secondary);">Start with a free 3-day trial: 15 analyses, no credit card. After that, choose a monthly plan by how many analyses and screeners you run per day.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 20px; max-width: 860px; margin: 0 auto;">
+<div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 25px 20px;">
+<h3 style="margin: 0 0 8px 0; color: var(--text-primary);">Starter</h3>
+<div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">$4.99<span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);"> / month</span></div>
+<p style="margin: 12px 0 0 0; color: var(--text-secondary);">15 analyses or screeners per day</p>
+</div>
+<div style="background: var(--bg-secondary); border: 2px solid #007bff; border-radius: 10px; padding: 25px 20px;">
+<h3 style="margin: 0 0 8px 0; color: var(--text-primary);">Pro</h3>
+<div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">$14.99<span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);"> / month</span></div>
+<p style="margin: 12px 0 0 0; color: var(--text-secondary);">50 analyses or screeners per day</p>
+</div>
+<div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 25px 20px;">
+<h3 style="margin: 0 0 8px 0; color: var(--text-primary);">Elite</h3>
+<div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">$49.99<span style="font-size: 0.9rem; font-weight: 400; color: var(--text-secondary);"> / month</span></div>
+<p style="margin: 12px 0 0 0; color: var(--text-secondary);">Unlimited analyses and screeners</p>
+</div>
+</div>
+<p style="margin: 25px 0 20px 0; font-size: 0.9rem; color: var(--text-secondary);">Billed monthly through Stripe. Cancel anytime from your dashboard.</p>
+<a href="signup.html" style="display: inline-block; background: #007bff; color: white; padding: 12px 26px; border-radius: 6px; font-weight: 600; text-decoration: none;">Start Free Trial</a>
 </section>
 
 <section class="email-capture-section" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-left: 4px solid #3b82f6; border-right: 4px solid #3b82f6; padding: 40px 30px; border-radius: 12px; margin: 40px 0; text-align: center;">
@@ -1723,12 +1747,6 @@ setInterval(continuousScroll, 50);
 <div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ No</div>
 </div>
 <div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Market Data</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Yes</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">✅ Yes</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ 15min delay</div>
-</div>
-<div class="comparison-row" style="display: contents;">
 <div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Transparent Scoring</div>
 <div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Yes (All math shared)</div>
 <div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ No</div>
@@ -1775,7 +1793,7 @@ StockIQ bridges the gap between free basic screeners and expensive enterprise pl
 
 <footer class="footer">
 <p>&copy; 2026 StockIQ - Professional Investment Research Platform</p>
-<p style="font-size:0.8rem;opacity:0.8;max-width:800px;margin:8px auto 0;line-height:1.5;">General information only, not financial advice. Scores and signals are not recommendations to buy or sell, and past performance does not indicate future results. Market data comes from third parties (Yahoo Finance, Finnhub) and may be delayed or inaccurate.</p>
+<p style="font-size:0.8rem;opacity:0.8;max-width:800px;margin:8px auto 0;line-height:1.5;">General information only, not financial advice. Scores and signals are automated model outputs that do not take your personal circumstances into account, and past performance does not indicate future results. Market data comes from third parties (Yahoo Finance, Finnhub) and may be delayed or inaccurate.</p>
 <p>Powered by AI • Market Data • Comprehensive Analysis</p>
 <p>
 <a href="terms.html" style="color: #007bff; text-decoration: none;">Terms of Service</a> • 
