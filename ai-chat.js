@@ -8,11 +8,11 @@
         @media (min-width: 769px) {
             body:not(.stock-page) #ai-chat-widget { right: 370px !important; }
             body.stock-page #ai-chat-widget { right: 20px !important; }
-            #ai-chat-window { right: 0 !important; }
+            #ai-chat-window { right: 0 !important; height: 600px !important; width: 380px !important; }
         }
         @media (max-width: 768px) {
             #ai-chat-widget { right: 20px !important; }
-            #ai-chat-window { right: 0 !important; width: calc(100vw - 40px) !important; max-width: 350px !important; }
+            #ai-chat-window { right: 0 !important; width: calc(100vw - 40px) !important; max-width: 350px !important; height: 500px !important; }
         }
         </style>
         <div id="ai-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
@@ -27,21 +27,28 @@
             </button>
             
             <!-- Chat Window -->
-            <div id="ai-chat-window" style="display: none; position: absolute; bottom: 80px; right: 0; width: 350px; height: 500px; background: var(--bg-primary, #fff); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); flex-direction: column; overflow: hidden;">
+            <div id="ai-chat-window" style="display: none; position: absolute; bottom: 80px; right: 0; width: 380px; height: 600px; background: var(--bg-primary, #fff); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); flex-direction: column; overflow: hidden;">
                 <!-- Header -->
-                <div style="background: #007bff; color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight: 600; font-size: 16px;">AI Stock Assistant</div>
-                        <div style="font-size: 12px; opacity: 0.9;">Ask me anything about stocks</div>
+                <div style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 15px; line-height: 1.2;">AI Stock Assistant</div>
+                            <div style="font-size: 11px; opacity: 0.85; line-height: 1.2; margin-top: 2px;">Always online</div>
+                        </div>
                     </div>
-                    <button id="ai-chat-close" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 30px; height: 30px;">&times;</button>
+                    <button id="ai-chat-close" style="background: rgba(255,255,255,0.15); border: none; color: white; font-size: 20px; cursor: pointer; padding: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
                 </div>
                 
                 <!-- Messages -->
-                <div id="ai-chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--bg-secondary, #f5f5f5);">
-                    <div style="background: var(--bg-primary, #fff); padding: 12px; border-radius: 8px; font-size: 14px; color: var(--text-primary, #333);">
+                <div id="ai-chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--bg-secondary, #f8f9fa);">
+                    <div style="background: var(--bg-primary, #fff); padding: 12px 14px; border-radius: 10px; font-size: 14px; color: var(--text-primary, #333); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         👋 Hi! I'm your AI stock assistant. Ask me questions like:
-                        <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px;">
+                        <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">
                             <li>Should I buy AAPL?</li>
                             <li>How does your S&P 500 screener work?</li>
                             <li>Where can I analyze crypto?</li>
@@ -50,10 +57,10 @@
                 </div>
                 
                 <!-- Input -->
-                <div style="padding: 12px; border-top: 1px solid var(--border-color, #ddd); background: var(--bg-primary, #fff);">
+                <div style="padding: 14px 16px; border-top: 1px solid var(--border-color, #e0e0e0); background: var(--bg-primary, #fff);">
                     <div style="display: flex; gap: 8px;">
-                        <input id="ai-chat-input" type="text" placeholder="Ask about stocks..." style="flex: 1; padding: 10px; border: 1px solid var(--border-color, #ddd); border-radius: 6px; font-size: 16px; background: var(--bg-primary, #fff); color: var(--text-primary, #333);">
-                        <button id="ai-chat-send" style="padding: 10px 16px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 16px;">Send</button>
+                        <input id="ai-chat-input" type="text" placeholder="Ask about stocks..." style="flex: 1; padding: 11px 14px; border: 1px solid var(--border-color, #ddd); border-radius: 8px; font-size: 16px; background: var(--bg-primary, #fff); color: var(--text-primary, #333); transition: border-color 0.2s;" onfocus="this.style.borderColor='#007bff'" onblur="this.style.borderColor='var(--border-color, #ddd)'">
+                        <button id="ai-chat-send" style="padding: 11px 18px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; transition: background 0.2s; white-space: nowrap;" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">Send</button>
                     </div>
                 </div>
             </div>
@@ -124,7 +131,7 @@
                     
                     const msgHTML = `
                         <div id="${msgId}" style="display: flex; ${isUser ? 'justify-content: flex-end;' : ''}">
-                            <div style="max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; ${isUser ? 'background: #007bff; color: white;' : 'background: var(--bg-primary, #fff); color: var(--text-primary, #333);'}">
+                            <div style="max-width: 80%; padding: 10px 14px; border-radius: ${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'}; font-size: 14px; line-height: 1.5; ${isUser ? 'background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);' : 'background: var(--bg-primary, #fff); color: var(--text-primary, #333); box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--border-color, #e8e8e8);'}">
                                 ${displayText}
                             </div>
                         </div>
@@ -137,6 +144,44 @@
             }
         }
         
+        // Detect current page context to give AI relevant information
+        function getPageContext() {
+            const path = window.location.pathname;
+            const stockMatch = path.match(/\/stocks\/([^/]+)\.html/);
+            if (stockMatch) {
+                const symbol = stockMatch[1];
+                const companyEl = document.querySelector('h1');
+                const company = companyEl ? companyEl.textContent.replace(/\s*Stock Analysis.*/, '').trim() : symbol;
+                return { page: 'stock', symbol, company };
+            }
+            if (path.includes('analysis.html')) return { page: 'analysis' };
+            if (path.includes('dashboard.html')) return { page: 'dashboard' };
+            if (path.includes('index.html') || path === '/') return { page: 'home' };
+            return { page: 'other' };
+        }
+
+        // Update suggested questions based on current page
+        function updateSuggestedQuestions() {
+            const ctx = getPageContext();
+            const welcomeEl = document.querySelector('#ai-chat-messages div');
+            if (!welcomeEl) return;
+            let questions = [];
+            if (ctx.page === 'stock') {
+                questions = [
+                    `Should I buy ${ctx.symbol}?`,
+                    `What's the outlook for ${ctx.symbol}?`,
+                    `Give me other stocks like ${ctx.symbol}`
+                ];
+            } else if (ctx.page === 'analysis') {
+                questions = ['How does the screener work?', 'Which screener should I use?', 'What do the scores mean?'];
+            } else if (ctx.page === 'dashboard') {
+                questions = ['How do I track performance?', 'What do the scores mean?', 'How do I export my data?'];
+            } else {
+                questions = ['Should I buy Apple stock?', 'How does the S&P 500 screener work?', 'What can you help me with?'];
+            }
+            welcomeEl.innerHTML = `👋 Hey! I can help with stocks and investing. Try asking:<ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">${questions.map(q => `<li>${q}</li>`).join('')}</ul>`;
+        }
+
         // Toggle chat window
         chatBtn.addEventListener('click', function() {
             const isVisible = chatWindow.style.display === 'flex';
@@ -144,6 +189,7 @@
             document.getElementById('ai-chat-icon').style.display = isVisible ? 'block' : 'none';
             document.getElementById('ai-chat-close-icon').style.display = isVisible ? 'none' : 'block';
             if (!isVisible) {
+                updateSuggestedQuestions();
                 // Track chat opened
                 if (typeof gtag !== 'undefined') {
                     gtag('event', 'chat_opened', {
@@ -181,6 +227,23 @@
             const message = chatInput.value.trim();
             if (!message) return;
             
+            // Get user ID first
+            let userId = localStorage.getItem('userId');
+            const isLoggedIn = userId && userId.includes('@');
+            
+            if (!isLoggedIn) {
+                // Not logged in - use/generate anonymous ID
+                userId = localStorage.getItem('anonymousId');
+                if (!userId) {
+                    userId = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('anonymousId', userId);
+                }
+            }
+            
+            // Get conversation history BEFORE adding new message (get previous context)
+            const history = JSON.parse(sessionStorage.getItem('aiChatHistory_' + userId) || '[]');
+            const recentHistory = history.slice(-6); // Last 3 exchanges (6 messages: 3 user + 3 AI)
+            
             // Clear input immediately
             chatInput.value = '';
             
@@ -191,24 +254,16 @@
             setTimeout(() => {
                 const typingId = addMessage('Thinking...', 'ai', true);
                 
-                // Get user ID - prioritize real userId (email) over anonymous
-                let userId = localStorage.getItem('userId');
-                const isLoggedIn = userId && userId.includes('@');
-                
-                if (!isLoggedIn) {
-                    // Not logged in - use/generate anonymous ID
-                    userId = localStorage.getItem('anonymousId');
-                    if (!userId) {
-                        userId = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        localStorage.setItem('anonymousId', userId);
-                    }
-                }
-                
-                // Call Lambda
+                // Call Lambda with history
                 fetch(LAMBDA_URL, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message, userId})
+                    body: JSON.stringify({
+                        message,
+                        userId,
+                        pageContext: getPageContext(),
+                        conversationHistory: recentHistory
+                    })
                 })
                 .then(res => {
                     if (res.status === 429) {
@@ -304,8 +359,8 @@
             }
             
             const msgHTML = `
-                <div id="${msgId}" style="display: flex; ${isUser ? 'justify-content: flex-end;' : ''}">
-                    <div style="max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; ${isUser ? 'background: #007bff; color: white;' : 'background: var(--bg-primary, #fff); color: var(--text-primary, #333);'} ${isTyping ? 'opacity: 0.7; font-style: italic;' : ''}">
+                <div id="${msgId}" style="display: flex; ${isUser ? 'justify-content: flex-end;' : ''} animation: slideIn 0.2s ease-out;">
+                    <div style="max-width: 80%; padding: 10px 14px; border-radius: ${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'}; font-size: 14px; line-height: 1.5; ${isUser ? 'background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);' : 'background: var(--bg-primary, #fff); color: var(--text-primary, #333); box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--border-color, #e8e8e8);'} ${isTyping ? 'opacity: 0.7; font-style: italic;' : ''}">
                         ${displayText}
                     </div>
                 </div>
