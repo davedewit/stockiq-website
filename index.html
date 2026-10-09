@@ -1665,15 +1665,14 @@ setInterval(continuousScroll, 50);
 </section>
 
 <section class="email-capture-section" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-left: 4px solid #3b82f6; border-right: 4px solid #3b82f6; padding: 40px 30px; border-radius: 12px; margin: 40px 0; text-align: center;">
-<h3 style="margin-bottom: 15px; font-size: 1.6rem; color: var(--text-primary);">📧 Daily Stock Picks + Win Free Access!</h3>
-<p style="margin-bottom: 20px; font-size: 1.1rem; color: var(--text-secondary);">Get tomorrow's top AI-selected stock picks at 6 AM EST</p>
-<p style="margin-bottom: 25px; font-size: 1.05rem; color: #22c55e; font-weight: 600;">🎯 First 1,000 subscribers: 5 winners get 1 YEAR FREE membership!</p>
+<h3 style="margin-bottom: 15px; font-size: 1.6rem; color: var(--text-primary);">📧 Get AI Stock Picks by Email</h3>
+<p style="margin-bottom: 20px; font-size: 1.1rem; color: var(--text-secondary);">We're planning an email with the top AI-screened stocks. Join the early list and we'll send it to you when it starts.</p>
 
 <div style="display: flex; gap: 10px; max-width: 400px; margin: 0 auto; flex-wrap: wrap;">
 <input type="email" id="email-capture" placeholder="Enter your email address" style="flex: 1; min-width: 250px; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; background: var(--card-bg); color: var(--text-primary);">
-<button onclick="captureEmail()" style="background: #22c55e; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap;">Enter to Win!</button>
+<button onclick="captureEmail()" style="background: #22c55e; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap;">Join the List</button>
 </div>
-<p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-secondary);">No spam • Unsubscribe anytime</p>
+<p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-secondary);">No spam • Unsubscribe anytime • General information only, not financial advice</p>
 </section>
 
 <section class="problem-solution">
@@ -3641,7 +3640,7 @@ button.textContent = '✅ Subscribed!';
 button.style.background = '#22c55e';
 
 // Show success message
-alert(result.message || 'Successfully subscribed to daily market alerts!');
+alert(result.message || "You're on the list!");
 
 // Reset button after 3 seconds
 setTimeout(() => {
