@@ -3423,11 +3423,14 @@ async function saveAnalysisToHistory(result, subOption, option) {
 // neutral signal labels (the same ones the public stock pages use).
 function signalLabel(code) {
     const labels = {
-        'STRONG BUY': 'Strongly positive', 'BUY': 'Positive', 'CONSIDER': 'Slightly positive',
-        'HOLD': 'Mixed', 'AVOID': 'Slightly negative', 'SELL': 'Negative', 'STRONG SELL': 'Strongly negative'
+        'STRONG BUY': 'Strongly positive', 'BUY': 'Positive', 'MODERATE BUY': 'Slightly positive', 'CONSIDER': 'Slightly positive',
+        'HOLD': 'Mixed', 'NEUTRAL': 'Mixed',
+        'MODERATE SELL': 'Slightly negative', 'AVOID': 'Slightly negative', 'SELL': 'Negative', 'STRONG SELL': 'Strongly negative'
     };
+    // Stock workers use underscores (STRONG_BUY, MODERATE_BUY ...), crypto workers use spaces
     const key = String(code || 'HOLD').replace(/_/g, ' ').trim().toUpperCase();
-    return labels[key] || 'Mixed';
+    // An unknown code is shown as "Unrated" rather than guessed
+    return labels[key] || 'Unrated';
 }
 
 // The model's holding-period codes describe a time horizon; show them as that, not as instructions.
