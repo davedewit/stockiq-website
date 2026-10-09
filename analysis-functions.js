@@ -59,9 +59,9 @@ function generateCryptoCSVExport(results, filename) {
     
     try {
         const headers = [
-            'Rank', 'Symbol', 'Price', 'Score', 'Recommendation', 'Timeframe', 'Confidence',
-            'RSI', '24h_Change_%', '7d_Change_%', '30d_Change_%', 'Volume_Ratio', 'Profit_Probability_%',
-            'MACD_Signal', 'BB_Signal', 'Momentum_Signal', 'Stop_Loss', 'Take_Profit', 
+            'Rank', 'Symbol', 'Price', 'Score', 'Signal', 'Timeframe', 'Confidence',
+            'RSI', '24h_Change_%', '7d_Change_%', '30d_Change_%', 'Volume_Ratio', 'Model_Probability_%',
+            'MACD_Signal', 'BB_Signal', 'Momentum_Signal', 'Lower_Level', 'Upper_Level', 
             'Support', 'Resistance', 'ATR', 'Stoch_K', 'MACD_Trend', 'Prediction_Status'
         ];
         
@@ -73,8 +73,8 @@ function generateCryptoCSVExport(results, filename) {
                 coin.symbol || 'N/A',
                 (coin.price || 0).toFixed(8),
                 coin.score || 0,
-                coin.recommendation || 'HOLD',
-                coin.timeframe || 'N/A',
+                signalLabel(coin.recommendation),
+                horizonLabel(coin.timeframe),
                 coin.confidence || 'LOW',
                 (coin.rsi || 50).toFixed(1),
                 (coin.change_24h || 0).toFixed(2),
@@ -124,7 +124,7 @@ function generateExcelExport(results, filename) {
     }
     
     const headers = [
-        'Rank', 'Symbol', 'Price', 'Score', 'Recommendation', 'Support', 'Resistance', 'Stop_Loss', 'Take_Profit', 'Profit_Probability_%', 'Strategy_Type', 'Hold_Days', 'Timeframe', 'Confidence_%',
+        'Rank', 'Symbol', 'Price', 'Score', 'Signal', 'Support', 'Resistance', 'Lower_Level', 'Upper_Level', 'Model_Probability_%', 'Horizon', 'Horizon_Days', 'Timeframe', 'Confidence_%',
         '24h_Change_%', '5d_Change_%', '7d_Change_%', '10d_Change_%', '30d_Change_%', '90d_Change_%', '200d_Change_%', 'YTD_Change_%',
         'RSI', 'MACD_Signal', 'BB_Signal', 'Momentum_Signal', 'Volume_Ratio', 'Stoch_K', 'ATR',
         'Price_vs_MA20_%', 'Price_vs_MA50_%', 'Price_vs_MA200_%',
@@ -141,15 +141,15 @@ function generateExcelExport(results, filename) {
             stock.symbol || 'N/A',
             (stock.price || 0).toFixed(2),
             stock.total_score || 0,
-            `"${stock.recommendation || 'HOLD'}"`,
+            `"${signalLabel(stock.recommendation)}"`,
             (stock.support || 0).toFixed(2),
             (stock.resistance || 0).toFixed(2),
             (stock.stop_loss || 0).toFixed(2),
             (stock.take_profit || 0).toFixed(2),
             (stock.profit_probability || 50).toFixed(0),
-            `"${stock.strategy_type || 'N/A'}"`,
+            `"${horizonLabel(stock.strategy_type)}"`,
             stock.hold_days || 'N/A',
-            `"${stock.timeframe || 'N/A'}"`,
+            `"${horizonLabel(stock.timeframe)}"`,
             (stock.confidence || 50).toFixed(0),
             (stock.change_pct || 0).toFixed(2),
             (stock.change_5d || 0).toFixed(2),
@@ -2599,7 +2599,7 @@ Analysis Date: ${new Date().toLocaleString()}
             
             if (allResults && allResults.length > 0) {
                 const topCount = Math.min(10, allResults.length);
-                output += `🟢 TOP ${topCount} BUY OPPORTUNITIES:\n`;
+                output += `🟢 TOP ${topCount} BY SCORE:\n`;
                 allResults.slice(0, topCount).forEach((stock, i) => {
                     const symbol = (stock.symbol || 'N/A').padEnd(8);
                     const price = `£${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(8);
@@ -2613,7 +2613,7 @@ Analysis Date: ${new Date().toLocaleString()}
                 output += '\n</pre><div style="margin: 20px 0; padding: 15px; background: var(--card-bg); border-radius: 8px; text-align: center; font-size: 1rem;">📊 Showing top 10 results. For the complete screener report, download from your <a href="dashboard.html" style="color: #007bff; text-decoration: underline; cursor: pointer;">dashboard</a>.</div><pre style="white-space: pre-wrap; font-family: monospace;">\n🎯 TOP 3 DETAILED ANALYSIS:\n';
                 output += '================================================================\n';
                 allResults.slice(0, 3).forEach((stock, i) => {
-                    output += `${i+1}. ${stock.symbol}: £${(stock.price || 0).toFixed(2)} | ${stock.recommendation || 'HOLD'} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+                    output += `${i+1}. ${stock.symbol}: £${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
                     
                     if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                         output += '   📊 Score Breakdown:\n';
@@ -2624,8 +2624,8 @@ Analysis Date: ${new Date().toLocaleString()}
                     
                     output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
                     output += `   💰 Levels: Support £${(stock.support || 0).toFixed(2)} | Resistance £${(stock.resistance || 0).toFixed(2)}\n`;
-                    output += `   🎯 Targets: Stop £${(stock.stop_loss || 0).toFixed(2)} | Take Profit £${(stock.take_profit || 0).toFixed(2)}\n`;
-                    output += `   📊 Strategy: ${stock.strategy_type || 'N/A'} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
+                    output += `   📏 Reference levels: Lower £${(stock.stop_loss || 0).toFixed(2)} | Upper £${(stock.take_profit || 0).toFixed(2)}\n`;
+                    output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
                 });
                 
                 const positiveStocks = allResults.filter(s => (s.total_score || s.score || 0) > 0).length;
@@ -2939,7 +2939,7 @@ Analysis Date: ${apiData.timestamp}
 `;
             output += `   Daily Change: $${stock.daily_change.toFixed(2)} (${stock.daily_change_pct.toFixed(2)}%)
 `;
-            output += `   Recommendation: ${stock.recommendation}
+            output += `   Signal: ${signalLabel(stock.recommendation)}
 `;
             output += `   Technical Score: ${stock.technical_score}/10
 `;
@@ -3418,6 +3418,30 @@ async function saveAnalysisToHistory(result, subOption, option) {
     }
 }
 
+// Display wording for model output codes. StockIQ gives general information, not advice,
+// so codes such as BUY / SELL are used internally but never shown: they are mapped to
+// neutral signal labels (the same ones the public stock pages use).
+function signalLabel(code) {
+    const labels = {
+        'STRONG BUY': 'Strongly positive', 'BUY': 'Positive', 'CONSIDER': 'Slightly positive',
+        'HOLD': 'Mixed', 'AVOID': 'Slightly negative', 'SELL': 'Negative', 'STRONG SELL': 'Strongly negative'
+    };
+    const key = String(code || 'HOLD').replace(/_/g, ' ').trim().toUpperCase();
+    return labels[key] || 'Mixed';
+}
+
+// The model's holding-period codes describe a time horizon; show them as that, not as instructions.
+function horizonLabel(code) {
+    const labels = {
+        'IMMEDIATE': 'Very short term', 'SHORT_TERM': 'Short term', 'SHORT-TERM': 'Short term',
+        'MEDIUM_TERM': 'Medium term', 'MEDIUM-TERM': 'Medium term', 'LONG_TERM': 'Long term', 'LONG-TERM': 'Long term',
+        'DAY TRADE': 'Intraday', 'HOLD': 'n/a', 'AVOID': 'n/a'
+    };
+    const raw = String(code || '').trim();
+    if (!raw || raw === 'N/A') return 'n/a';
+    return labels[raw.toUpperCase()] || raw;
+}
+
 function formatOption2Result(apiData) {
     const signals = apiData.signals;
     let output = `
@@ -3428,16 +3452,21 @@ function formatOption2Result(apiData) {
 Signals Generated: ${apiData.symbols_analyzed}
 Analysis Date: ${new Date(apiData.timestamp).toLocaleString()}
 
-🎯 REAL-TIME TRADING SIGNALS:
+🎯 TRADING SIGNALS:
+ℹ️ General information only. Signals and levels are calculated automatically and are not recommendations to buy or sell.
 
 `;
     signals.forEach((signal, i) => {
         const actionEmoji = signal.action === 'BUY' ? '🟢' : signal.action === 'SELL' ? '🔴' : '⚪';
         output += `${i + 1}. ${signal.symbol} - $${signal.current_price.toFixed(2)}\n`;
-        output += `   ${actionEmoji} ${signal.action} SIGNAL (${signal.confidence} Confidence)\n`;
-        output += `   📍 Entry: $${signal.entry_price.toFixed(2)}\n`;
-        output += `   🎯 Target: $${signal.take_profit.toFixed(2)} (${signal.take_profit_pct.toFixed(1)}%)\n`;
-        output += `   🛑 Stop: $${signal.stop_loss.toFixed(2)} (${signal.stop_loss_pct.toFixed(1)}%)\n\n`;
+        // The two calculated levels sit either side of the price; which one is higher depends on the signal
+        const tpIsUpper = signal.take_profit >= signal.stop_loss;
+        const upper = tpIsUpper ? [signal.take_profit, signal.take_profit_pct] : [signal.stop_loss, signal.stop_loss_pct];
+        const lower = tpIsUpper ? [signal.stop_loss, signal.stop_loss_pct] : [signal.take_profit, signal.take_profit_pct];
+        output += `   ${actionEmoji} ${signalLabel(signal.action)} signal (${signal.confidence} confidence)\n`;
+        output += `   📍 Price when calculated: $${signal.entry_price.toFixed(2)}\n`;
+        output += `   📏 Upper reference level: $${upper[0].toFixed(2)} (${upper[1] >= 0 ? '+' : ''}${upper[1].toFixed(1)}%)\n`;
+        output += `   📏 Lower reference level: $${lower[0].toFixed(2)} (${lower[1] >= 0 ? '+' : ''}${lower[1].toFixed(1)}%)\n\n`;
     });
     return { type: 'option_21_custom_signals', data: output };
 }
@@ -3453,15 +3482,16 @@ Methodology: ${apiData.methodology}
 Top Performers Found: ${apiData.top_performers.join(', ')}
 Signals Generated: ${apiData.symbols_analyzed}
 
-🎯 REAL-TIME TRADING SIGNALS FOR TOP PERFORMERS:
+🎯 TRADING SIGNALS FOR TOP PERFORMERS:
+ℹ️ General information only. Signals and levels are calculated automatically and are not recommendations to buy or sell.
 
 `;
     signals.forEach((signal, i) => {
         const actionEmoji = signal.action === 'BUY' ? '🟢' : signal.action === 'SELL' ? '🔴' : '⚪';
         output += `${i + 1}. ${signal.symbol} - $${signal.current_price.toFixed(2)}\n`;
-        output += `   ${actionEmoji} ${signal.action} SIGNAL (${signal.confidence} Confidence)\n`;
-        output += `   📍 Entry: $${signal.entry_price.toFixed(2)}\n`;
-        output += `   🎯 Target: $${signal.take_profit.toFixed(2)} (${signal.take_profit_pct.toFixed(1)}%)\n\n`;
+        output += `   ${actionEmoji} ${signalLabel(signal.action)} signal (${signal.confidence} confidence)\n`;
+        output += `   📍 Price when calculated: $${signal.entry_price.toFixed(2)}\n`;
+        output += `   📏 Reference level: $${signal.take_profit.toFixed(2)} (${signal.take_profit_pct >= 0 ? '+' : ''}${signal.take_profit_pct.toFixed(1)}%)\n\n`;
     });
     return { type: 'option_22_auto_signals', data: output };
 }
@@ -3485,7 +3515,7 @@ Analysis Date: ${new Date().toLocaleString()}
     if (apiData.results && apiData.results.length > 0) {
         const sortedResults = [...apiData.results].sort((a, b) => (b.total_score || b.score || 0) - (a.total_score || a.score || 0));
         
-        output += '🟢 TOP 10 BUY OPPORTUNITIES:\n';
+        output += '🟢 TOP 10 BY SCORE:\n';
         sortedResults.slice(0, 10).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(5);
             const price = `$${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(8);
@@ -3502,7 +3532,7 @@ Analysis Date: ${new Date().toLocaleString()}
             output += '\n🎯 TOP 3 DETAILED ANALYSIS:\n';
             output += '================================================================\n';
             sortedResults.slice(0, 3).forEach((stock, i) => {
-                output += `${i+1}. ${stock.symbol}: $${(stock.price || 0).toFixed(2)} | ${stock.recommendation || 'HOLD'} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+                output += `${i+1}. ${stock.symbol}: $${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
                 
                 if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                     output += '   📊 Score Breakdown:\n';
@@ -3513,8 +3543,8 @@ Analysis Date: ${new Date().toLocaleString()}
                 
                 output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
                 output += `   💰 Levels: Support $${(stock.support || 0).toFixed(2)} | Resistance $${(stock.resistance || 0).toFixed(2)}\n`;
-                output += `   🎯 Targets: Stop $${(stock.stop_loss || 0).toFixed(2)} | Take Profit $${(stock.take_profit || 0).toFixed(2)}\n`;
-                output += `   📊 Strategy: ${stock.strategy_type || 'N/A'} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
+                output += `   📏 Reference levels: Lower $${(stock.stop_loss || 0).toFixed(2)} | Upper $${(stock.take_profit || 0).toFixed(2)}\n`;
+                output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
             });
         }
         
@@ -3554,13 +3584,13 @@ Analysis Date: ${new Date().toLocaleString()}
     if (results && results.length > 0) {
         const sortedResults = [...results].sort((a, b) => (b.score || 0) - (a.score || 0));
         
-        output += '🔥 TOP 10 CRYPTO OPPORTUNITIES:\n';
+        output += '🔥 TOP 10 CRYPTO BY SCORE:\n';
         sortedResults.slice(0, 10).forEach((coin, i) => {
             const symbol = (coin.symbol || 'N/A').padEnd(8);
             const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            const recommendation = coin.recommendation || 'HOLD';
+            const recommendation = signalLabel(coin.recommendation);
             const score = coin.score >= 0 ? `+${coin.score}` : `${coin.score}`;
-            output += `${(i+1).toString().padStart(2)}. ${symbol} ${price.padStart(12)} | ${recommendation.padEnd(10)} | Score: ${score}\n`;
+            output += `${(i+1).toString().padStart(2)}. ${symbol} ${price.padStart(12)} | ${recommendation.padEnd(17)} | Score: ${score}\n`;
         });
         
         output += '\n';
@@ -3570,7 +3600,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '==================================================\n';
         sortedResults.slice(0, 5).forEach((coin, i) => {
             const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            output += `${i+1}. ${coin.symbol.toUpperCase()}: ${price} | ${coin.recommendation} | ${coin.timeframe || 'N/A'} | Score: ${coin.score >= 0 ? '+' : ''}${coin.score}\n`;
+            output += `${i+1}. ${coin.symbol.toUpperCase()}: ${price} | ${signalLabel(coin.recommendation)} | ${horizonLabel(coin.timeframe)} | Score: ${coin.score >= 0 ? '+' : ''}${coin.score}\n`;
             output += '\n';
             
             // Performance section
@@ -3592,7 +3622,7 @@ Analysis Date: ${new Date().toLocaleString()}
             if (coin.confidence || coin.profit_probability) {
                 output += '🔄 Confidence:\n';
                 if (coin.confidence) output += `   Confidence: ${coin.confidence}\n`;
-                if (coin.profit_probability) output += `   Profit Probability: ${coin.profit_probability.toFixed(0)}%\n`;
+                if (coin.profit_probability) output += `   Model probability estimate: ${coin.profit_probability.toFixed(0)}%\n`;
                 output += '\n';
             }
             
@@ -3609,16 +3639,16 @@ Analysis Date: ${new Date().toLocaleString()}
             if (coin.stop_loss && coin.take_profit) {
                 const stopStr = coin.stop_loss >= 1 ? `$${coin.stop_loss.toFixed(2)}` : `$${coin.stop_loss.toFixed(6)}`;
                 const tpStr = coin.take_profit >= 1 ? `$${coin.take_profit.toFixed(2)}` : `$${coin.take_profit.toFixed(6)}`;
-                output += '🛑 Risk Management:\n';
-                output += `   Stop Loss: ${stopStr}\n`;
-                output += `   Take Profit: ${tpStr}\n`;
+                output += '📏 Reference levels (calculated automatically, not instructions):\n';
+                output += `   Lower reference level: ${stopStr}\n`;
+                output += `   Upper reference level: ${tpStr}\n`;
                 if (coin.buy_limit) {
                     const buyLimitStr = coin.buy_limit >= 1 ? `$${coin.buy_limit.toFixed(2)}` : `$${coin.buy_limit.toFixed(6)}`;
-                    output += `   Buy Limit: ${buyLimitStr}\n`;
+                    output += `   Pullback level: ${buyLimitStr}\n`;
                 }
                 if (coin.buy_stop) {
                     const buyStopStr = coin.buy_stop >= 1 ? `$${coin.buy_stop.toFixed(2)}` : `$${coin.buy_stop.toFixed(6)}`;
-                    output += `   Buy Stop: ${buyStopStr}\n`;
+                    output += `   Breakout level: ${buyStopStr}\n`;
                 }
                 if (coin.support && coin.resistance) {
                     const supportStr = coin.support >= 1 ? `$${coin.support.toFixed(2)}` : `$${coin.support.toFixed(6)}`;
@@ -3640,13 +3670,13 @@ Analysis Date: ${new Date().toLocaleString()}
                 });
                 output += `\n🧮 Total Score: ${coin.score >= 0 ? '+' : ''}${coin.score}\n\n`;
                 output += '📊 SCORE RANGES:\n';
-                output += '   +7 and above: STRONG BUY\n';
-                output += '   +4 to +6: BUY\n';
-                output += '   +2 to +3: CONSIDER\n';
-                output += '   -1 to +1: HOLD\n';
-                output += '   -3 to -2: AVOID\n';
-                output += '   -5 to -4: SELL\n';
-                output += '   Below -5: STRONG SELL\n';
+                output += '   +7 and above: Strongly positive\n';
+                output += '   +4 to +6: Positive\n';
+                output += '   +2 to +3: Slightly positive\n';
+                output += '   -1 to +1: Mixed\n';
+                output += '   -3 to -2: Slightly negative\n';
+                output += '   -5 to -4: Negative\n';
+                output += '   Below -5: Strongly negative\n';
             }
             
             output += '\n' + '-'.repeat(50) + '\n\n';
@@ -3658,8 +3688,7 @@ Analysis Date: ${new Date().toLocaleString()}
         
         output += '📊 MARKET OVERVIEW\n';
         output += '==============================\n';
-        output += `Strong Buys: 0 | Buys: ${buyRecommendations} | Consider: ${holdRecommendations}\n`;
-        output += `Holds: ${holdRecommendations} | Avoid/Sell: ${avoidRecommendations}\n`;
+        output += `Positive signals: ${buyRecommendations} | Mixed: ${holdRecommendations} | Negative: ${avoidRecommendations}\n`;
         const marketSentiment = buyRecommendations > avoidRecommendations ? 'BULLISH' : avoidRecommendations > buyRecommendations ? 'BEARISH' : 'NEUTRAL';
         output += `Market Sentiment: ${marketSentiment}\n\n`;
         
@@ -3669,7 +3698,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '==============================\n';
         bestPerformers.forEach((coin, i) => {
             const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            output += `${i+1}. ${coin.symbol.toUpperCase().padEnd(12)} ${(coin.change_7d || 0) >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(1)}% (${price}) - ${coin.recommendation}\n`;
+            output += `${i+1}. ${coin.symbol.toUpperCase().padEnd(12)} ${(coin.change_7d || 0) >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(1)}% (${price}) - ${signalLabel(coin.recommendation)}\n`;
         });
         output += '\n';
         
@@ -3679,7 +3708,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '==============================\n';
         worstPerformers.forEach((coin, i) => {
             const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            output += `${i+1}. ${coin.symbol.toUpperCase().padEnd(12)} ${(coin.change_7d || 0) >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(1)}% (${price}) - ${coin.recommendation}\n`;
+            output += `${i+1}. ${coin.symbol.toUpperCase().padEnd(12)} ${(coin.change_7d || 0) >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(1)}% (${price}) - ${signalLabel(coin.recommendation)}\n`;
         });
         output += '\n';
         
@@ -3695,22 +3724,23 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '• Momentum (5d/10d) - Short-term trend strength\n\n';
         
         // Top 5 recommendations table
-        output += '🎯 TOP 5 BUY RECOMMENDATIONS (PROFIT OPTIMIZED)\n';
+        output += '🎯 TOP 5 BY SCORE\n';
         output += '=================================================================\n';
-        output += `${'#'.padEnd(3)} ${'COIN'.padEnd(6)} ${'PRICE'.padEnd(10)} ${'STOP LOSS'.padEnd(10)} ${'TAKE PROFIT'.padEnd(12)} ${'REC'.padEnd(10)}\n`;
+        output += `${'#'.padEnd(3)} ${'COIN'.padEnd(6)} ${'PRICE'.padEnd(10)} ${'LOWER LVL'.padEnd(10)} ${'UPPER LVL'.padEnd(12)} ${'SIGNAL'.padEnd(10)}\n`;
         output += '-----------------------------------------------------------------\n';
         sortedResults.slice(0, 5).forEach((coin, i) => {
             const priceStr = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(4)}`;
             const stopStr = coin.stop_loss >= 1 ? `$${coin.stop_loss.toFixed(2)}` : `$${coin.stop_loss.toFixed(4)}`;
             const tpStr = coin.take_profit >= 1 ? `$${coin.take_profit.toFixed(2)}` : `$${coin.take_profit.toFixed(4)}`;
-            output += `${(i+1).toString().padEnd(3)} ${coin.symbol.toUpperCase().padEnd(6)} ${priceStr.padEnd(10)} ${stopStr.padEnd(10)} ${tpStr.padEnd(12)} ${coin.recommendation.padEnd(10)}\n`;
+            output += `${(i+1).toString().padEnd(3)} ${coin.symbol.toUpperCase().padEnd(6)} ${priceStr.padEnd(10)} ${stopStr.padEnd(10)} ${tpStr.padEnd(12)} ${signalLabel(coin.recommendation)}\n`;
         });
         output += '\n';
         
         // Disclaimer
         output += '⚠️ DISCLAIMER\n';
         output += '==============================\n';
-        output += 'This analysis is for educational purposes only.\n';
+        output += 'This analysis is automated, general information only. It is not financial advice\n';
+        output += 'and not a recommendation to buy or sell. StockIQ is not a licensed financial adviser.\n';
         output += 'Always do your own research before investing.\n';
         output += 'Cryptocurrency trading involves significant risk.\n\n';
         
@@ -3721,9 +3751,9 @@ Analysis Date: ${new Date().toLocaleString()}
                 output += `• Worker ${worker.worker}: ${worker.coins} coins\n`;
             });
         }
-        output += `• Buy recommendations: ${buyRecommendations}\n`;
-        output += `• Hold recommendations: ${holdRecommendations}\n`;
-        output += `• Avoid recommendations: ${avoidRecommendations}\n`;
+        output += `• Positive signals: ${buyRecommendations}\n`;
+        output += `• Mixed signals: ${holdRecommendations}\n`;
+        output += `• Negative signals: ${avoidRecommendations}\n`;
         output += `• Processing time: ${processingTime.toFixed(2)} seconds\n`;
     } else {
         output += 'No results available\n';
@@ -3756,13 +3786,13 @@ Analysis Date: ${new Date().toLocaleString()}
 `;
         output += `Price: ${price} USD
 `;
-        output += `Recommendation: ${coin.recommendation || 'HOLD'}
+        output += `Signal: ${signalLabel(coin.recommendation)}
 `;
         output += `Score: ${coin.score >= 0 ? '+' : ''}${coin.score || 0}
 `;
         output += `Confidence: ${coin.confidence || 'LOW'}
 `;
-        output += `Timeframe: ${coin.timeframe || 'N/A'}
+        output += `Horizon: ${horizonLabel(coin.timeframe)}
 
 `;
         
@@ -3795,7 +3825,7 @@ Analysis Date: ${new Date().toLocaleString()}
 `;
         output += `Confidence: ${coin.confidence || 'LOW'}
 `;
-        output += `Profit Probability: ${(coin.profit_probability || 50).toFixed(0)}%
+        output += `Model probability estimate: ${(coin.profit_probability || 50).toFixed(0)}%
 
 `;
         
@@ -3805,17 +3835,17 @@ Analysis Date: ${new Date().toLocaleString()}
             const supportStr = coin.support >= 1 ? `$${coin.support.toFixed(2)}` : `$${coin.support.toFixed(8)}`;
             const resistanceStr = coin.resistance >= 1 ? `$${coin.resistance.toFixed(2)}` : `$${coin.resistance.toFixed(8)}`;
             
-            output += `🛑 RISK MANAGEMENT:
+            output += `📏 REFERENCE LEVELS (calculated automatically, not instructions):
 `;
-            output += `Stop Loss: ${stopStr}
+            output += `Lower reference level: ${stopStr}
 `;
-            output += `Take Profit: ${tpStr}
+            output += `Upper reference level: ${tpStr}
 `;
             output += `Support Level: ${supportStr}
 `;
             output += `Resistance Level: ${resistanceStr}
 `;
-            output += `Profit Probability: ${(coin.profit_probability || 50).toFixed(0)}%
+            output += `Model probability estimate: ${(coin.profit_probability || 50).toFixed(0)}%
 
 `;
         }
@@ -3864,19 +3894,19 @@ Analysis Date: ${new Date().toLocaleString()}
 `;
             output += `📊 SCORE RANGES:
 `;
-            output += `   +7 and above: STRONG BUY
+            output += `   +7 and above: Strongly positive
 `;
-            output += `   +4 to +6: BUY
+            output += `   +4 to +6: Positive
 `;
-            output += `   +2 to +3: CONSIDER
+            output += `   +2 to +3: Slightly positive
 `;
-            output += `   -1 to +1: HOLD
+            output += `   -1 to +1: Mixed
 `;
-            output += `   -3 to -2: AVOID
+            output += `   -3 to -2: Slightly negative
 `;
-            output += `   -5 to -4: SELL
+            output += `   -5 to -4: Negative
 `;
-            output += `   Below -5: STRONG SELL
+            output += `   Below -5: Strongly negative
 `;
         }
     } else {
@@ -3917,7 +3947,7 @@ Analysis Date: ${new Date().toLocaleString()}
         const sortedResults = [...apiData.results].sort((a, b) => (b.total_score || b.score || 0) - (a.total_score || a.score || 0));
         
         const topCount = Math.min(10, sortedResults.length);
-        output += `🟢 TOP ${topCount} BUY OPPORTUNITIES:\n`;
+        output += `🟢 TOP ${topCount} BY SCORE:\n`;
         sortedResults.slice(0, topCount).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(8);
             const price = `$AUD${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(10);
@@ -3934,7 +3964,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '\n🎯 TOP 3 DETAILED ANALYSIS:\n';
         output += '================================================================\n';
         sortedResults.slice(0, 3).forEach((stock, i) => {
-            output += `${i+1}. ${stock.symbol}: $AUD${(stock.price || 0).toFixed(2)} | ${stock.recommendation || 'HOLD'} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+            output += `${i+1}. ${stock.symbol}: $AUD${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
             
             if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                 output += '   📊 Score Breakdown:\n';
@@ -3945,8 +3975,8 @@ Analysis Date: ${new Date().toLocaleString()}
             
             output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
             output += `   💰 Levels: Support $AUD${(stock.support || 0).toFixed(2)} | Resistance $AUD${(stock.resistance || 0).toFixed(2)}\n`;
-            output += `   🎯 Targets: Stop $AUD${(stock.stop_loss || 0).toFixed(2)} | Take Profit $AUD${(stock.take_profit || 0).toFixed(2)}\n`;
-            output += `   📊 Strategy: ${stock.strategy_type || 'N/A'} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
+            output += `   📏 Reference levels: Lower $AUD${(stock.stop_loss || 0).toFixed(2)} | Upper $AUD${(stock.take_profit || 0).toFixed(2)}\n`;
+            output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
         });
         
         const positiveStocks = sortedResults.filter(s => (s.total_score || s.score || 0) > 0).length;
@@ -4794,7 +4824,7 @@ Market Type: London Stock Exchange
 Universe Size: ${data.results.length}
 Analysis Date: ${new Date().toLocaleString()}
 
-🟢 TOP ${Math.min(10, data.results.length)} BUY OPPORTUNITIES:
+🟢 TOP ${Math.min(10, data.results.length)} BY SCORE:
 
 `;
             
@@ -4812,7 +4842,7 @@ Analysis Date: ${new Date().toLocaleString()}
             
             output += '🎯 TOP 3 DETAILED ANALYSIS:\n';
             sortedResults.slice(0, 3).forEach((stock, i) => {
-                output += `${stock.symbol}: £${(stock.price || 0).toFixed(2)} | ${stock.recommendation || 'HOLD'} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+                output += `${stock.symbol}: £${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
                 
                 if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                     output += '📊 Score Breakdown:\n';
@@ -4823,8 +4853,8 @@ Analysis Date: ${new Date().toLocaleString()}
                 
                 output += `📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'BULLISH'}\n`;
                 output += `💰 Levels: Support £${(stock.support || 0).toFixed(2)} | Resistance £${(stock.resistance || 0).toFixed(2)}\n`;
-                output += `🎯 Targets: Stop £${(stock.stop_loss || 0).toFixed(2)} | Take Profit £${(stock.take_profit || 0).toFixed(2)}\n`;
-                output += `📊 Strategy: ${stock.strategy_type || 'SHORT_TERM'} | Confidence: ${(stock.confidence || 70).toFixed(0)}%\n\n`;
+                output += `📏 Reference levels: Lower £${(stock.stop_loss || 0).toFixed(2)} | Upper £${(stock.take_profit || 0).toFixed(2)}\n`;
+                output += `📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 70).toFixed(0)}%\n\n`;
             });
             
             const positiveStocks = sortedResults.filter(s => (s.total_score || s.score || 0) > 0).length;
@@ -4934,7 +4964,7 @@ Analysis Date: ${new Date().toLocaleString()}
     if (apiData.results && apiData.results.length > 0) {
         const sortedResults = [...apiData.results].sort((a, b) => (b.total_score || b.score || 0) - (a.total_score || a.score || 0));
         const topCount = Math.min(10, sortedResults.length);
-        output += `🟢 TOP ${topCount} BUY OPPORTUNITIES:\n`;
+        output += `🟢 TOP ${topCount} BY SCORE:\n`;
         sortedResults.slice(0, topCount).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(8);
             const name = NIKKEI_COMPANY_NAMES[stock.symbol] || stock.symbol;
@@ -4952,7 +4982,7 @@ Analysis Date: ${new Date().toLocaleString()}
         sortedResults.slice(0, 3).forEach((stock, i) => {
             const priceVal = stock.price || 0;
             const scoreVal = stock.total_score || stock.score || 0;
-            output += `${i+1}. ${stock.symbol}: \u00A5${priceVal.toFixed(0)} | ${stock.recommendation || 'HOLD'} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
+            output += `${i+1}. ${stock.symbol}: \u00A5${priceVal.toFixed(0)} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
             if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                 output += '   📊 Score Breakdown:\n';
                 stock.score_breakdown.forEach(breakdown => {
@@ -4961,8 +4991,8 @@ Analysis Date: ${new Date().toLocaleString()}
             }
             output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
             output += `   💰 Levels: Support \u00A5${(stock.support || 0).toFixed(0)} | Resistance \u00A5${(stock.resistance || 0).toFixed(0)}\n`;
-            output += `   🎯 Targets: Stop \u00A5${(stock.stop_loss || 0).toFixed(0)} | Take Profit \u00A5${(stock.take_profit || 0).toFixed(0)}\n`;
-            output += `   📊 Strategy: ${stock.strategy_type || 'N/A'} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
+            output += `   📏 Reference levels: Lower \u00A5${(stock.stop_loss || 0).toFixed(0)} | Upper \u00A5${(stock.take_profit || 0).toFixed(0)}\n`;
+            output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
         });
         const positiveStocks = sortedResults.filter(s => (s.total_score || s.score || 0) > 0).length;
         const negativeStocks = sortedResults.filter(s => (s.total_score || s.score || 0) < 0).length;
@@ -5003,11 +5033,11 @@ Currency: GBP (£)
         const price = stock.price ? `£${stock.price.toFixed(2)}` : 'N/A';
         const change = stock.change_pct ? `${stock.change_pct > 0 ? '+' : ''}${stock.change_pct.toFixed(2)}%` : 'N/A';
         const score = stock.total_score || stock.score || 0;
-        const recommendation = stock.recommendation || 'HOLD';
+        const recommendation = signalLabel(stock.recommendation);
         
         output += `${i + 1}. ${symbol}\n`;
         output += `   Price: ${price} | Change: ${change}\n`;
-        output += `   Score: ${score}/100 | Recommendation: ${recommendation}\n`;
+        output += `   Score: ${score}/100 | Signal: ${recommendation}\n`;
         
         if (stock.support && stock.resistance) {
             output += `   Support: £${stock.support.toFixed(2)} | Resistance: £${stock.resistance.toFixed(2)}\n`;
