@@ -53,7 +53,7 @@
                     <div style="background: var(--bg-primary, #fff); padding: 12px 14px; border-radius: 10px; font-size: 14px; color: var(--text-primary, #333); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         👋 Hi! I'm your AI stock assistant. Ask me questions like:
                         <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">
-                            <li>Should I buy AAPL?</li>
+                            <li>What does the data say about AAPL?</li>
                             <li>How does your S&P 500 screener work?</li>
                             <li>Where can I analyze crypto?</li>
                         </ul>
@@ -176,7 +176,7 @@
             let questions = [];
             if (ctx.page === 'stock') {
                 questions = [
-                    `Should I buy ${ctx.symbol}?`,
+                    `What does the data say about ${ctx.symbol}?`,
                     `What's the outlook for ${ctx.symbol}?`,
                     `Give me other stocks like ${ctx.symbol}`
                 ];
@@ -185,7 +185,7 @@
             } else if (ctx.page === 'dashboard') {
                 questions = ['How do I track performance?', 'What do the scores mean?', 'How do I export my data?'];
             } else {
-                questions = ['Should I buy Apple stock?', 'How does the S&P 500 screener work?', 'What can you help me with?'];
+                questions = ['What does the data say about Apple stock?', 'How does the S&P 500 screener work?', 'What can you help me with?'];
             }
             welcomeEl.innerHTML = `👋 Hey! I can help with stocks and investing. Try asking:<ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">${questions.map(q => `<li>${q}</li>`).join('')}</ul>`;
         }
