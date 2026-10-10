@@ -3610,9 +3610,9 @@ ${analysis.report}
                 // If no matches, try stock format: "1. LKE.AX $AUD0.10 | Score" or "1. HSBA.L £1394.00" or "1. 8035.T ¥12345"
                 // Also handles Nikkei format with company name: "1. 8035.T   Tokyo Electron    ¥12345"
                 if (symbols.length === 0) {
-                    listPattern = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,30}?[$£€¥]([A-Z]*[0-9.]+)/gm) || [];
+                    listPattern = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/gm) || [];
                     listPattern.slice(0, 10).forEach(m => {
-                        const match = m.match(/([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,30}?[$£€¥]([A-Z]*[0-9.]+)/);
+                        const match = m.match(/([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/);
                         if (match) {
                             const symbol = match[1];
                             const priceStr = match[2].replace(/[A-Z]+/, '');
