@@ -3463,6 +3463,17 @@ ${analysis.report}
             }
         }
         
+        function parseCryptoTickers(report) {
+            // "data-top10-tickers='IMX:IMX10603,BTW:BTW39158'" on the report's wrapper -> { 'IMX-USD': 'IMX10603-USD', ... }
+            const map = {};
+            const found = String(report || '').match(/data-top10-tickers='([^']*)'/);
+            if (found) found[1].split(',').forEach(pair => {
+                const [symbol, ticker] = pair.split(':');
+                if (symbol && ticker) map[symbol + '-USD'] = ticker + '-USD';
+            });
+            return map;
+        }
+
         async function updateScreenerAvgChange(analysisId, timestamp) {
             // Update avgChange without showing modal
             try {
@@ -3479,6 +3490,8 @@ ${analysis.report}
                 if (!data.analysis?.report) return;
                 
                 const report = data.analysis.report;
+                // Crypto reports record the price-source ticker of each top-10 coin (many coins share a symbol: IMX is IMX10603)
+                const cryptoTickers = parseCryptoTickers(report);
                 const plainText = report.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ');
                 
                 let listPattern = plainText.match(/\d+\.\s+\S+\s+([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/g) || [];
@@ -3518,7 +3531,7 @@ ${analysis.report}
                 if (isCrypto) symbols = symbols.map(s => s.includes('-') ? s : s + '-USD');
                 
                 const pricePromises = symbols.map(symbol => 
-                    fetch('https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=' + symbol)
+                    fetch('https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=' + (cryptoTickers[symbol] || symbol))
                         .then(r => r.json())
                         .then(d => ({ symbol, data: d }))
                         .catch(() => ({ symbol, data: null }))
@@ -3583,6 +3596,8 @@ ${analysis.report}
                 }
                 
                 const report = data.analysis.report;
+                // Crypto reports record the price-source ticker of each top-10 coin (many coins share a symbol: IMX is IMX10603)
+                const cryptoTickers = parseCryptoTickers(report);
                 console.log('Report length:', report.length);
                 
                 // Strip HTML tags to get plain text
@@ -3640,7 +3655,7 @@ ${analysis.report}
                 if (symbols.length === 0) throw new Error('No symbols found');
                 
                 const pricePromises = symbols.map(symbol => 
-                    fetch('https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=' + symbol)
+                    fetch('https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=' + (cryptoTickers[symbol] || symbol))
                         .then(r => r.json())
                         .then(d => ({ symbol, data: d }))
                         .catch(() => ({ symbol, data: null }))

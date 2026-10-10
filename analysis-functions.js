@@ -62,7 +62,7 @@ function generateCryptoCSVExport(results, filename) {
             'Rank', 'Symbol', 'Price', 'Score', 'Signal', 'Timeframe', 'Confidence',
             'RSI', '24h_Change_%', '7d_Change_%', '30d_Change_%', 'Volume_Ratio', 'Model_Probability_%',
             'MACD_Signal', 'BB_Signal', 'Momentum_Signal', 'Lower_Level', 'Upper_Level', 
-            'Support', 'Resistance', 'ATR', 'Stoch_K', 'MACD_Trend', 'Prediction_Status'
+            'Support', 'Resistance', 'ATR', 'Stoch_K', 'MACD_Trend', 'Top10_Status'
         ];
         
         const csvRows = [headers.join(',')];
@@ -92,7 +92,7 @@ function generateCryptoCSVExport(results, filename) {
                 (coin.atr || 0).toFixed(8),
                 (coin.stoch_k || 50).toFixed(1),
                 coin.macd_trend || 'NEUTRAL',
-                coin.prediction_status || 'RECENT'
+                coin.prediction_status || ''
             ];
             csvRows.push(row.join(','));
         });
@@ -4095,7 +4095,7 @@ function initThresholdSlider() {
     if (!track || !thumb || !display) return;
     
     const thresholds = [0.25, 1, 4, 24];
-    const labels = ['15 minutes (risky entry)', '1 hour (ok entry)', '4 hours (balanced)', '24 hours (good entry)'];
+    const labels = ['15 minutes', '1 hour', '4 hours', '24 hours'];
     
     function updateSlider(position) {
         const trackWidth = track.offsetWidth - thumb.offsetWidth;
