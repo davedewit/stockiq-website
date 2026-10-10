@@ -29,13 +29,41 @@
         return `${r.name}: spreads the budget over up to ${r.positions} holdings, looks at the top ${r.top} of each screener, sells a holding at ${r.stop}% or +${r.take}%`
             + (r.crypto > 0 ? `, up to ${Math.round(r.crypto * 100)}% of the budget in coins.` : ', no coins.');
     }
+    const day = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+    const pc = (n) => (n === null || n === undefined) ? '–' : (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
+    const tint = (n) => (n === null || n === undefined) ? 'var(--text-secondary)' : n >= 0 ? '#22c55e' : '#ef4444';
+    // Screeners in the order the Lambda lists them, under their group names
+    function screenerGroups(all) {
+        const groups = [];
+        Object.keys(all).forEach(k => { const g = all[k].group || 'Screeners'; let row = groups.find(x => x[0] === g); if (!row) groups.push(row = [g, []]); row[1].push(k); });
+        return groups;
+    }
+    // "How it is doing": the autopilot's own closed trades, and what it has taken from them
+    function recordHtml() {
+        const c = data.scorecard, need = data.minSample || 8;
+        if (!c || !c.n) return `<div style="margin-top: 14px; font-size: 0.85rem; color: var(--text-secondary);"><strong style="color: var(--text-primary); font-size: 0.9rem;">How it is doing</strong><div style="margin-top: 4px;">Nothing it bought has been sold yet. Each sale is recorded here with its result against the S&amp;P 500 over the same days, and the autopilot uses that record at later check-ins.</div></div>`;
+        const cell = 'padding: 4px 8px; text-align: right; white-space: nowrap;';
+        const row = (g) => `<tr><td style="padding: 4px 8px 4px 0; color: var(--text-primary);">${esc(g.label)}</td><td style="${cell}">${g.n}</td><td style="${cell} color: ${tint(g.avg)};">${pc(g.avg)}</td><td style="${cell} color: ${tint(g.vs)};">${pc(g.vs)}</td><td style="${cell}">${g.judged ? g.beat + ' of ' + g.judged : '–'}</td></tr>`;
+        const section = (title, list) => list && list.length ? `<tr><td colspan="5" style="padding: 8px 0 2px; color: var(--text-secondary);">${title}</td></tr>` + list.map(row).join('') : '';
+        const g = c.groups || {};
+        const lessons = data.lessons && data.lessons.items && data.lessons.items.length ? `<div style="margin-top: 10px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">What it has noted from its record</strong> <span style="font-size: 0.8rem;">(written by the AI model on ${esc(day(data.lessons.at))} from ${data.lessons.n} closed trades)</span><ul style="margin: 4px 0 0 18px; padding: 0;">${data.lessons.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+        return `<div style="margin-top: 14px; font-size: 0.85rem; color: var(--text-secondary);">
+            <strong style="color: var(--text-primary); font-size: 0.9rem;">How it is doing</strong>
+            <div style="margin-top: 4px;">${c.n} closed trade${c.n === 1 ? '' : 's'}: average <span style="color: ${tint(c.avg)}; font-weight: 600;">${pc(c.avg)}</span>${c.vs !== null ? `, <span style="color: ${tint(c.vs)}; font-weight: 600;">${pc(c.vs)}</span> against the S&amp;P 500 over the same days, ahead in ${c.beat} of ${c.judged}` : ''}.${c.n < need ? ` Fewer than ${need} trades: too few to conclude anything yet.` : ''}</div>
+            <details style="margin-top: 6px;"><summary style="cursor: pointer; color: var(--text-primary);">Breakdown</summary><div style="overflow-x: auto;"><table style="border-collapse: collapse; font-size: 0.85rem;">
+                <tr><td></td><td style="${cell}">Trades</td><td style="${cell}">Average</td><td style="${cell}">Against the market</td><td style="${cell}">Ahead</td></tr>
+                ${section('By screener', g.screener)}${section('By place in the ranking when bought', g.rank)}${section('By RSI when bought', g.rsi)}${section('By who chose', g.chosen)}${section('By how it was sold', g.exit)}
+            </table></div><div style="font-size: 0.8rem; margin-top: 4px;">A group needs ${need} trades before the autopilot acts on it. A screener whose recent trades clearly lag the market is rested for two weeks. Past results of fake-money trades; they say nothing certain about the future.</div></details>
+            ${lessons}
+        </div>`;
+    }
     function statusText() {
         const s = data.settings, last = data.state && data.state.lastRun;
         if (!s.enabled) return 'Off. Nothing is bought or sold automatically.';
         const stocks = s.screeners.some(k => (data.options.screeners[k] || {}).kind === 'stock');
         const next = last ? new Date(new Date(last).getTime() + s.everyHours * 3600000) : null;
         return 'On. ' + (last ? `Last check-in ${when(last)}; next from about ${when(next)}.` : 'First check-in at the next hourly check.')
-            + (stocks ? ' Stock screeners are checked on weekdays during US market hours.' : '');
+            + (stocks ? ' Each share market is checked on weekdays while it is open.' : '');
     }
 
     function render() {
@@ -65,7 +93,7 @@
                     <div><strong>Checks in</strong><div style="margin-top: 4px;">${select('ap-every', o.everyHours, d.everyHours, v => v === 24 ? 'once a day' : v === 12 ? 'twice a day' : `every ${v} hours`)}</div></div>
                     <div><strong>Keeps a holding at most</strong><div style="margin-top: 4px;">${select('ap-hold', o.holdDays, d.maxHoldDays, v => `${v} days`)}</div></div>
                     <div style="grid-column: 1 / -1;"><strong>Screeners it buys from</strong>
-                        <div style="display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 4px;">${Object.keys(o.screeners).map(k => `<label style="cursor: pointer; white-space: nowrap;"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}</label>`).join('')}</div>
+                        ${screenerGroups(o.screeners).map(([group, keys]) => `<div style="display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 6px;"><span style="color: var(--text-secondary); min-width: 130px;">${esc(group)}</span>${keys.map(k => `<label style="cursor: pointer; white-space: nowrap;"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <span title="Resting after its recent trades lagged the market" style="color: var(--text-secondary);">(resting until ' + esc(day(data.resting[k])) + ')</span>' : ''}</label>`).join('')}</div>`).join('')}
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px;">
@@ -74,6 +102,7 @@
                     <span id="ap-status" style="color: var(--text-secondary); font-size: 0.85rem;">${esc(statusText())}</span>
                 </div>
                 <div id="ap-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-top: 6px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : ''}</div>
+                ${recordHtml()}
                 ${log.length ? `<div style="margin-top: 10px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">What it has done</strong>
                     ${shown.map(e => `<div style="padding: 7px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);"><span style="white-space: nowrap;">${icons[e.type] || ''} ${esc(when(e.t))}</span> ${e.type === 'buy' ? `<strong style="color: var(--text-primary);">Bought ${esc(e.symbol)}</strong> with ${usd0(e.usd)}. ` : e.type === 'sell' ? `<strong style="color: var(--text-primary);">Sold ${esc(e.symbol)}</strong>. ` : ''}${esc(e.text)}</div>`).join('')}
                     ${log.length > shown.length ? `<a href="#" data-ap="more" style="font-size: 0.85rem;">Show all ${log.length}</a>` : ''}</div>` : ''}

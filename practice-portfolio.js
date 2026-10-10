@@ -15,11 +15,17 @@
     }
 
     // Which exchange-rate symbol turns a price in `currency` into US dollars. London prices are in pence.
+    // Dollars-per-unit quotes are used where they are precise (AUD, GBP, EUR, NZD). Other currencies are quoted per
+    // dollar and turned over, because their per-unit quote is rounded too coarsely (JPYUSD=X is 0.0063).
+    // The same rule is in the stockiq-ai-trader Lambda (fx_pair): keep them alike.
     function fxFor(currency) {
-        if (!currency || currency === 'USD') return { symbol: null, divisor: 1 };
+        if (!currency || currency === 'USD') return { symbol: null, divisor: 1, turn: false };
         const minor = { GBp: 'GBP', GBX: 'GBP', ZAc: 'ZAR', ILA: 'ILS' }[currency];
-        return minor ? { symbol: minor + 'USD=X', divisor: 100 } : { symbol: currency.toUpperCase() + 'USD=X', divisor: 1 };
+        const base = (minor || currency).toUpperCase(), direct = ['AUD', 'GBP', 'EUR', 'NZD'].includes(base);
+        return { symbol: direct ? base + 'USD=X' : 'USD' + base + '=X', divisor: minor ? 100 : 1, turn: !direct };
     }
+    // US dollars for one unit, from that quote's price
+    function fxRate(fx, price) { return !fx.symbol ? 1 : price > 0 ? (fx.turn ? 1 / price : price) / fx.divisor : null; }
 
     function applyBuy(state, b) {
         const amount = Math.round(b.amountUsd * 100) / 100;
@@ -73,7 +79,7 @@
     function valueOf(h, quotes) {
         const q = quotes[h.symbol];
         const fx = fxFor(h.currency);
-        const rate = fx.symbol ? (quotes[fx.symbol] ? quotes[fx.symbol].price / fx.divisor : null) : 1;
+        const rate = fx.symbol ? (quotes[fx.symbol] ? fxRate(fx, quotes[fx.symbol].price) : null) : 1;
         if (!q || !(q.price > 0) || !(rate > 0)) return { priced: false, valueUsd: h.costUsd, price: null, changePct: null, gainUsd: 0 };
         const valueUsd = h.qty * q.price * rate;
         return { priced: true, valueUsd, price: q.price, gainUsd: valueUsd - h.costUsd, changePct: (valueUsd / h.costUsd - 1) * 100,
@@ -117,7 +123,7 @@
     function colour(n) { return Math.round(n * 100) / 100 >= 0 ? '#22c55e' : '#ef4444'; }
     function day(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
 
-    const pure = { newState, fxFor, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
+    const pure = { newState, fxFor, fxRate, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -125,6 +131,25 @@
     const BTN2 = 'background: none; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     const BTN = 'background: #007bff; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     let state = null, version = 0, quotes = {}, loaded = false, loadError = null, notice = null, working = false, searchTimer = null;
+    let ppBasis = 'usd';                          // which of dollars / quantity the user typed last
+    let ppQuote = null;                           // latest price of the code in the search box: { symbol, price, fx, currency, name }
+    // Works out the field the user did not type from the one they did, once the price of the code in the box is known
+    function fillOther() {
+        const a = document.getElementById('pp-amount'), q = document.getElementById('pp-qty'), b = document.getElementById('pp-symbol');
+        if (!a || !q || !b || !ppQuote || ppQuote.symbol !== b.value.trim().toUpperCase()) return;
+        const unit = ppQuote.price * ppQuote.fx;
+        if (ppBasis === 'qty') { const n = parseFloat(q.value); a.value = n > 0 ? (Math.round(n * unit * 100) / 100).toString() : ''; }
+        else { const n = parseFloat(a.value); q.value = n > 0 ? parseFloat((n / unit).toPrecision(6)).toString() : ''; }
+    }
+    async function priceFor(symbol) {
+        const typed = String(symbol || '').trim().toUpperCase();
+        if (!/^[A-Z0-9^=.\-]{1,24}$/.test(typed)) return null;
+        const t = await quoteForTrade(typed);
+        if (!t) return null;
+        ppQuote = { symbol: typed, price: t.q.price, fx: t.fx, currency: t.q.currency, name: t.q.name };
+        fillOther();
+        return ppQuote;
+    }
     let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-portfolio');
@@ -152,7 +177,7 @@
         const [rateQuote, spy] = await Promise.all([fx.symbol ? fetchQuote(fx.symbol) : null, fetchQuote(BENCHMARK)]);
         if (fx.symbol && !rateQuote) return null;
         quotes[symbol] = q; if (rateQuote) quotes[fx.symbol] = rateQuote; if (spy) quotes[BENCHMARK] = spy;
-        return { q, fx: fx.symbol ? rateQuote.price / fx.divisor : 1, spy: spy ? spy.price : null };
+        return { q, fx: fxRate(fx, rateQuote ? rateQuote.price : 0), spy: spy ? spy.price : null };
     }
     async function refreshQuotes() {
         if (!state) return;
@@ -200,10 +225,11 @@
         throw new Error('No price found for "' + typed + '". Try the stock code (for example AAPL, BHP.AX, BTC-USD)');
     }
 
-    async function buy(text, amountUsd, note, label) {
+    async function buy(text, amountUsd, note, label, qty) {
         if (!userId()) throw new Error('Sign in to use the practice portfolio');
         if (!loaded || !state) { await load(); if (!state) throw new Error(loadError || 'The practice portfolio could not be loaded'); }
         const { symbol, trade } = await resolveSymbol(text);
+        if (qty > 0) amountUsd = qty * trade.q.price * trade.fx;        // bought by quantity: the dollars follow from the latest price
         const holding = await change(s => applyBuy(s, { symbol, label: label || symbol, name: trade.q.name, currency: trade.q.currency, price: trade.q.price,
                                                        fx: trade.fx, spy: trade.spy, amountUsd, note, now: new Date().toISOString() }));
         return { holding, quote: trade.q };
@@ -269,11 +295,12 @@
                     <span id="pp-clear" data-pp="clear" title="Clear" style="display: none; position: absolute; right: 10px; top: 9px; cursor: pointer; color: var(--text-secondary); font-size: 18px; line-height: 1;">×</span>
                     <div id="pp-suggest" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; z-index: 1000; max-height: 240px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
                 </div>
-                <input id="pp-amount" type="number" min="1" step="100" value="${DEFAULT_AMOUNT}" title="Practice dollars to put in" style="flex: 0 0 110px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
+                <input id="pp-amount" type="number" min="1" step="any" placeholder="Enter $" aria-label="Practice dollars to put in" title="Practice dollars to put in" style="flex: 0 0 110px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
+                <input id="pp-qty" type="number" min="0" step="any" placeholder="or quantity" aria-label="Number of shares or coins" title="Number of shares or coins. Fill in dollars or quantity: the other is worked out from the latest price" style="flex: 0 0 110px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
                 <input id="pp-note" type="text" maxlength="200" placeholder="Why? (optional note)" style="flex: 2; min-width: 160px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
                 <button data-pp="buy" style="${BTN} padding: 10px 18px; font-size: 0.95rem;" ${working ? 'disabled' : ''}>${working ? 'Working…' : 'Practice buy'}</button>
             </div>
-            <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Amount is in practice US dollars. A buy is recorded at the latest traded price.'}</div>
+            <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
             ${state.holdings.length ? `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('S&amp;P 500 since')}${th('')}</tr>${rows}</table></div>${aheadLine ? `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px;">${aheadLine}</div>` : ''}` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
             ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('S&amp;P 500 same time')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" style="${BTN2}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>Clear sold list</button></div></details>` : ''}
             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
@@ -289,7 +316,7 @@
     async function run(task) {
         if (working) return;
         // keep what is typed while the section is redrawn
-        const keep = ['pp-symbol', 'pp-amount', 'pp-note'].map(id => [id, document.getElementById(id) ? document.getElementById(id).value : null]);
+        const keep = ['pp-symbol', 'pp-amount', 'pp-qty', 'pp-note'].map(id => [id, document.getElementById(id) ? document.getElementById(id).value : null]);
         const restore = () => keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el && v !== null) el.value = v; });
         const showClear = () => { const c = document.getElementById('pp-clear'), b = document.getElementById('pp-symbol'); if (c && b) c.style.display = b.value ? 'block' : 'none'; };
         working = true; render(); restore(); showClear();
@@ -311,7 +338,7 @@
             // show which company and price that code is, before anything is bought
             const line = document.getElementById('pp-notice');
             if (line) { line.style.color = 'var(--text-secondary)'; line.textContent = 'Looking up ' + picked + '…'; }
-            fetchQuote(picked).then(q => {
+            priceFor(picked).then(q => {
                 if (!line || document.getElementById('pp-symbol').value !== picked) return;
                 line.textContent = q ? `${picked}: ${q.name || 'no name available'}, latest price ${money(q.price, q.currency)}` : `No price found for ${picked}`;
             });
@@ -321,9 +348,13 @@
             t.style.display = 'none';
             document.getElementById('pp-symbol').focus && document.getElementById('pp-symbol').focus();
         } else if (action === 'buy') {
-            const text = document.getElementById('pp-symbol').value, amount = parseFloat(document.getElementById('pp-amount').value), note = document.getElementById('pp-note').value.trim();
+            const text = document.getElementById('pp-symbol').value, note = document.getElementById('pp-note').value.trim();
+            const amount = parseFloat(document.getElementById('pp-amount').value), qty = parseFloat((document.getElementById('pp-qty') || {}).value);
+            const byQty = qty > 0 && (ppBasis === 'qty' || !(amount > 0));
+            if (!byQty && !(amount > 0)) { say('Enter how many practice dollars to put in, or a quantity.', true); render(); document.getElementById('pp-symbol').value = text; return; }
             run(async () => {
-                const r = await buy(text, amount, note);
+                const r = await buy(text, byQty ? 0 : amount, note, undefined, byQty ? qty : 0);
+                ppBasis = 'usd'; ppQuote = null;
                 say(`Practice buy recorded: ${usd(r.holding.costUsd)} of ${r.holding.label} at ${money(r.holding.buyPrice, r.holding.currency)}.`);
             });
         } else if (action === 'sell') {
@@ -348,6 +379,14 @@
             load();
         }
     });
+    // Dollars or quantity: whichever is typed, the other follows from the latest price
+    document.addEventListener('input', (e) => {
+        if (!e.target || (e.target.id !== 'pp-amount' && e.target.id !== 'pp-qty')) return;
+        ppBasis = e.target.id === 'pp-qty' ? 'qty' : 'usd';
+        const box = document.getElementById('pp-symbol'), code = box ? box.value.trim().toUpperCase() : '';
+        if (ppQuote && ppQuote.symbol === code) fillOther(); else if (code) priceFor(code);
+    });
+    document.addEventListener('change', (e) => { if (e.target && e.target.id === 'pp-symbol' && e.target.value.trim()) priceFor(e.target.value); });
     // Company-name / ticker lookup, the same service and behaviour as the search box on the home page
     document.addEventListener('input', (e) => {
         if (!e.target || e.target.id !== 'pp-symbol') return;
@@ -374,7 +413,7 @@
         }, 500);
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.target && ['pp-symbol', 'pp-amount', 'pp-note'].includes(e.target.id)) { const b = document.querySelector('[data-pp="buy"]'); if (b) b.click(); }
+        if (e.key === 'Enter' && e.target && ['pp-symbol', 'pp-amount', 'pp-qty', 'pp-note'].includes(e.target.id)) { const b = document.querySelector('[data-pp="buy"]'); if (b) b.click(); }
     });
 
     // "Practice buy" on a line of the Top 10 Performance popup
