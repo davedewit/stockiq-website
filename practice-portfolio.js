@@ -65,14 +65,25 @@
         return before - state.closed.length;
     }
 
+    // How a result compares with the S&P 500 fund over the same days: 'ahead', 'behind' or 'level'.
+    // null when neither has moved yet (a holding bought a moment ago is at 0.00% and so is the market: that
+    // says nothing, and "0 of 1 ahead" would read as a verdict).
+    const MOVED = 0.05;                            // percent: smaller than this is rounding, not a move
+    function versusMarket(resultPct, marketPct) {
+        if (Math.abs(resultPct) < MOVED && Math.abs(marketPct) < MOVED) return null;
+        const gap = resultPct - marketPct;
+        return gap > MOVED ? 'ahead' : gap < -MOVED ? 'behind' : 'level';
+    }
+
     // What the sold list adds up to, and how many sales did better than the S&P 500 fund over the same days
     function soldSummary(state) {
-        let cost = 0, proceeds = 0, compared = 0, ahead = 0;
+        let cost = 0, proceeds = 0, compared = 0, ahead = 0, level = 0;
         state.closed.forEach(h => {
             cost += h.costUsd; proceeds += h.proceedsUsd;
-            if (h.spyAtBuy > 0 && h.spyAtSell > 0) { compared++; if (h.proceedsUsd / h.costUsd > h.spyAtSell / h.spyAtBuy) ahead++; }
+            const verdict = h.spyAtBuy > 0 && h.spyAtSell > 0 ? versusMarket((h.proceedsUsd / h.costUsd - 1) * 100, (h.spyAtSell / h.spyAtBuy - 1) * 100) : null;
+            if (verdict) { compared++; if (verdict === 'ahead') ahead++; if (verdict === 'level') level++; }
         });
-        return { count: state.closed.length, cost, proceeds, gainUsd: proceeds - cost, gainPct: cost > 0 ? (proceeds / cost - 1) * 100 : null, compared, ahead };
+        return { count: state.closed.length, cost, proceeds, gainUsd: proceeds - cost, gainPct: cost > 0 ? (proceeds / cost - 1) * 100 : null, compared, ahead, level };
     }
 
     // quotes: { SYMBOL: { price, currency, name } }, including exchange-rate symbols and the benchmark
@@ -88,19 +99,20 @@
 
     function summarize(state, quotes) {
         const spy = quotes[BENCHMARK] ? quotes[BENCHMARK].price : null;
-        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0;
+        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0, level = 0;
         state.holdings.forEach(h => {
             const v = valueOf(h, quotes);
             holdingsValue += v.valueUsd; cost += h.costUsd;
             if (!v.priced) unpriced++;
             if (spy > 0 && h.spyAtBuy > 0) {
                 marketValue += h.costUsd * spy / h.spyAtBuy; marketCost += h.costUsd;
-                if (v.priced) { compared++; if (v.valueUsd / h.costUsd > spy / h.spyAtBuy) ahead++; }
+                const verdict = v.priced ? versusMarket((v.valueUsd / h.costUsd - 1) * 100, (spy / h.spyAtBuy - 1) * 100) : null;
+                if (verdict) { compared++; if (verdict === 'ahead') ahead++; if (verdict === 'level') level++; }
             }
         });
         const accountValue = state.cash + holdingsValue;
         return {
-            cash: state.cash, holdingsValue, cost, accountValue, unpriced, compared, ahead,
+            cash: state.cash, holdingsValue, cost, accountValue, unpriced, compared, ahead, level,
             gainUsd: accountValue - state.startingCash, gainPct: (accountValue / state.startingCash - 1) * 100,
             openGainUsd: holdingsValue - cost, openGainPct: cost > 0 ? (holdingsValue / cost - 1) * 100 : null,
             // the same dollars put into the S&P 500 fund on the same days
@@ -123,7 +135,7 @@
     function colour(n) { return Math.round(n * 100) / 100 >= 0 ? '#22c55e' : '#ef4444'; }
     function day(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
 
-    const pure = { newState, fxFor, fxRate, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -278,8 +290,9 @@
             return `<tr><td style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td style="${cell}">${esc(day(h.boughtAt))} → ${esc(day(h.soldAt))}</td><td style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)} (${usd(h.proceedsUsd - h.costUsd)})</td><td style="${cell}">${market === null ? '–' : pct(market)}</td><td style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
         }).join('');
         const sold = soldSummary(state);
-        const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}, <span style="color: ${colour(sold.gainUsd)}; font-weight: 600;">${pct(sold.gainPct)} (${usd(sold.gainUsd)})</span>${sold.compared ? `. ${sold.ahead} of ${sold.compared} did better than the S&amp;P 500 over the same days` : ''}.` : '';
-        const aheadLine = s.compared ? `${s.ahead} of ${s.compared} holding${s.compared === 1 ? '' : 's'} ${s.compared === 1 ? 'is' : 'are'} ahead of the S&amp;P 500 since ${s.compared === 1 ? 'it was' : 'they were'} bought.` : '';
+        const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}, <span style="color: ${colour(sold.gainUsd)}; font-weight: 600;">${pct(sold.gainPct)} (${usd(sold.gainUsd)})</span>${sold.compared ? `. ${sold.ahead} of ${sold.compared} did better than the S&amp;P 500 over the same days${sold.level ? ' (' + sold.level + ' about the same)' : ''}` : ''}.` : '';
+        // only holdings where something has moved since the buy are counted; none yet, no line
+        const aheadLine = s.compared ? `Since ${s.compared === 1 ? 'it was' : 'they were'} bought, ${s.ahead} of ${s.compared} holding${s.compared === 1 ? ' is' : 's are'} ahead of what an S&amp;P 500 fund did over the same days${s.level ? ' (' + s.level + ' about level)' : ''}.` : '';
 
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
         el.innerHTML = `
