@@ -10,7 +10,7 @@
 (function () {
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
     const CSS = `
-        #practice-autopilot .ap-wrap { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.9rem; }
+        #practice-autopilot .ap-wrap { color: var(--text-primary); font-size: 0.9rem; }
         #practice-autopilot .ap-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         #practice-autopilot .ap-head h3 { margin: 0; font-size: 1.15rem; color: var(--text-primary); }
         #practice-autopilot .ap-sub { font-size: 0.8rem; font-weight: normal; color: var(--text-secondary); }
@@ -71,6 +71,11 @@
         #practice-autopilot .ap-mini input:checked + .ap-dot::after { left: 16px; }
         #practice-autopilot .ap-mini input:focus-visible + .ap-dot { outline: 2px solid #3b82f6; outline-offset: 2px; }
         #practice-autopilot a { color: #3b82f6; }
+        #practice-autopilot .ap-views { display: flex; gap: 6px; margin-top: 16px; border-bottom: 1px solid var(--border-color); }
+        #practice-autopilot .ap-view { padding: 9px 16px; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; color: var(--text-secondary); font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+        #practice-autopilot .ap-view:hover { color: var(--text-primary); }
+        #practice-autopilot .ap-view.now { color: #007bff; border-bottom-color: #007bff; }
+        #practice-autopilot .ap-pane > .ap-section:first-child { border-top: 0; margin-top: 6px; }
         #practice-autopilot .ap-presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary); }
         #practice-autopilot .ap-preset { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; }
         #practice-autopilot .ap-preset:hover { border-color: #3b82f6; }
@@ -93,6 +98,20 @@
     const remembered = () => { try { return localStorage.getItem(VIEW_KEY) === '1'; } catch (e) { return false; } };
     const remember = (on) => { try { localStorage.setItem(VIEW_KEY, on ? '1' : '0'); } catch (e) {} };
     let tradesOnly = remembered();
+    // The panel is in two parts so that neither is a long scroll: "Activity" (what it holds, how it is doing, what it has
+    // done) and "Settings". Both are always in the page; one is shown. The choice is remembered in this browser.
+    const PART_KEY = 'stockiqAutopilotPart';
+    let part = null;                                                // 'activity' | 'settings'; decided at the first draw
+    const rememberedPart = () => { try { const v = localStorage.getItem(PART_KEY); return v === 'activity' || v === 'settings' ? v : null; } catch (e) { return null; } };
+    function showPart(name, keep) {
+        part = name === 'settings' ? 'settings' : 'activity';
+        if (keep) { try { localStorage.setItem(PART_KEY, part); } catch (e) {} }
+        ['activity', 'settings'].forEach(n => {
+            const pane = byId('ap-pane-' + n), tab = byId('ap-view-' + n);
+            if (pane && pane.style) pane.style.display = n === part ? '' : 'none';
+            if (tab && tab.classList) tab.classList.toggle('now', n === part);
+        });
+    }
     // Quick set-ups: one press fills in the fields (never the budget or the on/off switch); anything can be changed afterwards
     const PRESETS = [
         { key: 'coins', name: '⚡ Quick coin trading', title: 'Coins only, checked every 30 minutes, each kept at most 6 hours, the whole budget in use within a day', set: { risk: 4, periodDays: 1, everyHours: 0.5, maxHoldDays: 0.25, screeners: ['7-1'] } },
@@ -311,6 +330,7 @@
         if (!el) return;
         if (!data || !data.allowed) { el.innerHTML = ''; return; }
         ensureStyle();
+        if (!part) part = rememberedPart() || (data.settings.enabled && data.settings.screeners.length ? 'activity' : 'settings');
         const breakdown = byId('ap-breakdown');
         if (breakdown && typeof breakdown.open === 'boolean') breakdownOpen = breakdown.open;
         if (document.querySelectorAll) Array.from(document.querySelectorAll('[data-ap-fold]')).forEach(x => { if (typeof x.open === 'boolean') openDetails[x.getAttribute('data-ap-fold')] = x.open; });
@@ -333,9 +353,31 @@
                     <h3>🤖 AI autopilot <span class="ap-sub">fake money, an experiment to watch</span></h3>
                     <label class="ap-switch" title="Switch the autopilot on or off. This is saved straight away."><span id="ap-switch-text">${d.enabled ? 'On' : 'Off'}</span><input id="ap-enabled" type="checkbox" ${d.enabled ? 'checked' : ''} ${working ? 'disabled' : ''}><span class="ap-track"></span></label>
                 </div>
-                <p class="ap-intro">An AI model makes practice buys and sells for you from the latest results of the screeners you choose, inside the limits you set here. It uses the practice portfolio above. Nothing here is advice, and past screener results have not shown a reliable edge.</p>
+                <p class="ap-intro">An AI model makes practice buys and sells for you from the latest results of the screeners you choose, inside the limits you set here. It uses the fake money of your <a href="#practice">practice portfolio</a>, where its holdings are listed with your own. Nothing here is advice, and past screener results have not shown a reliable edge.</p>
                 <div id="ap-status" class="ap-status ${on ? 'on' : ''}">${esc(statusText())}</div>
 
+                <div class="ap-actions">
+                    <button id="ap-run" data-ap="run" class="ap-btn ${ready ? 'primary' : ''}" ${working || !ready || state.text === 'Saving…' ? 'disabled' : ''} title="${!on ? 'Switch the autopilot on first' : !ready ? 'Tick at least one screener first' : 'Runs one check-in now instead of waiting for the next one. If the budget is still being built up, pressing this releases the next part of it early'}">${working === 'run' ? 'Checking in… this can take up to a minute' : 'Check in now'}</button>
+                    <button id="ap-sellall" data-ap="sellall" class="ap-btn" ${working || !holds ? 'disabled' : ''} title="${holds ? 'Sells every holding the autopilot bought, now, at the latest prices. Holdings you bought yourself are not touched' : 'It holds nothing right now'}">${working === 'sellall' ? 'Selling…' : 'Sell everything it holds' + (holds ? ' (' + holds + ')' : '')}</button>
+                    <span id="ap-saved" class="ap-saved ${state.bad ? 'bad' : ''}">${esc(state.text)}</span>
+                </div>
+                <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) : ''}</div>
+
+                <div class="ap-views" role="tablist" aria-label="Autopilot">
+                    <button type="button" id="ap-view-activity" class="ap-view ${part === 'activity' ? 'now' : ''}" data-ap-part="activity" role="tab">📋 Activity</button>
+                    <button type="button" id="ap-view-settings" class="ap-view ${part === 'settings' ? 'now' : ''}" data-ap-part="settings" role="tab">⚙️ Settings</button>
+                </div>
+
+                <div id="ap-pane-activity" class="ap-pane" style="${part === 'activity' ? '' : 'display: none;'}">
+                ${recordHtml()}
+                ${tuneHtml()}
+                <div class="ap-section"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><label class="ap-mini" title="On: only its buys and sells are listed. Off: its check-ins and notes too. Remembered in this browser."><input id="ap-tradesonly" type="checkbox" ${tradesOnly ? 'checked' : ''}><span class="ap-dot"></span>Buys and sells only</label></span></h4>
+                    ${latest ? `<div class="ap-log"><time>${icons.note} ${esc(when(latest.t))}</time> Latest check-in: ${esc(latest.text.replace(/^Checked in\. /, ''))}${latest.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${latest.n} check-ins in a row)</span>` : ''}</div>` : ''}
+                    ${log.length ? shown.map(e => `<div class="ap-log"><time>${icons[e.type] || ''} ${esc(when(e.t))}</time> ${e.type === 'buy' ? `<strong style="color: var(--text-primary);">Bought ${esc(e.symbol)}</strong> with ${usd0(e.usd)}. ` : e.type === 'sell' ? `<strong style="color: var(--text-primary);">Sold ${esc(e.symbol)}</strong>${typeof e.pct === 'number' ? ` <span style="color: ${tint(e.pct)}; font-weight: 600;">${pc(e.pct)}</span>` : ''}. ` : ''}${esc(e.text)}${e.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${e.n} check-ins in a row, since ${esc(when(e.first))})</span>` : ''}${fold(e.type + e.t + e.symbol, e.type === 'sell' ? 'Why, and the details' : 'The plan for it', e.detail)}</div>`).join('') : `<div>${tradesOnly && all.length ? 'No buys or sells yet.' : 'Nothing yet. Its buys, sells and check-ins will be listed here.'}</div>`}
+                    ${log.length > shown.length ? `<a href="#" data-ap="more" style="display: inline-block; margin-top: 8px;">Show all ${log.length}</a>` : ''}</div>
+                </div>
+
+                <div id="ap-pane-settings" class="ap-pane" style="${part === 'settings' ? '' : 'display: none;'}">
                 <div class="ap-presets"><span>Quick set-ups:</span>${PRESETS.filter(p => p.set.screeners.every(k => o.screeners[k])).map(p => `<button type="button" class="ap-preset" data-ap-preset="${p.key}" title="${esc(p.title)}">${p.name}</button>`).join('')}<span>They fill in the fields below (not the budget or the on/off switch); change anything afterwards.</span></div>
 
                 <div class="ap-card">
@@ -376,20 +418,7 @@
                     ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'Every 20 finished trades it may try one change to a selling or buying rule beside the current one, and keeps it only if it did clearly better. Off: its rules stay exactly as they are.')}
                     ${mayRow('ap-mail', 'emails', 'Email me its reviews', 'An email to your account address each time it reviews its rules, starts a trial or finishes one.')}
                 </div>
-
-                <div class="ap-actions">
-                    <button id="ap-run" data-ap="run" class="ap-btn ${ready ? 'primary' : ''}" ${working || !ready || state.text === 'Saving…' ? 'disabled' : ''} title="${!on ? 'Switch the autopilot on first' : !ready ? 'Tick at least one screener first' : 'Runs one check-in now instead of waiting for the next one. If the budget is still being built up, pressing this releases the next part of it early'}">${working === 'run' ? 'Checking in… this can take up to a minute' : 'Check in now'}</button>
-                    <button id="ap-sellall" data-ap="sellall" class="ap-btn" ${working || !holds ? 'disabled' : ''} title="${holds ? 'Sells every holding the autopilot bought, now, at the latest prices. Holdings you bought yourself are not touched' : 'It holds nothing right now'}">${working === 'sellall' ? 'Selling…' : 'Sell everything it holds' + (holds ? ' (' + holds + ')' : '')}</button>
-                    <span id="ap-saved" class="ap-saved ${state.bad ? 'bad' : ''}">${esc(state.text)}</span>
                 </div>
-                <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) : ''}</div>
-
-                ${recordHtml()}
-                ${tuneHtml()}
-                <div class="ap-section"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><label class="ap-mini" title="On: only its buys and sells are listed. Off: its check-ins and notes too. Remembered in this browser."><input id="ap-tradesonly" type="checkbox" ${tradesOnly ? 'checked' : ''}><span class="ap-dot"></span>Buys and sells only</label></span></h4>
-                    ${latest ? `<div class="ap-log"><time>${icons.note} ${esc(when(latest.t))}</time> Latest check-in: ${esc(latest.text.replace(/^Checked in\. /, ''))}${latest.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${latest.n} check-ins in a row)</span>` : ''}</div>` : ''}
-                    ${log.length ? shown.map(e => `<div class="ap-log"><time>${icons[e.type] || ''} ${esc(when(e.t))}</time> ${e.type === 'buy' ? `<strong style="color: var(--text-primary);">Bought ${esc(e.symbol)}</strong> with ${usd0(e.usd)}. ` : e.type === 'sell' ? `<strong style="color: var(--text-primary);">Sold ${esc(e.symbol)}</strong>${typeof e.pct === 'number' ? ` <span style="color: ${tint(e.pct)}; font-weight: 600;">${pc(e.pct)}</span>` : ''}. ` : ''}${esc(e.text)}${e.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${e.n} check-ins in a row, since ${esc(when(e.first))})</span>` : ''}${fold(e.type + e.t + e.symbol, e.type === 'sell' ? 'Why, and the details' : 'The plan for it', e.detail)}</div>`).join('') : `<div>${tradesOnly && all.length ? 'No buys or sells yet.' : 'Nothing yet. Its buys, sells and check-ins will be listed here.'}</div>`}
-                    ${log.length > shown.length ? `<a href="#" data-ap="more" style="display: inline-block; margin-top: 8px;">Show all ${log.length}</a>` : ''}</div>
             </div>`;
     }
 
@@ -523,6 +552,8 @@
     document.addEventListener('click', (e) => {
         const level = e.target.closest && e.target.closest('[data-ap-level]');
         if (level && data && byId('ap-risk')) { byId('ap-risk').value = level.getAttribute('data-ap-level'); saveError = null; queueSave(150); return; }
+        const view = e.target.closest && e.target.closest('[data-ap-part]');
+        if (view && data) { showPart(view.getAttribute('data-ap-part'), true); return; }
         const preset = e.target.closest && e.target.closest('[data-ap-preset]');
         if (preset && data && byId('ap-risk')) {
             const p = PRESETS.find(x => x.key === preset.getAttribute('data-ap-preset'));
