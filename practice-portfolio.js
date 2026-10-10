@@ -101,6 +101,7 @@
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
     // ---------------------------------------------------------------- page
+    const BTN2 = 'background: none; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     const BTN = 'background: #007bff; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     let state = null, version = 0, quotes = {}, loaded = false, loadError = null, notice = null, working = false, searchTimer = null;
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
@@ -237,8 +238,9 @@
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 6px;">
                 <div style="position: relative; flex: 2; min-width: 200px;">
-                    <input id="pp-symbol" type="text" autocomplete="off" placeholder="Stock code or name (AAPL, BHP.AX, Toyota, BTC-USD)" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
-                    <div id="pp-suggest" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; z-index: 50; max-height: 220px; overflow-y: auto;"></div>
+                    <input id="pp-symbol" type="text" autocomplete="off" placeholder="Search for tickers or companies" aria-label="Stock code or company name" style="width: 100%; box-sizing: border-box; padding: 10px 32px 10px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
+                    <span id="pp-clear" data-pp="clear" title="Clear" style="display: none; position: absolute; right: 10px; top: 9px; cursor: pointer; color: var(--text-secondary); font-size: 18px; line-height: 1;">×</span>
+                    <div id="pp-suggest" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; z-index: 1000; max-height: 240px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
                 </div>
                 <input id="pp-amount" type="number" min="1" step="100" value="${DEFAULT_AMOUNT}" title="Practice dollars to put in" style="flex: 0 0 110px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
                 <input id="pp-note" type="text" maxlength="200" placeholder="Why? (optional note)" style="flex: 2; min-width: 160px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
@@ -247,9 +249,12 @@
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Amount is in practice US dollars. A buy is recorded at the latest traded price.'}</div>
             ${state.holdings.length ? `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('S&amp;P 500 since')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
             ${state.closed.length ? `<details style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('S&amp;P 500 same time')}</tr>${closed}</table></div></details>` : ''}
-            <div style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 0.75rem; color: var(--text-secondary);">
+            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+                <button data-pp="refresh" style="${BTN2}" ${working ? 'disabled' : ''}>↻ Refresh prices</button>
+                <button data-pp="reset" style="${BTN2}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>Reset fake money to ${usd(STARTING_CASH)}</button>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
                 <span>Fake money for practice: no real trades are placed. Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. General information only, not financial advice.</span>
-                <span><a href="#" data-pp="refresh" style="color: inherit;">Refresh prices</a> · <a href="#" data-pp="reset" style="color: inherit;">Start again with ${usd(STARTING_CASH)}</a></span>
             </div>`;
     }
 
@@ -259,11 +264,12 @@
         // keep what is typed while the section is redrawn
         const keep = ['pp-symbol', 'pp-amount', 'pp-note'].map(id => [id, document.getElementById(id) ? document.getElementById(id).value : null]);
         const restore = () => keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el && v !== null) el.value = v; });
-        working = true; render(); restore();
+        const showClear = () => { const c = document.getElementById('pp-clear'), b = document.getElementById('pp-symbol'); if (c && b) c.style.display = b.value ? 'block' : 'none'; };
+        working = true; render(); restore(); showClear();
         let ok = false;
         try { await task(); ok = true; } catch (e) { say(e.message, true); }
         working = false; render();
-        if (!ok) restore();
+        if (!ok) { restore(); showClear(); }
     }
 
     document.addEventListener('click', (e) => {
@@ -272,8 +278,21 @@
         const action = t.getAttribute('data-pp');
         if (t.tagName === 'A') e.preventDefault();
         if (action === 'pick') {
-            document.getElementById('pp-symbol').value = t.getAttribute('data-symbol');
+            const picked = t.getAttribute('data-symbol');
+            document.getElementById('pp-symbol').value = picked;
             document.getElementById('pp-suggest').style.display = 'none';
+            // show which company and price that code is, before anything is bought
+            const line = document.getElementById('pp-notice');
+            if (line) { line.style.color = 'var(--text-secondary)'; line.textContent = 'Looking up ' + picked + '…'; }
+            fetchQuote(picked).then(q => {
+                if (!line || document.getElementById('pp-symbol').value !== picked) return;
+                line.textContent = q ? `${picked}: ${q.name || 'no name available'}, latest price ${money(q.price, q.currency)}` : `No price found for ${picked}`;
+            });
+        } else if (action === 'clear') {
+            document.getElementById('pp-symbol').value = '';
+            document.getElementById('pp-suggest').style.display = 'none';
+            t.style.display = 'none';
+            document.getElementById('pp-symbol').focus && document.getElementById('pp-symbol').focus();
         } else if (action === 'buy') {
             const text = document.getElementById('pp-symbol').value, amount = parseFloat(document.getElementById('pp-amount').value), note = document.getElementById('pp-note').value.trim();
             run(async () => {
@@ -287,26 +306,36 @@
         } else if (action === 'refresh') {
             run(async () => { await refreshQuotes(); say('Prices refreshed.'); });
         } else if (action === 'reset') {
-            if (!confirm(`Start again with ${usd(STARTING_CASH)}? This clears every practice holding and the sold list.`)) return;
-            run(async () => { await api('reset'); state = newState(new Date().toISOString()); version = 0; quotes = {}; say('Practice portfolio reset.'); });
+            if (!confirm(`Reset the fake money to ${usd(STARTING_CASH)}? This clears every practice holding and the sold list.`)) return;
+            run(async () => { await api('reset'); state = newState(new Date().toISOString()); version = 0; quotes = {}; say(`Practice portfolio reset: ${usd(STARTING_CASH)} of fake money to start again.`); });
         } else if (action === 'reload') {
             load();
         }
     });
+    // Company-name / ticker lookup, the same service and behaviour as the search box on the home page
     document.addEventListener('input', (e) => {
         if (!e.target || e.target.id !== 'pp-symbol') return;
         clearTimeout(searchTimer);
-        const value = e.target.value.trim(), sug = document.getElementById('pp-suggest');
-        if (value.length < 2 || /[.=^-]/.test(value)) { sug.style.display = 'none'; return; }
+        const value = e.target.value.trim().toUpperCase(), sug = document.getElementById('pp-suggest'), clear = document.getElementById('pp-clear');
+        if (clear) clear.style.display = e.target.value ? 'block' : 'none';
+        if (!value || value.includes(',')) { sug.style.display = 'none'; return; }
         searchTimer = setTimeout(async () => {
+            if (value.includes('.')) { sug.style.display = 'none'; return; }       // a full code such as BHP.AX needs no lookup
+            const still = () => { const box = document.getElementById('pp-symbol'); return box && box.value.trim().toUpperCase() === value; };
+            const row = 'padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-primary);';
+            sug.innerHTML = `<div style="${row} color: var(--text-secondary);">Checking exchanges...</div>`;
+            sug.style.display = 'block';
             try {
-                const res = await fetch(SEARCH_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: value.toUpperCase() }) });
+                const res = await fetch(SEARCH_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: value }) });
                 const list = ((await res.json()).suggestions || []).filter(x => /^[A-Z0-9^=.\-]{1,24}$/.test(x.symbol || ''));
-                if (document.getElementById('pp-symbol').value.trim() !== value || !list.length) { sug.style.display = 'none'; return; }
-                sug.innerHTML = list.map(x => `<div data-pp="pick" data-symbol="${esc(x.symbol)}" style="padding: 9px 10px; cursor: pointer; color: var(--text-primary); border-bottom: 1px solid var(--border-color);"><strong>${esc(x.symbol)}</strong> <span style="color: var(--text-secondary);">${esc(x.name)}</span></div>`).join('');
-                sug.style.display = 'block';
-            } catch (err) { sug.style.display = 'none'; }
-        }, 400);
+                if (!still()) return;
+                sug.innerHTML = list.length
+                    ? list.map(x => `<div data-pp="pick" data-symbol="${esc(x.symbol)}" style="${row} cursor: pointer;" onmouseover="this.style.background='rgba(0, 123, 255, 0.25)'" onmouseout="this.style.background='transparent'"><strong>${esc(x.symbol)}</strong> - ${esc(x.name)}</div>`).join('')
+                    : `<div style="${row} color: var(--text-secondary);">No matches found</div>`;
+            } catch (err) {
+                if (still()) sug.innerHTML = `<div style="${row} color: var(--text-secondary);">Error checking symbol</div>`;
+            }
+        }, 500);
     });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target && ['pp-symbol', 'pp-amount', 'pp-note'].includes(e.target.id)) { const b = document.querySelector('[data-pp="buy"]'); if (b) b.click(); }
