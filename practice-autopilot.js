@@ -63,6 +63,13 @@
         #practice-autopilot .ap-log ul, #practice-autopilot .ap-section ul { margin: 4px 0 0 18px; padding: 0; }
         #practice-autopilot .ap-fresh { float: right; font-size: 0.8rem; font-weight: normal; color: var(--text-secondary); }
         #practice-autopilot .ap-fresh a { margin-left: 8px; }
+        #practice-autopilot .ap-mini { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; cursor: pointer; position: relative; color: var(--text-primary); }
+        #practice-autopilot .ap-mini input { position: absolute; opacity: 0; width: 32px; height: 18px; margin: 0; cursor: pointer; left: 0; }
+        #practice-autopilot .ap-mini .ap-dot { width: 32px; height: 18px; border-radius: 9px; background: #9ca3af; position: relative; transition: background 0.15s; flex: none; }
+        #practice-autopilot .ap-mini .ap-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+        #practice-autopilot .ap-mini input:checked + .ap-dot { background: #22c55e; }
+        #practice-autopilot .ap-mini input:checked + .ap-dot::after { left: 16px; }
+        #practice-autopilot .ap-mini input:focus-visible + .ap-dot { outline: 2px solid #3b82f6; outline-offset: 2px; }
         #practice-autopilot a { color: #3b82f6; }
         #practice-autopilot .ap-presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary); }
         #practice-autopilot .ap-preset { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; }
@@ -78,7 +85,12 @@
 
     let data = null, draft = null, working = '', notice = null, showAll = false;
     let saveTimer = null, saving = false, saveError = null, savedOnce = false, breakdownOpen = false;
-    let tradesOnly = false;                                         // the activity list: everything, or only buys and sells
+    // The activity list: everything, or only buys and sells. A way of looking at the list, not a setting of the autopilot:
+    // it is remembered in this browser (localStorage), so a refresh keeps it.
+    const VIEW_KEY = 'stockiqAutopilotTradesOnly';
+    const remembered = () => { try { return localStorage.getItem(VIEW_KEY) === '1'; } catch (e) { return false; } };
+    const remember = (on) => { try { localStorage.setItem(VIEW_KEY, on ? '1' : '0'); } catch (e) {} };
+    let tradesOnly = remembered();
     // Quick set-ups: one press fills in the fields (never the budget or the on/off switch); anything can be changed afterwards
     const PRESETS = [
         { key: 'coins', name: '⚡ Quick coin trading', title: 'Coins only, checked every 30 minutes, each kept at most 6 hours, the whole budget in use within a day', set: { risk: 4, periodDays: 1, everyHours: 0.5, maxHoldDays: 0.25, screeners: ['7-1'] } },
@@ -345,7 +357,7 @@
 
                 ${recordHtml()}
                 ${tuneHtml()}
-                <div class="ap-section"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><a href="#" data-ap="filter">${tradesOnly ? 'Show everything' : 'Show buys and sells only'}</a></span></h4>
+                <div class="ap-section"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><label class="ap-mini" title="On: only its buys and sells are listed. Off: its check-ins and notes too. Remembered in this browser."><input id="ap-tradesonly" type="checkbox" ${tradesOnly ? 'checked' : ''}><span class="ap-dot"></span>Buys and sells only</label></span></h4>
                     ${log.length ? shown.map(e => `<div class="ap-log"><time>${icons[e.type] || ''} ${esc(when(e.t))}</time> ${e.type === 'buy' ? `<strong style="color: var(--text-primary);">Bought ${esc(e.symbol)}</strong> with ${usd0(e.usd)}. ` : e.type === 'sell' ? `<strong style="color: var(--text-primary);">Sold ${esc(e.symbol)}</strong>${typeof e.pct === 'number' ? ` <span style="color: ${tint(e.pct)}; font-weight: 600;">${pc(e.pct)}</span>` : ''}. ` : ''}${esc(e.text)}${e.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${e.n} check-ins in a row, since ${esc(when(e.first))})</span>` : ''}${fold(e.type + e.t + e.symbol, e.type === 'sell' ? 'Why, and the details' : 'The plan for it', e.detail)}</div>`).join('') : `<div>${tradesOnly && all.length ? 'No buys or sells yet.' : 'Nothing yet. Its buys, sells and check-ins will be listed here.'}</div>`}
                     ${log.length > shown.length ? `<a href="#" data-ap="more" style="display: inline-block; margin-top: 8px;">Show all ${log.length}</a>` : ''}</div>
             </div>`;
@@ -482,7 +494,6 @@
         const action = t.getAttribute('data-ap');
         if (action === 'more') { readDraft(); showAll = true; render(); }
         else if (action === 'refresh') refresh(true);
-        else if (action === 'filter') { readDraft(); tradesOnly = !tradesOnly; showAll = false; render(); }
         else if (action === 'sellall') {
             const n = (data.plans || []).length;
             if (!n || !confirm(`Sell the ${n} holding${n === 1 ? '' : 's'} the autopilot bought, now, at the latest prices?\n\nHoldings you bought yourself are not touched. If the autopilot stays switched on it will buy again at its next check-in.`)) return;
@@ -511,6 +522,10 @@
         if (!e.target || !data || !data.allowed) return;
         const id = e.target.id || '', inPanel = id.indexOf('ap-') === 0 || (e.target.getAttribute && e.target.getAttribute('data-ap-screener'));
         if (!inPanel) return;
+        if (id === 'ap-tradesonly') {                                                    // how the list is shown: kept in this browser, not a setting of the autopilot
+            if (e.type === 'change') { readDraft(); tradesOnly = !!e.target.checked; remember(tradesOnly); showAll = false; if (editing()) syncDraft(); else render(); }
+            return;
+        }
         saveError = null;
         if (id === 'ap-enabled') { if (e.type === 'change') flush(); return; }           // the switch saves at once
         queueSave(e.type === 'change' ? 150 : 900);                                      // ticks and menus quickly; typing after a pause
