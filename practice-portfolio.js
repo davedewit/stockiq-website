@@ -142,7 +142,8 @@
         if (!plan) return '🤖 Bought by the autopilot.';
         if (!plan.auto) return '🤖 Bought by the autopilot, which is switched off: it stays until you sell it or switch the autopilot back on.';
         return `🤖 Autopilot: it sells this by itself, at the check-in around ${when(plan.sellBy)} at the latest, sooner at ${plan.stop}% or +${plan.take}%`
-            + `, or to keep part of a gain once it has been up ${plan.arm}%.` + (plan.trial ? ' Part of a trial of one of its own rules.' : '');
+            + `, or to keep part of a gain once it has been up ${plan.arm}%.` + (plan.trial ? ' Part of a trial of one of its own rules.' : '')
+            + ' The AI model also reviews it at every check-in and may sell it earlier.';
     }
 
     const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, planLine, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };

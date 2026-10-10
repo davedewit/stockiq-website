@@ -164,7 +164,7 @@
         if (!r || !(d.maxHoldDays > 0) || !(d.everyHours > 0)) return '';
         const late = d.maxHoldDays * 24 < d.everyHours - 1e-9, quick = d.everyHours < 3 || d.maxHoldDays < 1;
         const shares = d.screeners.some(k => (data.options.screeners[k] || {}).kind !== 'crypto');
-        return `It sells a holding once it has had it for ${holdText(d.maxHoldDays)}, whatever the price, and sooner at ${r.stop}% or +${r.take}%, to keep part of a gain once it has been up ${r.take / 2}%, or when its screener signal turns negative or it slips far down the ranking. The money is then free for the next buy.`
+        return `It sells a holding once it has had it for ${holdText(d.maxHoldDays)}, whatever the price, and sooner at ${r.stop}% or +${r.take}%, to keep part of a gain once it has been up ${r.take / 2}%, or when its screener signal turns negative or it slips far down the ranking. The money is then free for the next buy. At every check-in the AI model also reviews each holding against the latest screener figures and recent headlines, and may sell it earlier than these rules.`
             + (late ? ` It only checks in ${everyText(d.everyHours)}, though, so in practice a holding is sold at the next check-in, about ${holdText(d.everyHours / 24)} after it was bought. Check in more often for it to be sold on time.` : '')
             + (quick && shares ? ' Shares are only traded while their market is open and their rankings change little within a day, so quick settings mostly make a difference for coins.' : '')
             + (quick ? ' No trading costs are taken off here: real trading this often would lose part of every trade to fees.' : '');
@@ -198,7 +198,7 @@
     function recordHtml() {
         const c = data.scorecard, need = data.minSample || 8, plans = data.plans || [], on = data.settings.enabled;
         const held = plans.length
-            ? `<div>Holding now: ${plans.map(p => `<strong style="color: var(--text-primary);">${esc(p.label)}</strong> (bought ${esc(when(p.boughtAt))}; ${on ? `it sells it at the check-in around ${esc(when(p.sellBy))} at the latest, sooner at ${p.stop}% or +${p.take}%` : 'the autopilot is off, so it stays until you sell it'})`).join('; ')}.</div>`
+            ? `<div>Holding now: ${plans.map(p => `<strong style="color: var(--text-primary);">${esc(p.label)}</strong> (bought ${esc(when(p.boughtAt))}; ${on ? `it sells it at the check-in around ${esc(when(p.sellBy))} at the latest, sooner at ${p.stop}% or +${p.take}%` : 'the autopilot is off, so it stays until you sell it'}${on && p.view ? `; the AI model's latest review, ${esc(when(p.view.t))}: ${p.view.sell ? 'sell' : 'keep'} (${esc(p.view.text)})` : ''})`).join('; ')}.</div>`
             : `<div>Holding nothing right now.</div>`;
         const m = data.month && data.month.last30, before = data.month && data.month.before30;
         const month = m && m.n ? `<div style="margin-top: 4px;">Last 30 days: <span style="color: ${tint(m.usd)}; font-weight: 600;">${usd2(m.usd)}</span> from ${m.n} finished trade${m.n === 1 ? '' : 's'} (${m.up} up)${m.pct !== null ? `, which is <span style="color: ${tint(m.pct)}; font-weight: 600;">${(m.pct >= 0 ? '+' : '') + m.pct.toFixed(2)}%</span> of the ${usd0(data.settings.budgetUsd)} budget` : ''}.${before && before.n ? ` The 30 days before: ${usd2(before.usd)} from ${before.n}${before.pct !== null ? ' (' + (before.pct >= 0 ? '+' : '') + before.pct.toFixed(2) + '%)' : ''}.` : ''}</div>` : '';
@@ -238,6 +238,7 @@
         return `<div class="ap-section"><h4>Improving its own rules</h4>
             <div>Its rules now (${esc(r.name)} level): ${esc(ruleWords(r))}.${changed.length ? ` Changed by itself after a trial: ${esc(changed.map(k => names[k] + ' (the level starts at ' + r.changed[k] + ')').join(', '))}.` : ''}</div>
             ${now}
+            ${data.aiSellPausedUntil ? `<div style="margin-top: 6px;">The AI model's early sells are paused until ${esc(day(data.aiSellPausedUntil))}: the holdings it had sold early went on rising afterwards. The fixed selling rules still apply.</div>` : ''}
             ${past.length ? fold('past-trials', `Earlier trials (${past.length})`, past.map(p => `${day(p.since)} to ${day(p.ended)}: ${p.text}: ${verdicts[p.verdict] || p.verdict}. ${p.result ? p.result.charAt(0).toUpperCase() + p.result.slice(1) + '.' : ''}`)) : ''}
             <div style="font-size: 0.8rem; margin-top: 6px;">It can only change these five rules, inside fixed limits, for its own fake-money trades. It never changes your settings, the budget or anything else on the site. Each review is emailed to your account address.</div>
         </div>`;
