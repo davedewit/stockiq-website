@@ -235,7 +235,7 @@
             const v = valueOf(h, quotes);
             const market = spy > 0 && h.spyAtBuy > 0 ? (spy / h.spyAtBuy - 1) * 100 : null;
             return `<tr>
-                <td style="${left}"><strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div></td>
+                <td style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div></td>
                 <td style="${cell}">${esc(day(h.boughtAt))}</td>
                 <td style="${cell}">${money(h.buyPrice, h.currency)}</td>
                 <td style="${cell}">${v.priced ? money(v.price, h.currency) : '<span title="No price available right now">–</span>'}</td>
@@ -249,7 +249,7 @@
         const closed = state.closed.slice().reverse().map(h => {
             const change = (h.proceedsUsd / h.costUsd - 1) * 100;
             const market = h.spyAtBuy > 0 && h.spyAtSell > 0 ? (h.spyAtSell / h.spyAtBuy - 1) * 100 : null;
-            return `<tr><td style="${left}"><strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td style="${cell}">${esc(day(h.boughtAt))} → ${esc(day(h.soldAt))}</td><td style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)} (${usd(h.proceedsUsd - h.costUsd)})</td><td style="${cell}">${market === null ? '–' : pct(market)}</td><td style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
+            return `<tr><td style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td style="${cell}">${esc(day(h.boughtAt))} → ${esc(day(h.soldAt))}</td><td style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)} (${usd(h.proceedsUsd - h.costUsd)})</td><td style="${cell}">${market === null ? '–' : pct(market)}</td><td style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
         }).join('');
         const sold = soldSummary(state);
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}, <span style="color: ${colour(sold.gainUsd)}; font-weight: 600;">${pct(sold.gainPct)} (${usd(sold.gainUsd)})</span>${sold.compared ? `. ${sold.ahead} of ${sold.compared} did better than the S&amp;P 500 over the same days` : ''}.` : '';
@@ -391,5 +391,7 @@
         }
     };
 
+    // for practice-autopilot.js: show what the autopilot has just bought or sold
+    window.practicePortfolio = { reload: load };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
