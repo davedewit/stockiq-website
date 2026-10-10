@@ -70,7 +70,9 @@
     const day = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
     const pc = (n) => (n === null || n === undefined) ? '–' : (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
     const tint = (n) => (n === null || n === undefined) ? 'var(--text-secondary)' : n >= 0 ? '#22c55e' : '#ef4444';
-    const everyText = (v) => v === 24 ? 'once a day' : v === 12 ? 'twice a day' : `every ${v} hours`;
+    const everyText = (v) => v === 24 ? 'once a day' : v === 12 ? 'twice a day' : v === 1 ? 'every hour' : v < 1 ? `every ${Math.round(v * 60)} minutes` : `every ${v} hours`;
+    // a holding time given in days: 30 minutes, 3 hours, 5 days
+    const holdText = (d) => { const h = d * 24; return h < 0.75 ? `${Math.round(h * 60)} minutes` : h < 23.5 ? `${Math.round(h)} hour${Math.round(h) === 1 ? '' : 's'}` : `${Math.round(d)} day${Math.round(d) === 1 ? '' : 's'}`; };
     let accepted = null;                          // what was last sent and saved (the server may tidy a value, e.g. round the budget)
     const isDirty = () => { if (!data || !draft) return false; const now = JSON.stringify(draft); return now !== JSON.stringify(data.settings) && now !== accepted; };
 
@@ -102,6 +104,12 @@
         const cash = data.practiceCash || 100000;
         return `Up to ${r.positions} holdings of about ${usd0(d.budgetUsd / r.positions)} each, bought a few at a time: the whole ${usd0(d.budgetUsd)} is in use after about ${d.periodDays} day${d.periodDays === 1 ? '' : 's'}. Money from a sale is used again.`
             + (d.budgetUsd > cash ? ` The practice portfolio starts with ${usd0(cash)}, so it can never invest more than the cash that is left.` : '');
+    }
+    // What quick settings really mean, shown under the fields
+    function paceText(d) {
+        const quick = d.everyHours < 3 || d.maxHoldDays < 1;
+        return 'The longest it keeps a holding: after that it sells, whatever the price, and the money is free for the next buy. It also sells earlier at the loss limit, at the gain mark, or when the screener signal turns negative.'
+            + (quick ? ' Quick settings suit coins, which trade all day and night; share rankings change little within a day and shares only trade while their market is open. No trading costs are taken off here: real trading this often would lose part of every trade to fees.' : '');
     }
     function statusText() {
         const s = data.settings, last = data.state && data.state.lastRun;
@@ -183,9 +191,10 @@
                         <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" step="500" value="${d.budgetUsd}"></div></div>
                         <div><label class="ap-label" for="ap-period">Build up to it over</label><div class="ap-input"><input id="ap-period" type="number" min="1" max="90" step="1" value="${d.periodDays}"> days</div></div>
                         <div><label class="ap-label" for="ap-every">Checks in</label><div class="ap-input">${select('ap-every', o.everyHours, d.everyHours, everyText)}</div></div>
-                        <div><label class="ap-label" for="ap-hold">Keeps a holding at most</label><div class="ap-input">${select('ap-hold', o.holdDays, d.maxHoldDays, v => `${v} days`)}</div></div>
+                        <div><label class="ap-label" for="ap-hold">Keeps a holding at most</label><div class="ap-input">${select('ap-hold', o.holdDays, d.maxHoldDays, holdText)}</div></div>
                     </div>
                     <div id="ap-plan" class="ap-help">${esc(planText(d))}</div>
+                    <div id="ap-pace" class="ap-help">${esc(paceText(d))}</div>
                 </div>
 
                 <div class="ap-card">
@@ -212,7 +221,7 @@
         draft = {
             enabled: !!byId('ap-enabled').checked, risk: parseInt(byId('ap-risk').value, 10) || 3,
             budgetUsd: parseFloat(byId('ap-budget').value) || 0, periodDays: parseInt(byId('ap-period').value, 10) || 1,
-            everyHours: parseInt(byId('ap-every').value, 10), maxHoldDays: parseInt(byId('ap-hold').value, 10),
+            everyHours: parseFloat(byId('ap-every').value), maxHoldDays: parseFloat(byId('ap-hold').value),
             screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')).sort()
         };
     }
@@ -227,6 +236,7 @@
         set('ap-switch-text', el => { el.textContent = draft.enabled ? 'On' : 'Off'; });
         set('ap-risk-text', el => { el.textContent = riskText(draft.risk); });
         set('ap-plan', el => { el.textContent = planText(draft); });
+        set('ap-pace', el => { el.textContent = paceText(draft); });
         set('ap-chosen', el => { el.textContent = draft.screeners.length + ' chosen'; });
         if (document.querySelectorAll) Array.from(document.querySelectorAll('[data-ap-level]')).forEach(el => { if (el.classList) el.classList.toggle('now', el.getAttribute('data-ap-level') === String(draft.risk)); });
     }
