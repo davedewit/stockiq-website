@@ -51,6 +51,24 @@
         return proceeds;
     }
 
+    // Tidy the sold list: one line (by id) or all of it. The money is untouched: what a sale brought in
+    // went into the practice cash when it was sold, so the account value does not change.
+    function applyClearSold(state, id) {
+        const before = state.closed.length;
+        state.closed = id ? state.closed.filter(h => h.id !== id) : [];
+        return before - state.closed.length;
+    }
+
+    // What the sold list adds up to, and how many sales did better than the S&P 500 fund over the same days
+    function soldSummary(state) {
+        let cost = 0, proceeds = 0, compared = 0, ahead = 0;
+        state.closed.forEach(h => {
+            cost += h.costUsd; proceeds += h.proceedsUsd;
+            if (h.spyAtBuy > 0 && h.spyAtSell > 0) { compared++; if (h.proceedsUsd / h.costUsd > h.spyAtSell / h.spyAtBuy) ahead++; }
+        });
+        return { count: state.closed.length, cost, proceeds, gainUsd: proceeds - cost, gainPct: cost > 0 ? (proceeds / cost - 1) * 100 : null, compared, ahead };
+    }
+
     // quotes: { SYMBOL: { price, currency, name } }, including exchange-rate symbols and the benchmark
     function valueOf(h, quotes) {
         const q = quotes[h.symbol];
@@ -64,16 +82,19 @@
 
     function summarize(state, quotes) {
         const spy = quotes[BENCHMARK] ? quotes[BENCHMARK].price : null;
-        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0;
+        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0;
         state.holdings.forEach(h => {
             const v = valueOf(h, quotes);
             holdingsValue += v.valueUsd; cost += h.costUsd;
             if (!v.priced) unpriced++;
-            if (spy > 0 && h.spyAtBuy > 0) { marketValue += h.costUsd * spy / h.spyAtBuy; marketCost += h.costUsd; }
+            if (spy > 0 && h.spyAtBuy > 0) {
+                marketValue += h.costUsd * spy / h.spyAtBuy; marketCost += h.costUsd;
+                if (v.priced) { compared++; if (v.valueUsd / h.costUsd > spy / h.spyAtBuy) ahead++; }
+            }
         });
         const accountValue = state.cash + holdingsValue;
         return {
-            cash: state.cash, holdingsValue, cost, accountValue, unpriced,
+            cash: state.cash, holdingsValue, cost, accountValue, unpriced, compared, ahead,
             gainUsd: accountValue - state.startingCash, gainPct: (accountValue / state.startingCash - 1) * 100,
             openGainUsd: holdingsValue - cost, openGainPct: cost > 0 ? (holdingsValue / cost - 1) * 100 : null,
             // the same dollars put into the S&P 500 fund on the same days
@@ -96,7 +117,7 @@
     function colour(n) { return Math.round(n * 100) / 100 >= 0 ? '#22c55e' : '#ef4444'; }
     function day(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
 
-    const pure = { newState, fxFor, applyBuy, applySell, valueOf, summarize, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
+    const pure = { newState, fxFor, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -104,6 +125,7 @@
     const BTN2 = 'background: none; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     const BTN = 'background: #007bff; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     let state = null, version = 0, quotes = {}, loaded = false, loadError = null, notice = null, working = false, searchTimer = null;
+    let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-portfolio');
 
@@ -197,6 +219,8 @@
     function render() {
         const el = box();
         if (!el) return;
+        const soldBox = document.getElementById('pp-sold');
+        if (soldBox && typeof soldBox.open === 'boolean') soldOpen = soldBox.open;
         if (!userId()) { el.innerHTML = '<p style="color: var(--text-secondary);">Sign in to use the practice portfolio.</p>'; return; }
         if (!loaded) { el.innerHTML = '<p style="color: var(--text-secondary);">Loading…</p>'; return; }
         if (!state) { el.innerHTML = `<p style="color: #ef4444;">${esc(loadError || 'The practice portfolio could not be loaded.')}</p><button data-pp="reload" style="${BTN}">Try again</button>`; return; }
@@ -225,8 +249,11 @@
         const closed = state.closed.slice().reverse().map(h => {
             const change = (h.proceedsUsd / h.costUsd - 1) * 100;
             const market = h.spyAtBuy > 0 && h.spyAtSell > 0 ? (h.spyAtSell / h.spyAtBuy - 1) * 100 : null;
-            return `<tr><td style="${left}"><strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td style="${cell}">${esc(day(h.boughtAt))} → ${esc(day(h.soldAt))}</td><td style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)}</td><td style="${cell}">${market === null ? '–' : pct(market)}</td></tr>`;
+            return `<tr><td style="${left}"><strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td style="${cell}">${esc(day(h.boughtAt))} → ${esc(day(h.soldAt))}</td><td style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)} (${usd(h.proceedsUsd - h.costUsd)})</td><td style="${cell}">${market === null ? '–' : pct(market)}</td><td style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
         }).join('');
+        const sold = soldSummary(state);
+        const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}, <span style="color: ${colour(sold.gainUsd)}; font-weight: 600;">${pct(sold.gainPct)} (${usd(sold.gainUsd)})</span>${sold.compared ? `. ${sold.ahead} of ${sold.compared} did better than the S&amp;P 500 over the same days` : ''}.` : '';
+        const aheadLine = s.compared ? `${s.ahead} of ${s.compared} holding${s.compared === 1 ? '' : 's'} ${s.compared === 1 ? 'is' : 'are'} ahead of the S&amp;P 500 since ${s.compared === 1 ? 'it was' : 'they were'} bought.` : '';
 
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
         el.innerHTML = `
@@ -247,8 +274,8 @@
                 <button data-pp="buy" style="${BTN} padding: 10px 18px; font-size: 0.95rem;" ${working ? 'disabled' : ''}>${working ? 'Working…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Amount is in practice US dollars. A buy is recorded at the latest traded price.'}</div>
-            ${state.holdings.length ? `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('S&amp;P 500 since')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
-            ${state.closed.length ? `<details style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('S&amp;P 500 same time')}</tr>${closed}</table></div></details>` : ''}
+            ${state.holdings.length ? `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('S&amp;P 500 since')}${th('')}</tr>${rows}</table></div>${aheadLine ? `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px;">${aheadLine}</div>` : ''}` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
+            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('S&amp;P 500 same time')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" style="${BTN2}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>Clear sold list</button></div></details>` : ''}
             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
                 <button data-pp="refresh" style="${BTN2}" ${working ? 'disabled' : ''}>↻ Refresh prices</button>
                 <button data-pp="reset" style="${BTN2}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>Reset fake money to ${usd(STARTING_CASH)}</button>
@@ -303,6 +330,15 @@
             const id = t.getAttribute('data-id'), h = state.holdings.find(x => x.id === id);
             if (!h || !confirm(`Sell ${h.label} at the latest price? This closes the practice holding.`)) return;
             run(async () => { const proceeds = await sell(id); say(`Sold ${h.label} for ${usd(proceeds)} (put in ${usd(h.costUsd)}).`); });
+        } else if (action === 'clearsold') {
+            const n = state.closed.length;
+            if (!n || !confirm(`Clear all ${n} line${n === 1 ? '' : 's'} from the sold list? Your practice cash and account value stay as they are; only the list is emptied.`)) return;
+            run(async () => { await change(st => applyClearSold(st, null)); say('Sold list cleared. Practice cash and account value are unchanged.'); });
+        } else if (action === 'unsold') {
+            const id = t.getAttribute('data-id'), h = state.closed.find(x => x.id === id);
+            if (!h) return;
+            soldOpen = true;
+            run(async () => { await change(st => applyClearSold(st, id)); say(`${h.label} removed from the sold list. Practice cash and account value are unchanged.`); });
         } else if (action === 'refresh') {
             run(async () => { await refreshQuotes(); say('Prices refreshed.'); });
         } else if (action === 'reset') {
