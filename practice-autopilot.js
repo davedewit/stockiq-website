@@ -2,8 +2,9 @@
 // This file is only the controls and what the autopilot reports. The decisions are made by the stockiq-ai-trader
 // Lambda on a schedule (or "Check in now"), which writes its practice buys and sells into the same practice
 // portfolio that practice-portfolio.js shows. Shown only to users that Lambda allows.
-// How the controls behave: the On/Off switch saves straight away; every other change waits for "Save changes"
-// (the button turns blue and says so), because changing the budget restarts how it is spread over the days.
+// How the controls behave: EVERY change is saved by itself (the switch at once, typing after a short pause), so a
+// refresh always shows what was last set. There is no save button; a line beside "Check in now" says
+// "Saving…", "Saved" or why something could not be saved.
 (function () {
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
     const CSS = `
@@ -46,7 +47,8 @@
         #practice-autopilot .ap-btn { border-radius: 6px; padding: 9px 16px; font-size: 0.9rem; cursor: pointer; white-space: nowrap; border: 1px solid var(--border-color); background: none; color: var(--text-primary); }
         #practice-autopilot .ap-btn.primary { background: #007bff; border-color: #007bff; color: #fff; }
         #practice-autopilot .ap-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        #practice-autopilot .ap-dirty { color: #d97706; font-size: 0.85rem; }
+        #practice-autopilot .ap-saved { color: var(--text-secondary); font-size: 0.85rem; }
+        #practice-autopilot .ap-saved.bad { color: #d97706; }
         #practice-autopilot .ap-note { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; color: var(--text-primary); }
         #practice-autopilot .ap-note.good { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.4); }
         #practice-autopilot .ap-note.bad { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); }
@@ -58,6 +60,7 @@
     `;
 
     let data = null, draft = null, working = '', notice = null, showAll = false;
+    let saveTimer = null, saving = false, saveError = null, savedOnce = false, breakdownOpen = false;
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-autopilot');
     const byId = (id) => document.getElementById(id);
@@ -68,7 +71,8 @@
     const pc = (n) => (n === null || n === undefined) ? '–' : (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
     const tint = (n) => (n === null || n === undefined) ? 'var(--text-secondary)' : n >= 0 ? '#22c55e' : '#ef4444';
     const everyText = (v) => v === 24 ? 'once a day' : v === 12 ? 'twice a day' : `every ${v} hours`;
-    const isDirty = () => !!data && !!draft && JSON.stringify(draft) !== JSON.stringify(data.settings);
+    let accepted = null;                          // what was last sent and saved (the server may tidy a value, e.g. round the budget)
+    const isDirty = () => { if (!data || !draft) return false; const now = JSON.stringify(draft); return now !== JSON.stringify(data.settings) && now !== accepted; };
 
     function ensureStyle() {
         if (!document.head || !document.createElement || byId('ap-style')) return;
@@ -77,8 +81,8 @@
         document.head.appendChild(style);
     }
 
-    async function api(action, extra) {
-        const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action, userId: userId() }, extra || {})) });
+    async function api(action, extra, keepalive) {
+        const res = await fetch(API, { method: 'POST', keepalive: !!keepalive, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action, userId: userId() }, extra || {})) });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || 'The autopilot could not be reached');
         return body;
@@ -102,6 +106,7 @@
     function statusText() {
         const s = data.settings, last = data.state && data.state.lastRun;
         if (!s.enabled) return 'Off. Nothing is bought or sold automatically.';
+        if (!s.screeners.length) return 'On, but no screener is chosen yet. Tick at least one below and it will start at the next check-in.';
         const r = data.options.risk[String(s.risk)] || {};
         const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(s.budgetUsd)} budget is invested.` : '';
         const next = data.nextCheck && data.nextCheck.at
@@ -109,9 +114,13 @@
             : (data.nextCheck === null ? ' No check-in is due in the next ten days.' : '');
         return 'On.' + holding + (last ? ` Last check-in ${when(last)}.` : (next ? '' : ' First check-in at the next hourly check.')) + next;
     }
-    // The line beside the buttons: what to do next
-    function hintText(dirty, on) {
-        return dirty ? 'You have changes that are not saved yet.' : on ? '' : 'Use the switch at the top right to turn it on.';
+    // The line beside the button: whether what is on screen is saved, and what to do next
+    function savedState() {
+        if (saveError) return { text: 'Not saved: ' + saveError, bad: true };
+        if (saving || saveTimer || isDirty()) return { text: 'Saving…', bad: false };
+        const s = data.settings;
+        const next = !s.enabled ? ' Use the switch at the top right to turn it on.' : !s.screeners.length ? ' Tick at least one screener for it to start.' : '';
+        return { text: (savedOnce ? '✓ Saved.' : 'Changes are saved as you make them.') + next, bad: false };
     }
     function screenerGroups(all) {
         const groups = [];
@@ -130,7 +139,7 @@
         const lessons = data.lessons && data.lessons.items && data.lessons.items.length ? `<div style="margin-top: 10px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">What it has noted from its record</strong> <span style="font-size: 0.8rem;">(written by the AI model on ${esc(day(data.lessons.at))} from ${data.lessons.n} closed trades)</span><ul style="margin: 4px 0 0 18px; padding: 0;">${data.lessons.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
         return `<div class="ap-section"><h4>How it is doing</h4>
             <div>${c.n} closed trade${c.n === 1 ? '' : 's'}: average <span style="color: ${tint(c.avg)}; font-weight: 600;">${pc(c.avg)}</span>${c.vs !== null ? `, <span style="color: ${tint(c.vs)}; font-weight: 600;">${pc(c.vs)}</span> against the S&amp;P 500 over the same days, ahead in ${c.beat} of ${c.judged}` : ''}.${c.n < need ? ` Fewer than ${need} trades: too few to conclude anything yet.` : ''}</div>
-            <details style="margin-top: 6px;"><summary style="cursor: pointer; color: var(--text-primary);">Breakdown</summary><div style="overflow-x: auto;"><table style="border-collapse: collapse; font-size: 0.85rem;">
+            <details id="ap-breakdown" ${breakdownOpen ? 'open' : ''} style="margin-top: 6px;"><summary style="cursor: pointer; color: var(--text-primary);">Breakdown</summary><div style="overflow-x: auto;"><table style="border-collapse: collapse; font-size: 0.85rem;">
                 <tr><td></td><td style="${cell}">Trades</td><td style="${cell}">Average</td><td style="${cell}">Against the market</td><td style="${cell}">Ahead</td></tr>
                 ${section('By screener', g.screener)}${section('By place in the ranking when bought', g.rank)}${section('By RSI when bought', g.rsi)}${section('By who chose', g.chosen)}${section('By how it was sold', g.exit)}
             </table></div><div style="font-size: 0.8rem; margin-top: 4px;">A group needs ${need} trades before the autopilot acts on it. A screener whose recent trades clearly lag the market is rested for two weeks. Past results of fake-money trades; they say nothing certain about the future.</div></details>
@@ -144,7 +153,9 @@
         if (!el) return;
         if (!data || !data.allowed) { el.innerHTML = ''; return; }
         ensureStyle();
-        const d = draft, o = data.options, on = data.settings.enabled, dirty = isDirty();
+        const fold = byId('ap-breakdown');
+        if (fold && typeof fold.open === 'boolean') breakdownOpen = fold.open;
+        const d = draft, o = data.options, on = data.settings.enabled, ready = on && data.settings.screeners.length > 0, state = savedState();
         const select = (id, list, value, label) => `<select id="${id}">${list.map(v => `<option value="${v}" ${v === value ? 'selected' : ''}>${label(v)}</option>`).join('')}</select>`;
         const icons = { buy: '🟢', sell: '🔴', note: 'ℹ️' };
         const log = (data.log || []).slice().reverse();
@@ -184,9 +195,8 @@
                 </div>
 
                 <div class="ap-actions">
-                    <button id="ap-save" data-ap="save" class="ap-btn ${dirty ? 'primary' : ''}" ${working || !dirty ? 'disabled' : ''}>${working === 'save' ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</button>
-                    <button id="ap-run" data-ap="run" class="ap-btn" ${working || !on || dirty ? 'disabled' : ''} title="${!on ? 'Switch the autopilot on first' : dirty ? 'Save your changes first' : 'Runs one check-in now instead of waiting for the next one'}">${working === 'run' ? 'Checking in… this can take up to a minute' : 'Check in now'}</button>
-                    <span id="ap-dirty" class="ap-dirty">${hintText(dirty, on)}</span>
+                    <button id="ap-run" data-ap="run" class="ap-btn ${ready ? 'primary' : ''}" ${working || !ready || state.text === 'Saving…' ? 'disabled' : ''} title="${!on ? 'Switch the autopilot on first' : !ready ? 'Tick at least one screener first' : 'Runs one check-in now instead of waiting for the next one'}">${working === 'run' ? 'Checking in… this can take up to a minute' : 'Check in now'}</button>
+                    <span id="ap-saved" class="ap-saved ${state.bad ? 'bad' : ''}">${esc(state.text)}</span>
                 </div>
                 <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) : ''}</div>
 
@@ -206,14 +216,15 @@
             screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')).sort()
         };
     }
-    // After a control changes: bring the buttons and the explanatory lines up to date without redrawing (typing keeps its place)
+    // Bring the button, the "saved" line and the explanatory lines up to date without redrawing (typing keeps its place)
     function syncDraft() {
         readDraft();
         if (!draft || !data) return;
-        const dirty = isDirty(), on = data.settings.enabled, set = (id, fn) => { const el = byId(id); if (el) fn(el); };
-        set('ap-save', el => { el.disabled = !dirty || !!working; el.textContent = dirty ? 'Save changes' : 'Saved'; if (el.classList) el.classList.toggle('primary', dirty); });
-        set('ap-run', el => { el.disabled = !!working || !on || dirty; el.title = !on ? 'Switch the autopilot on first' : dirty ? 'Save your changes first' : 'Runs one check-in now instead of waiting for the next one'; });
-        set('ap-dirty', el => { el.textContent = hintText(dirty, on); });
+        const on = data.settings.enabled, ready = on && data.settings.screeners.length > 0, state = savedState(), set = (id, fn) => { const el = byId(id); if (el) fn(el); };
+        set('ap-run', el => { el.disabled = !!working || !ready || state.text === 'Saving…'; el.title = !on ? 'Switch the autopilot on first' : !ready ? 'Tick at least one screener first' : 'Runs one check-in now instead of waiting for the next one'; if (el.classList) el.classList.toggle('primary', ready); });
+        set('ap-saved', el => { el.textContent = state.text; if (el.classList) el.classList.toggle('bad', state.bad); });
+        set('ap-status', el => { el.textContent = statusText(); if (el.classList) el.classList.toggle('on', on); });
+        set('ap-switch-text', el => { el.textContent = draft.enabled ? 'On' : 'Off'; });
         set('ap-risk-text', el => { el.textContent = riskText(draft.risk); });
         set('ap-plan', el => { el.textContent = planText(draft); });
         set('ap-chosen', el => { el.textContent = draft.screeners.length + ' chosen'; });
@@ -221,12 +232,45 @@
     }
     function validate(d) {
         const cash = data.practiceCash || 100000;
-        if (!d.screeners.length) throw new Error('Choose at least one screener for it to buy from.');
-        if (!(d.budgetUsd >= 100)) throw new Error('The budget must be at least $100.');
-        if (d.budgetUsd > cash * 10) throw new Error(`The budget cannot be more than ${usd0(cash * 10)}.`);
-        if (!(d.periodDays >= 1 && d.periodDays <= 90)) throw new Error('Spread the buying over 1 to 90 days.');
+        if (!(d.budgetUsd >= 100)) throw new Error('the budget must be at least $100.');
+        if (d.budgetUsd > cash * 10) throw new Error(`the budget cannot be more than ${usd0(cash * 10)}.`);
+        if (!(d.periodDays >= 1 && d.periodDays <= 90)) throw new Error('spread the buying over 1 to 90 days.');
     }
-    function take(result) { data = result; draft = JSON.parse(JSON.stringify(result.settings)); }
+    // Is the user in the middle of typing or dragging in the panel? Then the panel is updated in place, not redrawn.
+    function editing() {
+        const el = document.activeElement;
+        return !!el && typeof el.id === 'string' && ['ap-budget', 'ap-period', 'ap-risk'].includes(el.id);
+    }
+    function queueSave(delay) {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => { saveTimer = null; flush(); }, delay);
+        syncDraft();
+    }
+    // Save what is on screen now. Each change is saved by itself; if more changes arrive meanwhile they are saved next.
+    async function flush(leaving) {
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        if (!data || !data.allowed) return;
+        readDraft();
+        if (!isDirty()) { syncDraft(); return; }
+        if (saving) return;                               // the save in flight will pick the rest up when it lands
+        try { validate(draft); } catch (e) { saveError = e.message; syncDraft(); return; }
+        saving = true; saveError = null; syncDraft();
+        const sent = JSON.stringify(draft), wasOn = data.settings.enabled;
+        try {
+            const result = await api('save', { settings: draft }, leaving);
+            const unchangedSince = JSON.stringify(draft) === sent;
+            data = result;
+            if (unchangedSince) draft = JSON.parse(JSON.stringify(result.settings));
+            savedOnce = true; accepted = sent;
+            const on = data.settings.enabled;
+            if (on !== wasOn) notice = { text: on ? (data.settings.screeners.length ? 'Autopilot switched on. Press "Check in now" to see its first choices, or leave it to check in by itself.' : 'Autopilot switched on. Tick at least one screener below for it to start.')
+                : 'Autopilot switched off. What it holds stays in the practice portfolio until you sell it.' };
+        } catch (e) { saveError = e.message; }
+        saving = false;
+        if (!saveError && isDirty()) { queueSave(300); return; }
+        if (editing()) syncDraft(); else render();
+    }
+    function take(result) { data = result; draft = JSON.parse(JSON.stringify(result.settings)); accepted = null; }
 
     async function load() {
         if (!userId() || !box()) return;
@@ -235,30 +279,21 @@
     }
     async function act(kind, task) {
         if (working) return;
-        readDraft(); working = kind; notice = null; render();
+        await flush();                                    // anything just changed is saved first
+        if (saveError || isDirty()) { render(); return; }
+        working = kind; notice = null; render();
         try { await task(); } catch (e) { notice = { text: e.message, bad: true }; }
         working = ''; render();
-    }
-    function saveNow(turned) {
-        return act('save', async () => {
-            try { validate(draft); } catch (e) { if (turned) draft.enabled = data.settings.enabled; throw e; }
-            const wasOn = data.settings.enabled;
-            take(await api('save', { settings: draft }));
-            const on = data.settings.enabled;
-            notice = { text: on && !wasOn ? 'Autopilot switched on. Press "Check in now" to see its first choices, or leave it to check in by itself.'
-                : !on && wasOn ? 'Autopilot switched off. What it holds stays in the practice portfolio until you sell it.' : 'Settings saved.' };
-        });
     }
 
     document.addEventListener('click', (e) => {
         const level = e.target.closest && e.target.closest('[data-ap-level]');
-        if (level && data && byId('ap-risk')) { byId('ap-risk').value = level.getAttribute('data-ap-level'); syncDraft(); return; }
+        if (level && data && byId('ap-risk')) { byId('ap-risk').value = level.getAttribute('data-ap-level'); saveError = null; queueSave(150); return; }
         const t = e.target.closest && e.target.closest('[data-ap]');
         if (!t || !data) return;
         if (t.tagName === 'A') e.preventDefault();
         const action = t.getAttribute('data-ap');
         if (action === 'more') { readDraft(); showAll = true; render(); }
-        else if (action === 'save') saveNow(false);
         else if (action === 'run') {
             act('run', async () => {
                 const r = await api('run');
@@ -273,12 +308,18 @@
         if (!e.target || !data || !data.allowed) return;
         const id = e.target.id || '', inPanel = id.indexOf('ap-') === 0 || (e.target.getAttribute && e.target.getAttribute('data-ap-screener'));
         if (!inPanel) return;
-        if (id === 'ap-enabled') { if (e.type === 'change') saveNow(true); return; }     // the switch saves straight away
-        syncDraft();
+        saveError = null;
+        if (id === 'ap-enabled') { if (e.type === 'change') flush(); return; }           // the switch saves at once
+        queueSave(e.type === 'change' ? 150 : 900);                                      // ticks and menus quickly; typing after a pause
     };
     document.addEventListener('input', changed);
     document.addEventListener('change', changed);
 
-    window.practiceAutopilot = { reload: load };
+    // Leaving the page with a change still waiting: send it now
+    const leaving = () => { if (data && data.allowed && (saveTimer || isDirty())) flush(true); };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('pagehide', leaving);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaving(); });
+
+    window.practiceAutopilot = { reload: load, flush };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
