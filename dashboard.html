@@ -1666,7 +1666,7 @@
                     (item.csvS3Key && isDeleted) ? `<button class="csv-btn" title="CSV deleted">⬇️</button>` : 
                     ``;
                 const isScreener = !isDeleted && item.csvS3Key && (item.symbol.includes('SCREENER') || item.companyName?.includes('Screener') || item.companyName?.includes('Crypto Universe'));
-                const avgChangeDisplay = isScreener && item.isUpdating ? `<div style="width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: #007bff; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>` : isScreener && item.avgChange !== undefined ? `<span onclick="event.stopPropagation(); (async () => { const item = analysisHistory.find(a => a.analysisId === '${item.analysisId}'); item.isUpdating = true; displayHistory(); await updateScreenerAvgChange('${item.analysisId}', '${item.timestamp}'); item.isUpdating = false; displayHistory(); })();" style="font-size: 0.85rem; font-weight: 600; color: ${item.avgChange >= 0 ? '#22c55e' : '#ef4444'}; white-space: nowrap; cursor: pointer; text-decoration: underline;" title="Click to refresh">${item.avgChange >= 0 ? '+' : ''}${item.avgChange.toFixed(2)}%</span>` : '';
+                const avgChangeDisplay = isScreener && item.isUpdating ? `<div style="width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: #007bff; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>` : isScreener && typeof item.avgChange === 'number' && isFinite(item.avgChange) ? `<span onclick="event.stopPropagation(); (async () => { const item = analysisHistory.find(a => a.analysisId === '${item.analysisId}'); item.isUpdating = true; displayHistory(); await updateScreenerAvgChange('${item.analysisId}', '${item.timestamp}'); item.isUpdating = false; displayHistory(); })();" style="font-size: 0.85rem; font-weight: 600; color: ${item.avgChange >= 0 ? '#22c55e' : '#ef4444'}; white-space: nowrap; cursor: pointer; text-decoration: underline;" title="Click to refresh">${item.avgChange >= 0 ? '+' : ''}${item.avgChange.toFixed(2)}%</span>` : '';
                 const trackButton = isScreener ? `<button class="csv-btn" onclick="event.stopPropagation(); trackScreenerPerformance('${item.analysisId}', '${item.timestamp}')" title="Track Top 10 Performance" style="background: #ffc107;">🎯</button>` : '';
                 const viewButton = isDeleted ? `<button class="view-btn" title="Report deleted">View Report</button>` : 
                                   `<button class="view-btn" onclick="event.stopPropagation(); viewAnalysis('${item.analysisId}')">View Report</button>`;
@@ -3474,96 +3474,191 @@ ${analysis.report}
             return map;
         }
 
+        // ---- Top 10 Performance (🎯 on screener reports) -------------------------------------------
+        // One parser and one calculation feed both the row badge and the popup. (They used to have separate
+        // copies that drifted apart: the badge could not read Nikkei reports and the popup failed on London ones.)
+        const TOP10_DASHBOARD_API = 'https://nwdjnlcbtj34ywy6sgawmwhcx40ologt.lambda-url.us-east-1.on.aws/';
+        const TOP10_PRICE_API = 'https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=';
+
+        // Reads the top-10 lines of a saved report: "1. 🟢 STEEM  $0.065" (crypto), "1. LKE.AX $AUD0.10",
+        // "1. HSBA.L £1394.00", "1. 8035.T   Tokyo Electron    ¥12345". Do not change that part of a report line.
+        function parseScreenerTop10(report) {
+            const cryptoTickers = parseCryptoTickers(report);
+            const plainText = String(report || '').replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ');
+            const found = [];
+            let isCrypto = false;
+            let lines = plainText.match(/\d+\.\s+\S+\s+([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/g) || [];
+            if (lines.length > 0) {
+                isCrypto = true;
+                lines.slice(0, 10).forEach(l => {
+                    const m = l.match(/([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/);
+                    if (m) found.push({ symbol: m[1], priceText: m[2].replace(/[A-Z]+/, '') });
+                });
+            } else {
+                lines = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/gm) || [];
+                lines.slice(0, 10).forEach(l => {
+                    const m = l.match(/([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/);
+                    if (m) found.push({ symbol: m[1], priceText: m[2].replace(/[A-Z]+/, '') });
+                });
+            }
+            const rows = found.map(f => {
+                let display = f.symbol.replace(/\.A$/, '.AX');                      // ASX stocks
+                if (isCrypto && !display.includes('-')) display += '-USD';
+                // crypto reports record the price-source ticker (many coins share a symbol: IMX is IMX10603)
+                const lookup = cryptoTickers[display] || display;
+                return { display, lookup, priceText: f.priceText, tickerRecorded: !!cryptoTickers[display] };
+            });
+            return { isCrypto, rows, tickersRecorded: Object.keys(cryptoTickers).length > 0 };
+        }
+
+        function top10ReportSeconds(timestamp) {
+            let t = String(timestamp || '');
+            if (!t.includes('Z') && !t.includes('+') && !t.includes('-', 10)) t += 'Z';      // stored times are UTC
+            return new Date(t).getTime() / 1000;
+        }
+
+        // The index each screener's list is drawn from, for "how did the market do over the same period".
+        const TOP10_BENCHMARKS = [
+            [/Dow Jones/i, '^DJI', 'Dow Jones Industrial Average'], [/NASDAQ 100/i, '^NDX', 'NASDAQ 100 index'],
+            [/S&P 400/i, '^SP1000', 'S&P 1000 index (400 + 600)'], [/1500/, '^SP1500', 'S&P 1500 index'],
+            [/S&P 500/i, '^GSPC', 'S&P 500 index'], [/S&P 100/i, '^OEX', 'S&P 100 index'],
+            [/Russell 1000/i, '^RUI', 'Russell 1000 index'], [/Russell 2000/i, '^RUT', 'Russell 2000 index'],
+            [/ASX 300/i, '^AXKO', 'S&P/ASX 300 index'], [/ASX 200/i, '^AXJO', 'S&P/ASX 200 index'],
+            [/ASX 100/i, '^ATOI', 'S&P/ASX 100 index'], [/ASX 50/i, '^AFLI', 'S&P/ASX 50 index'],
+            [/FTSE 100/i, '^FTSE', 'FTSE 100 index'], [/Nikkei/i, '^N225', 'Nikkei 225 index'],
+            [/Crypto|CoinSpot/i, 'BTC-USD', 'Bitcoin']
+        ];
+        function top10Benchmark(companyName) {
+            const hit = TOP10_BENCHMARKS.find(b => b[0].test(String(companyName || '')));
+            return hit ? { symbol: hit[1], label: hit[2] } : null;
+        }
+        // Trading days after the report at which the top 10 is compared (the price source keeps about a month of daily closes)
+        const TOP10_PERIODS = [[1, '1 day later'], [5, '1 week later'], [10, '2 weeks later'], [15, '3 weeks later']];
+        // The daily bar the report falls in: the last one that had started by the time of the report
+        function top10BarAtReport(timestamps, reportSecs) {
+            let idx = null;
+            for (let i = 0; i < timestamps.length; i++) { if (timestamps[i] <= reportSecs) idx = i; }
+            return idx;
+        }
+
+        // Fetches the report and the latest prices. Every symbol is either counted (ok) or listed with the reason it is not.
+        // With a benchmark ({symbol, label}) it also fetches that index for the popup's comparison.
+        async function screenerTop10Performance(analysisId, timestamp, benchmark = null) {
+            const userId = localStorage.getItem('userId') || 'anonymous';
+            const response = await fetch(TOP10_DASHBOARD_API + '?v=' + Date.now(), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'get_analysis', analysisId, userId })
+            });
+            if (!response.ok) throw new Error('Failed to fetch analysis');
+            const data = await response.json();
+            if (!data.analysis || !data.analysis.report) throw new Error('No report found');
+
+            const { isCrypto, rows, tickersRecorded } = parseScreenerTop10(data.analysis.report);
+            if (rows.length === 0) throw new Error('No symbols found');
+            const reportSecs = top10ReportSeconds(timestamp);
+
+            const evaluated = await Promise.all(rows.map(async (row) => {
+                let chart = null;
+                try {
+                    const res = await fetch(TOP10_PRICE_API + encodeURIComponent(row.lookup));
+                    chart = (await res.json())?.chart?.result?.[0] || null;
+                } catch (e) {}
+                const currentPrice = chart?.meta?.regularMarketPrice;
+                if (!chart || !(currentPrice > 0)) return { ...row, ok: false, reason: 'No data' };
+
+                const timestamps = chart.timestamp || [];
+                const closes = chart.indicators?.quote?.[0]?.close || [];
+                let closestIdx = 0;
+                for (let i = 1; i < timestamps.length; i++) {
+                    if (Math.abs(timestamps[i] - reportSecs) < Math.abs(timestamps[closestIdx] - reportSecs)) closestIdx = i;
+                }
+                // The price source sometimes leaves the latest daily close empty (seen on London stocks)
+                let bars = timestamps.slice(closestIdx).map((t, i) => ({ price: closes[closestIdx + i], timestamp: t })).filter(b => b.price > 0);
+                if (bars.length === 0) bars = [{ price: currentPrice, timestamp: chart.meta.regularMarketTime || Math.floor(Date.now() / 1000) }];
+
+                let reportPrice = parseFloat(row.priceText);
+                // Reports print two decimals, which is too coarse under $1 ($0.06 could be 0.056): when the daily
+                // close at the report agrees with the printed price, use it for the extra digits.
+                const printedDecimals = (row.priceText.split('.')[1] || '').length;
+                const closeAtReport = closes[closestIdx];
+                if (reportPrice < 1 && printedDecimals <= 2 && closeAtReport > 0 && Math.abs(closeAtReport - reportPrice) <= 0.00501) reportPrice = closeAtReport;
+                if (!(reportPrice > 0)) return { ...row, ok: false, reason: 'No price in the report' };
+                // A price nowhere near the report's is the wrong instrument or unit, not a result. (Coin reports saved
+                // before 10 Oct 2026 have no ticker recorded, and several coins share a symbol.)
+                const ratio = currentPrice / reportPrice;
+                if ((!isCrypto || !row.tickerRecorded) && (ratio > 5 || ratio < 0.2)) return { ...row, ok: false, reason: 'Price does not match the report' };
+
+                // Change from the report price to the close N trading days later, where the price history reaches
+                const barAtReport = top10BarAtReport(timestamps, reportSecs);
+                const after = {};
+                TOP10_PERIODS.forEach(([n]) => {
+                    const close = barAtReport === null ? null : closes[barAtReport + n];
+                    after[n] = close > 0 ? (close - reportPrice) / reportPrice * 100 : null;
+                });
+
+                return { ...row, ok: true, currency: chart.meta.currency || '', isCrypto, reportPrice, currentPrice,
+                         percentChange: (currentPrice - reportPrice) / reportPrice * 100, bars, after };
+            }));
+
+            const counted = evaluated.filter(r => r.ok);
+            const avgChange = counted.length ? counted.reduce((sum, r) => sum + r.percentChange, 0) / counted.length : null;
+
+            // The index over the same period. Only daily closes are available, so the starting level is the close of
+            // the day of the report; it is shown once a later trading day exists (before that it would read 0%).
+            let index = null;
+            if (benchmark) {
+                try {
+                    const res = await fetch(TOP10_PRICE_API + encodeURIComponent(benchmark.symbol));
+                    const chart = (await res.json())?.chart?.result?.[0];
+                    const timestamps = chart?.timestamp || [];
+                    const closes = chart?.indicators?.quote?.[0]?.close || [];
+                    const current = chart?.meta?.regularMarketPrice;
+                    const bar = top10BarAtReport(timestamps, reportSecs);
+                    const start = bar === null ? null : closes[bar];
+                    if (start > 0 && current > 0 && bar < timestamps.length - 1) {
+                        const after = {};
+                        TOP10_PERIODS.forEach(([n]) => { after[n] = closes[bar + n] > 0 ? (closes[bar + n] - start) / start * 100 : null; });
+                        index = { label: benchmark.label, change: (current - start) / start * 100, after };
+                    } else {
+                        index = { label: benchmark.label, change: null, after: {} };
+                    }
+                } catch (e) {}
+            }
+            // A period is shown when at least 8 in 10 of the counted entries have a close for it
+            const periods = TOP10_PERIODS.map(([n, label]) => {
+                const values = counted.map(r => r.after[n]).filter(v => v !== null);
+                const enough = values.length > 0 && values.length >= Math.ceil(counted.length * 0.8);
+                return { label, top10: enough ? values.reduce((a, b) => a + b, 0) / values.length : null, index: index ? (index.after[n] ?? null) : null };
+            }).filter(p => p.top10 !== null);
+
+            return {
+                isCrypto, tickersRecorded, reportSecs, rows: evaluated, counted: counted.length, avgChange, index, periods,
+                // reports print two decimals, so a move under 0.05% is rounding, not a gain or a loss
+                gainers: counted.filter(r => r.percentChange >= 0.05).length,
+                losers: counted.filter(r => r.percentChange <= -0.05).length
+            };
+        }
+
+        function saveScreenerAvgChange(analysisId, avgChange) {
+            const item = analysisHistory.find(a => a.analysisId === analysisId);
+            if (!item || typeof avgChange !== 'number' || !isFinite(avgChange)) return;
+            item.avgChange = avgChange;
+            fetch(TOP10_DASHBOARD_API + '?v=' + Date.now(), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'save_avg_change', userId: localStorage.getItem('userId'), analysisId: analysisId, avgChange: avgChange })
+            }).catch(() => {});
+        }
+
         async function updateScreenerAvgChange(analysisId, timestamp) {
             // Update avgChange without showing modal
             try {
-                const userId = localStorage.getItem('userId') || 'anonymous';
-                const response = await fetch('https://nwdjnlcbtj34ywy6sgawmwhcx40ologt.lambda-url.us-east-1.on.aws/?v=' + Date.now(), {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ action: 'get_analysis', analysisId, userId })
-                });
-                
-                if (!response.ok) return;
-                
-                const data = await response.json();
-                if (!data.analysis?.report) return;
-                
-                const report = data.analysis.report;
-                // Crypto reports record the price-source ticker of each top-10 coin (many coins share a symbol: IMX is IMX10603)
-                const cryptoTickers = parseCryptoTickers(report);
-                const plainText = report.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ');
-                
-                let listPattern = plainText.match(/\d+\.\s+\S+\s+([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/g) || [];
-                let symbolPriceMap = {};
-                let symbols = [];
-                
-                if (listPattern.length > 0) {
-                    listPattern.slice(0, 10).forEach(m => {
-                        const match = m.match(/([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/);
-                        if (match) {
-                            symbols.push(match[1]);
-                            symbolPriceMap[match[1]] = parseFloat(match[2].replace(/[A-Z]+/, ''));
-                        }
-                    });
-                }
-                
-                if (symbols.length === 0) {
-                    listPattern = plainText.match(/^\s*\d+\.\s+([A-Z]{2,5}(?:\.[A-Z]+)?)\s+[$£€]([A-Z]*[0-9.]+)/gm) || [];
-                    listPattern.slice(0, 10).forEach(m => {
-                        const match = m.match(/([A-Z]{2,5}(?:\.[A-Z]+)?)\s+[$£€]([A-Z]*[0-9.]+)/);
-                        if (match) {
-                            symbols.push(match[1]);
-                            symbolPriceMap[match[1]] = parseFloat(match[2].replace(/[A-Z]+/, ''));
-                        }
-                    });
-                }
-                
-                if (symbols.length === 0) return;
-                
-                // Detect crypto: check if first pattern match had emoji or if symbols are typical crypto format
-                const firstMatch = listPattern[0] || '';
-                const hasEmoji = /[\u{1F300}-\u{1F9FF}]/u.test(firstMatch);
-                const isCrypto = hasEmoji || (symbols.length > 0 && listPattern.length > 0 && listPattern[0].includes('\ud83d'));
-                console.log('Crypto detection:', { firstMatch, hasEmoji, isCrypto, symbols: symbols.slice(0, 3) });
-                
-                symbols = symbols.map(s => s.replace(/\.A$/, '.AX'));
-                if (isCrypto) symbols = symbols.map(s => s.includes('-') ? s : s + '-USD');
-                
-                const pricePromises = symbols.map(symbol => 
-                    fetch('https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=' + (cryptoTickers[symbol] || symbol))
-                        .then(r => r.json())
-                        .then(d => ({ symbol, data: d }))
-                        .catch(() => ({ symbol, data: null }))
-                );
-                const results = await Promise.all(pricePromises);
-                
-                const avgChange = results.reduce((sum, { symbol, data }) => {
-                    if (!data?.chart?.result?.[0]) return sum;
-                    const result = data.chart.result[0];
-                    const currentPrice = result.meta.regularMarketPrice;
-                    const baseSymbol = symbol.replace('-USD', '').replace('.AX', '.A');
-                    const predictionPrice = symbolPriceMap[baseSymbol] || symbolPriceMap[symbol] || currentPrice;
-                    return sum + ((currentPrice - predictionPrice) / predictionPrice) * 100;
-                }, 0) / results.filter(r => r.data).length;
-                
-                const item = analysisHistory.find(a => a.analysisId === analysisId);
-                if (item) {
-                    item.avgChange = avgChange;
-                    fetch('https://nwdjnlcbtj34ywy6sgawmwhcx40ologt.lambda-url.us-east-1.on.aws/?v=' + Date.now(), {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            action: 'save_avg_change',
-                            userId: localStorage.getItem('userId'),
-                            analysisId: analysisId,
-                            avgChange: avgChange
-                        })
-                    }).catch(() => {});
-                }
+                const perf = await screenerTop10Performance(analysisId, timestamp);
+                saveScreenerAvgChange(analysisId, perf.avgChange);
             } catch (e) {}
         }
-        
+
         async function trackScreenerPerformance(analysisId, timestamp) {
             const modal = document.createElement('div');
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;';
@@ -3573,103 +3668,13 @@ ${analysis.report}
             modal.appendChild(content);
             document.body.appendChild(modal);
             modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-            
+
             try {
-                const userId = localStorage.getItem('userId') || 'anonymous';
-                const response = await fetch('https://nwdjnlcbtj34ywy6sgawmwhcx40ologt.lambda-url.us-east-1.on.aws/?v=' + Date.now(), {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ action: 'get_analysis', analysisId, userId })
-                });
-                
-                if (!response.ok) {
-                    console.error('Failed to fetch analysis:', response.status);
-                    throw new Error('Failed to fetch analysis');
-                }
-                
-                const data = await response.json();
-                console.log('Analysis data:', data);
-                
-                if (!data.analysis || !data.analysis.report) {
-                    console.error('No report in response:', data);
-                    throw new Error('No report found');
-                }
-                
-                const report = data.analysis.report;
-                // Crypto reports record the price-source ticker of each top-10 coin (many coins share a symbol: IMX is IMX10603)
-                const cryptoTickers = parseCryptoTickers(report);
-                console.log('Report length:', report.length);
-                
-                // Strip HTML tags to get plain text
-                const plainText = report.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ');
-                console.log('Plain text sample:', plainText.substring(0, 500));
-                
-                // Try crypto format first (with $ sign): "1. 🟢 STEEM    $0.065"
-                let listPattern = plainText.match(/\d+\.\s+\S+\s+([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/g) || [];
-                let symbolPriceMap = {};
-                let symbols = [];
-                if (listPattern.length > 0) {
-                    listPattern.slice(0, 10).forEach(m => {
-                        const match = m.match(/([A-Z0-9]{2,10})\s+[$£€]([A-Z]*[0-9.]+)/);
-                        if (match) {
-                            const symbol = match[1];
-                            const priceStr = match[2].replace(/[A-Z]+/, ''); // Remove currency prefix like AUD
-                            const price = parseFloat(priceStr);
-                            symbols.push(symbol);
-                            symbolPriceMap[symbol] = price;
-                        }
-                    });
-                }
-                let isCrypto = symbols.length > 0;
-                
-                // If no matches, try stock format: "1. LKE.AX $AUD0.10 | Score" or "1. HSBA.L £1394.00" or "1. 8035.T ¥12345"
-                // Also handles Nikkei format with company name: "1. 8035.T   Tokyo Electron    ¥12345"
-                if (symbols.length === 0) {
-                    listPattern = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/gm) || [];
-                    listPattern.slice(0, 10).forEach(m => {
-                        const match = m.match(/([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/);
-                        if (match) {
-                            const symbol = match[1];
-                            const priceStr = match[2].replace(/[A-Z]+/, '');
-                            const price = parseFloat(priceStr);
-                            symbols.push(symbol);
-                            symbolPriceMap[symbol] = price;
-                        }
-                    });
-                }
-                
-                console.log('List pattern matches:', listPattern);
-                console.log('Is crypto:', isCrypto);
-                console.log('Symbol-Price map:', symbolPriceMap);
-                
-                // Convert .A suffix to .AX for Yahoo Finance (ASX stocks)
-                symbols = symbols.map(s => s.replace(/\.A$/, '.AX'));
-                
-                // Add -USD suffix only for crypto symbols
-                if (isCrypto) {
-                    symbols = symbols.map(s => s.includes('-') ? s : s + '-USD');
-                }
-                
-                console.log('Extracted symbols:', symbols);
-                
-                if (symbols.length === 0) throw new Error('No symbols found');
-                
-                const pricePromises = symbols.map(symbol => 
-                    fetch('https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=' + (cryptoTickers[symbol] || symbol))
-                        .then(r => r.json())
-                        .then(d => ({ symbol, data: d }))
-                        .catch(() => ({ symbol, data: null }))
-                );
-                const results = await Promise.all(pricePromises);
-                
-                console.log('Raw timestamp parameter:', timestamp);
-                // Ensure timestamp is treated as UTC if no timezone specified
-                let dateStr = timestamp;
-                if (!timestamp.includes('Z') && !timestamp.includes('+') && !timestamp.includes('-', 10)) {
-                    dateStr = timestamp + 'Z';
-                }
-                const reportDate = new Date(dateStr).getTime() / 1000;
-                const timeDiff = Date.now() - new Date(dateStr).getTime();
+                const reportItem = analysisHistory.find(a => a.analysisId === analysisId);
+                const perf = await screenerTop10Performance(analysisId, timestamp, top10Benchmark(reportItem && reportItem.companyName));
+                if (perf.avgChange === null) throw new Error('No price data for the symbols in this report');
+
+                const timeDiff = Date.now() - perf.reportSecs * 1000;
                 const daysAgo = Math.floor(timeDiff / 86400000);
                 const hoursAgo = Math.floor((timeDiff % 86400000) / 3600000);
                 const minutesAgo = Math.floor((timeDiff % 3600000) / 60000);
@@ -3677,81 +3682,50 @@ ${analysis.report}
                 const hourText = hoursAgo === 1 ? 'hour' : 'hours';
                 const minuteText = minutesAgo === 1 ? 'minute' : 'minutes';
                 const timeAgoText = daysAgo > 0 ? `${daysAgo} ${dayText} and ${hoursAgo} ${hourText}` : hoursAgo > 0 ? `${hoursAgo} ${hourText}` : `${minutesAgo} ${minuteText}`;
-                
+
+                // Prices in the stock's own currency (London prices are in pence)
+                const prefixes = { USD: '$', AUD: 'A$', CAD: 'C$', HKD: 'HK$', GBP: '£', EUR: '€', JPY: '¥' };
+                const money = (price, r) => {
+                    const digits = price >= 100 ? 2 : price >= 1 ? 3 : price >= 0.01 ? 4 : price >= 0.0001 ? 6 : 10;
+                    const number = digits === 10 ? price.toFixed(10).replace(/0+$/, '') : price.toFixed(digits);
+                    if (r.currency === 'GBp' || r.currency === 'GBX') return number + 'p';
+                    return prefixes[r.currency] !== undefined ? prefixes[r.currency] + number : number + (r.currency ? ' ' + r.currency : '');
+                };
+
                 let stocksHtml = '';
-                let gainers = 0, losers = 0;
-                
-                results.forEach(({ symbol, data }) => {
-                    console.log(`Processing ${symbol}:`, data?.chart?.result?.[0] ? 'Has data' : 'No data');
-                    if (!data?.chart?.result?.[0]) {
-                        stocksHtml += `<div style="padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">${symbol}: No data</div>`;
+                perf.rows.forEach((r) => {
+                    if (!r.ok) {
+                        stocksHtml += `<div style="padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">${r.display}: ${r.reason}${r.reason === 'No data' ? '' : ' (not counted)'}</div>`;
                         return;
                     }
-                    const result = data.chart.result[0];
-                    const currentPrice = result.meta.regularMarketPrice;
-                    
-                    // Use price from report instead of historical lookup
-                    const baseSymbol = symbol.replace('-USD', '').replace('.AX', '.A');
-                    const predictionPrice = symbolPriceMap[baseSymbol] || symbolPriceMap[symbol] || currentPrice;
-                    
-                    const percentChange = ((currentPrice - predictionPrice) / predictionPrice) * 100;
-                    console.log(`${symbol}: prediction=$${predictionPrice} (from report), current=$${currentPrice}, change=${percentChange.toFixed(4)}%`);
-                    if (percentChange > 0) gainers++; else if (percentChange < 0) losers++;
-                    
-                    // Get historical data for chart
-                    const timestamps = result.timestamp;
-                    const prices = result.indicators.quote[0].close;
-                    let closestIdx = 0, minDiff = Math.abs(timestamps[0] - reportDate);
-                    for (let i = 1; i < timestamps.length; i++) {
-                        const diff = Math.abs(timestamps[i] - reportDate);
-                        if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-                    }
-                    const chartData = timestamps.slice(closestIdx).map((t, i) => ({ price: prices[closestIdx + i], timestamp: t })).filter(d => d.price);
-                    const minPrice = Math.min(...chartData.map(d => d.price));
-                    const maxPrice = Math.max(...chartData.map(d => d.price));
+                    const minPrice = Math.min(...r.bars.map(d => d.price));
+                    const maxPrice = Math.max(...r.bars.map(d => d.price));
                     const priceRange = maxPrice - minPrice || 1;
-                    const linePoints = chartData.length > 1 ? chartData.map((d, i) => { const y = 100 - ((d.price - minPrice) / priceRange * 100); const x = (i / (chartData.length - 1)) * 100; return `${x},${y}`; }).join(' ') : '0,50 100,50';
-                    const startDate = new Date(chartData[0].timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    const endDate = new Date(chartData[chartData.length - 1].timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    // Use more decimals for crypto (especially low-priced coins)
-                    const decimals = isCrypto ? (currentPrice < 0.01 ? 6 : currentPrice < 1 ? 4 : 3) : 3;
-                    stocksHtml += `<div style="padding: 10px; border-bottom: 1px solid var(--border-color);"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><div><span style="font-weight: 600; color: var(--text-primary);">${symbol}</span><div style="font-size: 0.85rem; color: var(--text-secondary);">$${predictionPrice.toFixed(decimals)} → $${currentPrice.toFixed(decimals)}</div></div><div style="text-align: right; color: ${percentChange >= 0 ? '#22c55e' : '#ef4444'}; font-weight: 600;">${percentChange >= 0 ? '+' : ''}${percentChange.toFixed(2)}%</div></div><svg viewBox="0 0 100 100" style="width: 100%; height: 40px; background: ${percentChange >= 0 ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)'}; border-radius: 4px;"><polyline points="${linePoints}" fill="none" stroke="${percentChange >= 0 ? '#22c55e' : '#ef4444'}" stroke-width="2.5"/></svg><div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.7rem; color: var(--text-secondary);"><span>${startDate}</span><span>${endDate}</span></div></div>`;
+                    r.linePoints = r.bars.length > 1 ? r.bars.map((d, i) => { const y = 100 - ((d.price - minPrice) / priceRange * 100); const x = (i / (r.bars.length - 1)) * 100; return `${x},${y}`; }).join(' ') : '0,50 100,50';
+                    r.startDate = new Date(r.bars[0].timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    r.endDate = new Date(r.bars[r.bars.length - 1].timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    stocksHtml += `<div style="padding: 10px; border-bottom: 1px solid var(--border-color);"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><div><span style="font-weight: 600; color: var(--text-primary);">${r.display}</span><div style="font-size: 0.85rem; color: var(--text-secondary);">${money(r.reportPrice, r)} → ${money(r.currentPrice, r)}</div></div><div style="text-align: right; color: ${r.percentChange >= 0 ? '#22c55e' : '#ef4444'}; font-weight: 600;">${r.percentChange >= 0 ? '+' : ''}${r.percentChange.toFixed(2)}%</div></div><svg viewBox="0 0 100 100" style="width: 100%; height: 40px; background: ${r.percentChange >= 0 ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)'}; border-radius: 4px;"><polyline points="${r.linePoints}" fill="none" stroke="${r.percentChange >= 0 ? '#22c55e' : '#ef4444'}" stroke-width="2.5"/></svg><div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.7rem; color: var(--text-secondary);"><span>${r.startDate}</span><span>${r.endDate}</span></div></div>`;
                 });
-                
-                const avgChange = results.reduce((sum, { symbol, data }) => {
-                    if (!data?.chart?.result?.[0]) return sum;
-                    const result = data.chart.result[0];
-                    const currentPrice = result.meta.regularMarketPrice;
-                    const baseSymbol = symbol.replace('-USD', '').replace('.AX', '.A');
-                    const predictionPrice = symbolPriceMap[baseSymbol] || symbolPriceMap[symbol] || currentPrice;
-                    return sum + ((currentPrice - predictionPrice) / predictionPrice) * 100;
-                }, 0) / results.filter(r => r.data).length;
-                
-                // Save avgChange to item metadata
-                const item = analysisHistory.find(a => a.analysisId === analysisId);
-                if (item) {
-                    item.avgChange = avgChange;
-                    // Save to backend
-                    fetch('https://nwdjnlcbtj34ywy6sgawmwhcx40ologt.lambda-url.us-east-1.on.aws/?v=' + Date.now(), {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            action: 'save_avg_change',
-                            userId: localStorage.getItem('userId'),
-                            analysisId: analysisId,
-                            avgChange: avgChange
-                        })
-                    }).catch(() => {});
-                    displayHistory();
+
+                saveScreenerAvgChange(analysisId, perf.avgChange);
+                displayHistory();
+
+                // Over time, and against the index the list comes from
+                const pct = (v) => (v === null || v === undefined) ? '–' : `<span style="color: ${v >= 0 ? '#22c55e' : '#ef4444'}; font-weight: 600;">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
+                let compareHtml = '';
+                if (perf.index) {
+                    const cols = perf.periods.map(p => ({ label: p.label, top10: p.top10, index: p.index })).concat([{ label: 'Now', top10: perf.avgChange, index: perf.index.change }]);
+                    const cell = 'padding: 6px 8px; text-align: right; white-space: nowrap;';
+                    compareHtml = `<div style="background: var(--bg-secondary); border-radius: 8px; padding: 15px 20px; margin-bottom: 20px; overflow-x: auto;"><div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Top 10 and the index over the same time</div><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr><td></td>${cols.map(c => `<td style="${cell}">${c.label}</td>`).join('')}</tr><tr><td style="padding: 6px 0; color: var(--text-primary);">Top 10 average</td>${cols.map(c => `<td style="${cell}">${pct(c.top10)}</td>`).join('')}</tr><tr><td style="padding: 6px 0; color: var(--text-primary);">${perf.index.label}</td>${cols.map(c => `<td style="${cell}">${pct(c.index)}</td>`).join('')}</tr></table><div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px;">${perf.index.change === null ? 'The index comparison appears after the next trading day. ' : ''}Index figures start from the daily close on the day of the report, so they are approximate. One top 10 can be ahead of or behind its index by chance; a single report is not a track record.</div></div>`;
                 }
-                
-                content.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="color: var(--text-primary); margin: 0;">📊 Top 10 Performance</h2><button onclick="this.closest('div[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-primary);">×</button></div><div style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; margin-bottom: 20px;"><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;"><div style="text-align: center;"><div style="color: var(--text-secondary); font-size: 0.85rem;">Average Change</div><div style="font-size: 1.5rem; font-weight: bold; color: ${avgChange >= 0 ? '#22c55e' : '#ef4444'};">${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%</div></div><div style="text-align: center;"><div style="color: var(--text-secondary); font-size: 0.85rem;">Gainers</div><div style="font-size: 1.5rem; font-weight: bold; color: #22c55e;">${gainers}</div></div><div style="text-align: center;"><div style="color: var(--text-secondary); font-size: 0.85rem;">Losers</div><div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;">${losers}</div></div></div><div style="color: var(--text-secondary); font-size: 0.85rem; text-align: center;">${timeAgoText} since screener</div></div><div style="background: var(--bg-secondary); border-radius: 8px; overflow: hidden;">${stocksHtml}</div>`;
+
+                content.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="color: var(--text-primary); margin: 0;">📊 Top 10 Performance</h2><button onclick="this.closest('div[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-primary);">×</button></div><div style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; margin-bottom: 20px;"><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;"><div style="text-align: center;"><div style="color: var(--text-secondary); font-size: 0.85rem;">Average Change</div><div style="font-size: 1.5rem; font-weight: bold; color: ${perf.avgChange >= 0 ? '#22c55e' : '#ef4444'};">${perf.avgChange >= 0 ? '+' : ''}${perf.avgChange.toFixed(2)}%</div></div><div style="text-align: center;"><div style="color: var(--text-secondary); font-size: 0.85rem;">Gainers</div><div style="font-size: 1.5rem; font-weight: bold; color: #22c55e;">${perf.gainers}</div></div><div style="text-align: center;"><div style="color: var(--text-secondary); font-size: 0.85rem;">Losers</div><div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;">${perf.losers}</div></div></div><div style="color: var(--text-secondary); font-size: 0.85rem; text-align: center;">${timeAgoText} since screener${perf.counted < perf.rows.length ? ' · ' + perf.counted + ' of ' + perf.rows.length + ' counted' : ''}</div></div>${compareHtml}<div style="background: var(--bg-secondary); border-radius: 8px; overflow: hidden;">${stocksHtml}</div><div style="color: var(--text-secondary); font-size: 0.75rem; text-align: center; margin-top: 12px;">Price change of each top-10 entry since the report. General information only, not financial advice.</div>`;
             } catch (error) {
                 console.error('Screener performance error:', error);
                 content.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="color: var(--text-primary); margin: 0;">📊 Performance Tracking</h2><button onclick="this.closest('div[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-primary);">×</button></div><div style="text-align: center; padding: 40px; color: var(--text-secondary);"><div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div><div>Unable to fetch screener data</div><div style="font-size: 0.85rem; margin-top: 10px; color: #ef4444;">${error.message}</div></div>`;
             }
         }
-        
+
         async function trackPerformance(analysisId, symbol, timestamp) {
             const modal = document.createElement('div');
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
