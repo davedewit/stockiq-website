@@ -1369,12 +1369,6 @@
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
   <ns0:url>
-    <ns0:loc>https://stockiq.tech/stocks/BNR.DE.html</ns0:loc>
-    <ns0:lastmod>2026-08-12</ns0:lastmod>
-    <ns0:changefreq>daily</ns0:changefreq>
-    <ns0:priority>0.7</ns0:priority>
-  </ns0:url>
-  <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/BNS.TO.html</ns0:loc>
     <ns0:lastmod>2026-09-18</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
@@ -1478,7 +1472,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/CAH.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -1520,7 +1514,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/CBA.AX.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -2192,7 +2186,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/DTE.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -2343,6 +2337,12 @@
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/ENGI.PA.html</ns0:loc>
     <ns0:lastmod>2026-09-14</ns0:lastmod>
+    <ns0:changefreq>daily</ns0:changefreq>
+    <ns0:priority>0.7</ns0:priority>
+  </ns0:url>
+  <ns0:url>
+    <ns0:loc>https://stockiq.tech/stocks/ENSG.html</ns0:loc>
+    <ns0:lastmod>2026-09-18</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -2684,7 +2684,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/FRE.DE.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -2816,7 +2816,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/GLE.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -2864,13 +2864,13 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/GOOG.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/GOOGL.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -2912,7 +2912,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/GWO.TO.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -3098,7 +3098,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/IAG.L.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -3518,7 +3518,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/LGEN.L.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -3656,7 +3656,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/MA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -3794,7 +3794,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/ML.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -4214,13 +4214,13 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/OR.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/ORA.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -4287,12 +4287,6 @@
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/PAYX.html</ns0:loc>
     <ns0:lastmod>2026-10-07</ns0:lastmod>
-    <ns0:changefreq>daily</ns0:changefreq>
-    <ns0:priority>0.7</ns0:priority>
-  </ns0:url>
-  <ns0:url>
-    <ns0:loc>https://stockiq.tech/stocks/PBF.html</ns0:loc>
-    <ns0:lastmod>2026-09-21</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -4400,7 +4394,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/PLTR.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -4502,7 +4496,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/PUB.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -4916,7 +4910,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/SGO.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5000,7 +4994,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/SMT.L.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5012,7 +5006,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/SN.L.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5132,7 +5126,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/STX.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5144,7 +5138,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/SU.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5318,7 +5312,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/TMUS.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5450,7 +5444,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/TXT.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5522,7 +5516,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/URW.PA.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5672,7 +5666,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/WBC.AX.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5720,7 +5714,7 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/WES.AX.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-10</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
@@ -5793,6 +5787,12 @@
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stocks/WY.html</ns0:loc>
     <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:changefreq>daily</ns0:changefreq>
+    <ns0:priority>0.7</ns0:priority>
+  </ns0:url>
+  <ns0:url>
+    <ns0:loc>https://stockiq.tech/stocks/X.TO.html</ns0:loc>
+    <ns0:lastmod>2026-10-08</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>0.7</ns0:priority>
   </ns0:url>
