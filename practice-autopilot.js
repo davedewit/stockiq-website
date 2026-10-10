@@ -97,19 +97,59 @@
         return `${r.name}: spreads the budget over up to ${r.positions} holdings, looks at the top ${r.top} of each screener, sells a holding at ${r.stop}% or +${r.take}%`
             + (r.crypto > 0 ? `, up to ${Math.round(r.crypto * 100)}% of the budget in coins.` : ', no coins.');
     }
-    // What the budget settings mean in practice
+    // How much of the budget is in use, check-in by check-in, when every check-in finds enough to buy and nothing is sold
+    // early. The same sums as the stockiq-ai-trader Lambda: allowance() (the budget is released in equal steps over the
+    // chosen days, rounded up to whole holdings), the time rule in review_sells() (5 minutes' grace) and, in run_user(),
+    // at most 3 buys a check-in, no buy under $25 and the coin share. Keep the two in step.
+    function buildUp(d, r, limit) {
+        const size = d.budgetUsd / r.positions, every = d.everyHours, hold = d.maxHoldDays * 24 - 5 / 60;
+        const last = Math.ceil(d.periodDays * 24 / every) + r.positions + 2;    // the budget fully released, then time to settle
+        let lots = [], first = 0, peak = 0, count = 0, hours = 0;
+        for (let n = 1; n <= last; n++) {
+            lots = lots.filter(l => (n - l.n) * every < hold - 1e-9);
+            let invested = lots.reduce((s, l) => s + l.usd, 0);
+            const pace = d.budgetUsd * Math.min(1, n * every / (d.periodDays * 24));
+            const cap = Math.min(d.budgetUsd, Math.ceil(pace / size - 1e-9) * size);
+            const buys = Math.min(3, Math.floor((cap - invested + 0.005) / size));
+            for (let i = 0; i < buys; i++) {
+                const usd = Math.min(size, limit - invested);
+                if (usd < 25) break;
+                lots.push({ n, usd }); invested += usd;
+                if (n === 1) first++;
+            }
+            if (invested > peak + 0.01) { peak = invested; count = lots.length; hours = (n - 1) * every; }
+        }
+        return { first, peak, count, hours };
+    }
+    // What the chosen settings mean in practice: every sentence is built from what is selected right now
     function planText(d) {
         const r = data.options.risk[String(d.risk)];
-        if (!r || !(d.budgetUsd > 0) || !(d.periodDays > 0)) return '';
-        const cash = data.practiceCash || 100000;
-        return `Up to ${r.positions} holdings of about ${usd0(d.budgetUsd / r.positions)} each, bought a few at a time: the whole ${usd0(d.budgetUsd)} is in use after about ${d.periodDays} day${d.periodDays === 1 ? '' : 's'}. Money from a sale is used again.`
+        if (!r || !(d.budgetUsd > 0) || !(d.periodDays > 0) || !(d.everyHours > 0) || !(d.maxHoldDays > 0)) return '';
+        const cash = data.practiceCash || 100000, size = d.budgetUsd / r.positions, start = `It checks in ${everyText(d.everyHours)}.`;
+        const coinsOnly = d.screeners.length > 0 && d.screeners.every(k => (data.options.screeners[k] || {}).kind === 'crypto');
+        const limit = coinsOnly ? d.budgetUsd * r.crypto : d.budgetUsd, up = buildUp(d, r, limit);
+        if (!up.count) return start + (coinsOnly && !(r.crypto > 0)
+            ? ` Only coin screeners are ticked and the ${r.name} level buys no coins, so it will buy nothing. Tick a share screener, or move the level up.`
+            : ` The ${r.name} level spreads the budget over ${r.positions} holdings, which makes each about ${usd0(size)}: under the $25 smallest buy, so it will buy nothing. Raise the budget.`);
+        const quickest = Math.min.apply(null, data.options.everyHours), oftener = d.everyHours > quickest && d.maxHoldDays * 24 > quickest + 1e-9;   // would checking in more often let it hold more?
+        const many = up.count === 1 ? '1 holding' : `${up.count} holdings`, whole = up.peak >= d.budgetUsd - 0.01, byCoins = !whole && up.peak >= limit - 0.01;
+        const steps = up.hours <= 0 ? ', bought at the first check-in.'
+            : `: ${up.first} at the first check-in` + (up.count - up.first === 1 ? ' and one more' : `, then more as the budget is released, all ${up.count}`) + ` after about ${holdText(up.hours / 24)}.`;
+        return `${start} Up to ${many} of about ${usd0(size)} each${whole || byCoins ? '' : ' at a time'}${steps}`
+            + (whole ? ` Then the whole ${usd0(d.budgetUsd)} is in use.`
+                : byCoins ? ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: only coin screeners are ticked, and the ${r.name} level puts at most ${Math.round(r.crypto * 100)}% of the budget in coins. Tick a share screener as well, or move the level up, for it to use more.`
+                : ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: it buys at most 3 at a check-in and sells each holding after ${holdText(d.maxHoldDays)}. Keep holdings longer${oftener ? ', or check in more often,' : ''} for it to use more.`)
             + (d.budgetUsd > cash ? ` The practice portfolio starts with ${usd0(cash)}, so it can never invest more than the cash that is left.` : '');
     }
-    // What quick settings really mean, shown under the fields
     function paceText(d) {
-        const quick = d.everyHours < 3 || d.maxHoldDays < 1;
-        return 'The longest it keeps a holding: after that it sells, whatever the price, and the money is free for the next buy. It also sells earlier at the loss limit, at the gain mark, or when the screener signal turns negative.'
-            + (quick ? ' Quick settings suit coins, which trade all day and night; share rankings change little within a day and shares only trade while their market is open. No trading costs are taken off here: real trading this often would lose part of every trade to fees.' : '');
+        const r = data.options.risk[String(d.risk)];
+        if (!r || !(d.maxHoldDays > 0) || !(d.everyHours > 0)) return '';
+        const late = d.maxHoldDays * 24 < d.everyHours - 1e-9, quick = d.everyHours < 3 || d.maxHoldDays < 1;
+        const shares = d.screeners.some(k => (data.options.screeners[k] || {}).kind !== 'crypto');
+        return `It sells a holding once it has had it for ${holdText(d.maxHoldDays)}, whatever the price, and sooner at ${r.stop}% or +${r.take}% or when its screener signal turns negative. The money is then free for the next buy.`
+            + (late ? ` It only checks in ${everyText(d.everyHours)}, though, so in practice a holding is sold at the next check-in, about ${holdText(d.everyHours / 24)} after it was bought. Check in more often for it to be sold on time.` : '')
+            + (quick && shares ? ' Shares are only traded while their market is open and their rankings change little within a day, so quick settings mostly make a difference for coins.' : '')
+            + (quick ? ' No trading costs are taken off here: real trading this often would lose part of every trade to fees.' : '');
     }
     function statusText() {
         const s = data.settings, last = data.state && data.state.lastRun;
