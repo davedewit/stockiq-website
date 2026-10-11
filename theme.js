@@ -227,7 +227,7 @@ document.addEventListener('visibilitychange', function() {
             const user = localStorage.getItem('userId');
             if (!user || user === 'anonymous') return;
             const script = document.createElement('script');
-            script.src = '/autopilot-bell.js?v=2'; script.async = true;
+            script.src = '/autopilot-bell.js?v=3'; script.async = true;
             document.head.appendChild(script);
         } catch (e) { /* the page works without it */ }
     }
