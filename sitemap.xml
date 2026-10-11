@@ -2,19 +2,19 @@
 <ns0:urlset xmlns:ns0="http://www.sitemaps.org/schemas/sitemap/0.9">
   <ns0:url>
     <ns0:loc>https://stockiq.tech/</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>daily</ns0:changefreq>
     <ns0:priority>1.0</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/login.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/analysis.html</ns0:loc>
-    <ns0:lastmod>2026-10-10</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.9</ns0:priority>
   </ns0:url>
@@ -26,79 +26,79 @@
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/blog.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stock-analysis-guide.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.9</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/stock-screener-guide.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/investment-research-tools.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/technical-analysis-guide.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.9</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/faq.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/about.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/contact.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/support.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/privacy-policy.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/terms.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/data-deletion.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
   <ns0:url>
     <ns0:loc>https://stockiq.tech/refunds.html</ns0:loc>
-    <ns0:lastmod>2026-10-09</ns0:lastmod>
+    <ns0:lastmod>2026-10-11</ns0:lastmod>
     <ns0:changefreq>weekly</ns0:changefreq>
     <ns0:priority>0.8</ns0:priority>
   </ns0:url>
