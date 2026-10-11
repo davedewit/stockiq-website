@@ -2733,10 +2733,7 @@ ${analysis.report}
                 `;
             }
             
-            // the AI autopilot's buys and sells come first (drawn by practice-autopilot.js from its own activity list)
-            let autopilotContent = '';
-            try { autopilotContent = (window.practiceAutopilot && practiceAutopilot.bellHtml) ? practiceAutopilot.bellHtml() : ''; } catch (e) { autopilotContent = ''; }
-            preloadedNotificationContent = autopilotContent + dropdownContent;
+            preloadedNotificationContent = dropdownContent;
             
             // Update any open dropdown with new content
             const openDropdown = document.getElementById('notification-dropdown');
@@ -2760,8 +2757,6 @@ ${analysis.report}
                 if (!seenReports.includes(id)) seenReports.push(id);
             });
             localStorage.setItem(`seenReports_${localStorage.getItem('userId')}`, JSON.stringify(seenReports));
-            // the autopilot's new buys and sells are seen now too (the list just opened still marks them "new")
-            try { if (window.practiceAutopilot && practiceAutopilot.bellSeen) practiceAutopilot.bellSeen(); } catch (e) { /* the bell works without it */ }
             updateNotificationBell();
             
             // Create notification dropdown
@@ -2881,9 +2876,7 @@ ${analysis.report}
             const badge = document.getElementById('notification-badge');
             
             // Only show badge for reports that haven't been seen
-            let unseenCount = unreadReports.filter(id => !seenReports.includes(id)).length;
-            // plus the buys and sells the AI autopilot has made since the bell was last opened
-            try { unseenCount += (window.practiceAutopilot && practiceAutopilot.unseenTrades) ? practiceAutopilot.unseenTrades() : 0; } catch (e) { /* the bell works without it */ }
+            const unseenCount = unreadReports.filter(id => !seenReports.includes(id)).length;
             
             if (bell) {
                 bell.style.display = 'block';
@@ -5029,7 +5022,9 @@ ${analysis.report}
     </style>
     <script src="news.js"></script>
     <script src="practice-portfolio.js?v=17"></script>
-    <script src="practice-autopilot.js?v=36"></script>
+    <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
+    <script src="autopilot-bell.js?v=1"></script>
+    <script src="practice-autopilot.js?v=37"></script>
     <script src="ai-chat.js?v=2"></script>
     <script src="js/timezone-converter.js"></script>
     <script>

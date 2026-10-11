@@ -1014,33 +1014,12 @@
         (data.log || []).slice(-3).forEach(e => lines.push(`Recent (${when(e.t)}): ${e.type === 'buy' ? 'bought ' + e.symbol + '. ' : e.type === 'sell' ? 'sold ' + e.symbol + '. ' : ''}${cut(e.text, 200)}`));
         return lines.join('\n');
     }
-    // ---- the dashboard's bell: the buys and sells it has made, the new ones counted on the bell until it is opened
-    const bellKey = () => 'stockiqAutopilotBell_' + (userId() || '');
+    // ---- the bell: the buys and sells it has made are handed to autopilot-bell.js, which shows them in the bell on every page
     const trades = () => ((data && data.log) || []).filter(e => e.type === 'buy' || e.type === 'sell');
-    const bellSeenAt = () => { try { return localStorage.getItem(bellKey()); } catch (e) { return null; } };
-    function bellSeen() { const t = trades(); try { localStorage.setItem(bellKey(), t.length ? String(t[t.length - 1].t) : new Date(0).toISOString()); } catch (e) { /* private window */ } }
-    function unseenTrades() {
-        if (!data || !data.allowed) return 0;
-        const seen = bellSeenAt();
-        if (seen === null) { bellSeen(); return 0; }       // the first time: what is already there is not news
-        return trades().filter(e => String(e.t) > seen).length;
-    }
-    function bellHtml() {
-        if (!data || !data.allowed) return '';
-        const all = trades(), seen = bellSeenAt() || '', fresh = all.filter(e => String(e.t) > seen).length;
-        if (!all.length) return '';
-        const rows = all.slice(-Math.max(6, Math.min(fresh, 12))).reverse().map(e => {
-            const isNew = String(e.t) > seen, gain = e.type === 'sell' ? gainOf(e) : null;
-            const right = e.type === 'sell' ? (gain === null ? (typeof e.pct === 'number' ? `<span style="color: ${tint(e.pct)}; font-weight: 700;">${pc(e.pct)}</span>` : '') : deltaHtml(gain, e.pct)) : `<span style="color: var(--text-secondary); white-space: nowrap;">${usd0(e.usd)}</span>`;
-            const word = e.type === 'sell' ? (gain === null ? 'Sold' : gain > 0.004 ? 'Sold at a profit' : gain < -0.004 ? 'Sold at a loss' : 'Sold level') : 'Bought';
-            const edge = !isNew ? 'transparent' : e.type === 'buy' ? '#007bff' : gain !== null && gain < 0 ? '#ef4444' : '#16a34a';
-            return `<div onclick="event.stopPropagation(); practiceAutopilot.bellOpen()" style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; background: ${isNew ? 'var(--bg-secondary)' : 'var(--card-bg)'}; border-left: 3px solid ${edge};">
-                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px;"><span style="font-weight: ${isNew ? '700' : '500'}; color: var(--text-primary); min-width: 0;">${word}: ${esc(e.symbol)}</span>${right}</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${e.name ? esc(e.name) + ' · ' : ''}${esc(when(e.t))}${isNew ? ' · new' : ''}</div></div>`;
-        }).join('');
-        return `<div onclick="event.stopPropagation(); practiceAutopilot.bellOpen()" style="padding: 15px; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); cursor: pointer;">
-                <h4 style="margin: 0; color: var(--text-primary); font-size: 14px;">🤖 AI autopilot (Beta): buys and sells</h4>
-                <p style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 12px;">${fresh} new · practice trades with fake money</p></div>${rows}`;
+    function bellFeed() {
+        if (!data || !window.autopilotBell) return false;
+        window.autopilotBell.set(data.allowed ? trades().slice(-12).map(e => ({ t: e.t, type: e.type, symbol: e.symbol, name: e.name || '', usd: e.usd, gain: e.type === 'sell' ? gainOf(e) : null, pct: typeof e.pct === 'number' ? e.pct : null })) : [], !!data.allowed);
+        return true;
     }
     function bellOpen() {                                   // from the bell to the list of what it has done
         const drop = document.getElementById('notification-dropdown');
@@ -1051,15 +1030,10 @@
         if (list && list.scrollIntoView) list.scrollIntoView({ block: 'start' });
     }
     let bellMark = null;
-    function bellRefresh() {                                // after each load: has it bought or sold since the bell was last drawn?
+    function bellRefresh() {                                // after each load: has it bought or sold since the bell was last told?
         const t = trades(), mark = t.length + '|' + (t.length ? t[t.length - 1].t : '') + '|' + (data && data.allowed ? 1 : 0);
-        if (mark === bellMark) return;
-        bellMark = mark;
-        try {
-            if (typeof window.updateNotificationBell === 'function') window.updateNotificationBell();
-            if (typeof window.preloadNotifications === 'function') window.preloadNotifications();
-        } catch (e) { /* the bell belongs to the page; the panel works without it */ }
+        if (mark !== bellMark && bellFeed()) bellMark = mark;
     }
-    window.practiceAutopilot = { reload: load, flush, refresh, tick, leftText, marketSlots, summary, bellHtml, unseenTrades, bellSeen, bellOpen, gainOf };
+    window.practiceAutopilot = { reload: load, flush, refresh, tick, leftText, marketSlots, summary, bellFeed, bellOpen, gainOf };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
