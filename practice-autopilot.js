@@ -87,6 +87,14 @@
         #practice-autopilot .ap-may { display: block; padding: 6px 0; cursor: pointer; }
         #practice-autopilot .ap-may input { margin-right: 8px; }
         #practice-autopilot .ap-may small { display: block; margin-left: 24px; color: var(--text-secondary); font-size: 0.8rem; }
+        #practice-autopilot .ap-bd { border-collapse: collapse; font-size: 0.85rem; margin-top: 4px; }
+        #practice-autopilot .ap-bd th { padding: 6px 14px; text-align: right; white-space: nowrap; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); border-bottom: 2px solid var(--border-color); }
+        #practice-autopilot .ap-bd td { padding: 6px 14px; text-align: right; white-space: nowrap; color: var(--text-secondary); border-bottom: 1px solid rgba(128, 128, 128, 0.18); font-variant-numeric: tabular-nums; }
+        #practice-autopilot .ap-bd td.ap-bd-name { text-align: left; padding-left: 22px; color: var(--text-primary); white-space: normal; min-width: 240px; }
+        #practice-autopilot .ap-bd td.ap-bd-name::first-letter { text-transform: uppercase; }
+        #practice-autopilot .ap-bd td.ap-bd-num { font-weight: 600; }
+        #practice-autopilot .ap-bd tr.ap-bd-gap td { border: 0; padding: 0; height: 10px; }
+        #practice-autopilot .ap-bd tr.ap-bd-head td { text-align: left; padding: 7px 10px; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.02em; color: var(--text-primary); background: var(--bg-secondary); border-bottom: 0; border-left: 3px solid #007bff; border-radius: 4px; }
         #practice-autopilot .ap-share { margin-top: 7px; font-size: 0.82rem; color: var(--text-secondary); display: flex; gap: 6px 8px; flex-wrap: wrap; align-items: center; }
         #practice-autopilot .ap-share select { padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; max-width: 100%; }
         #practice-autopilot .ap-countline { margin-top: 6px; color: var(--text-primary); }
@@ -426,18 +434,21 @@
         const m = data.month && data.month.last30, before = data.month && data.month.before30;
         const month = m && m.n ? `<div style="margin-top: 4px;">Last 30 days: <span style="color: ${tint(m.usd)}; font-weight: 600;">${usd2(m.usd)}</span> from ${m.n} finished trade${m.n === 1 ? '' : 's'} (${m.up} up)${m.pct !== null ? `, which is <span style="color: ${tint(m.pct)}; font-weight: 600;">${(m.pct >= 0 ? '+' : '') + m.pct.toFixed(2)}%</span> of the ${usd0(data.settings.budgetUsd)} budget` : ''}.${before && before.n ? ` The 30 days before: ${usd2(before.usd)} from ${before.n}${before.pct !== null ? ' (' + (before.pct >= 0 ? '+' : '') + before.pct.toFixed(2) + '%)' : ''}.` : ''}${typeof m.afterCosts === 'number' && data.costEachWay ? ` No trading costs are taken from the fake money: with a typical ${data.costEachWay}% on each buy and each sell that would be <span style="color: ${tint(m.afterCosts)}; font-weight: 600;">${usd2(m.afterCosts)}</span>.` : ''}</div>` : '';
         if (!c || !c.n) return `<div class="ap-section"><h4>How it is doing</h4>${held}<div style="margin-top: 4px;">No finished trades yet: nothing it bought has been sold. Each sale will be listed here with its result, and the autopilot uses that record at later check-ins.</div></div>`;
-        const cell = 'padding: 4px 8px; text-align: right; white-space: nowrap;';
-        const row = (g) => `<tr><td style="padding: 4px 8px 4px 0; color: var(--text-primary);">${esc(g.label)}</td><td style="${cell}">${g.n}</td><td style="${cell} color: ${tint(g.avg)};">${pc(g.avg)}</td><td style="${cell}">${g.up} of ${g.n}</td><td style="${cell} color: ${tint(g.vs)};">${pc(g.vs)}</td></tr>`;
-        const section = (title, list) => list && list.length ? `<tr><td colspan="5" style="padding: 8px 0 2px; color: var(--text-secondary);">${title}</td></tr>` + list.map(row).join('') : '';
         const g = c.groups || {};
+        // the comparison with an index fund is a column of its own only when it says something the average does not
+        // (after a weekend of coin trades the fund has not moved, and the column would repeat the average)
+        const versus = Object.keys(g).some(k => (g[k] || []).some(x => typeof x.vs === 'number' && Math.abs(x.vs - x.avg) >= 0.05));
+        const cols = versus ? 5 : 4;
+        const row = (x) => `<tr><td class="ap-bd-name">${esc(x.label)}</td><td>${x.n}</td><td class="ap-bd-num" style="color: ${tint(x.avg)};">${pc(x.avg)}</td><td>${x.up} of ${x.n}</td>${versus ? `<td class="ap-bd-num" style="color: ${tint(x.vs)};">${pc(x.vs)}</td>` : ''}</tr>`;
+        const section = (title, list) => list && list.length ? `<tr class="ap-bd-gap"><td colspan="${cols}"></td></tr><tr class="ap-bd-head"><td colspan="${cols}">${title}</td></tr>` + list.map(row).join('') : '';
         const lessons = data.lessons && data.lessons.items && data.lessons.items.length ? `<div style="margin-top: 10px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">What it has noted from its record</strong> <span style="font-size: 0.8rem;">(written by the AI model on ${esc(day(data.lessons.at))} from ${data.lessons.n} finished trades)</span><ul style="margin: 4px 0 0 18px; padding: 0;">${data.lessons.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
         return `<div class="ap-section"><h4>How it is doing</h4>
             ${held}${month}
             <div style="margin-top: 4px;">${c.n} finished trade${c.n === 1 ? '' : 's'} in all: ${c.up} up, ${c.n - c.up} down or level, average <span style="color: ${tint(c.avg)}; font-weight: 600;">${pc(c.avg)}</span> each.${c.n < need ? ` Fewer than ${need} trades: too few to conclude anything yet.` : ''}</div>
-            <details id="ap-breakdown" ${breakdownOpen ? 'open' : ''} style="margin-top: 6px;"><summary>Breakdown</summary><div style="overflow-x: auto;"><table style="border-collapse: collapse; font-size: 0.85rem;">
-                <tr><td></td><td style="${cell}">Trades</td><td style="${cell}">Average</td><td style="${cell}">Up</td><td style="${cell}" title="The average result minus what an S&amp;P 500 index fund did over the same time">Against an index fund</td></tr>
+            <details id="ap-breakdown" ${breakdownOpen ? 'open' : ''} style="margin-top: 6px;"><summary>Breakdown</summary><div style="overflow-x: auto;"><table class="ap-bd">
+                <tr><th style="text-align: left; padding-left: 0;">Finished trades, grouped</th><th>Trades</th><th>Average</th><th>Ended up</th>${versus ? '<th title="The average result minus what an S&amp;P 500 index fund did over the same time">Against an index fund</th>' : ''}</tr>
                 ${section('By screener', g.screener)}${section('By place in the ranking when bought', g.rank)}${section('By RSI when bought', g.rsi)}${section('By how far above its 52-week low when bought (shares)', g.above)}${section('By how long it had stayed near the top when bought', g.stay)}${section('By who chose', g.chosen)}${section('By how it was sold', g.exit)}
-            </table></div><div style="font-size: 0.8rem; margin-top: 4px;">A group needs ${need} trades before the autopilot acts on it. A screener whose recent trades clearly lag an S&amp;P 500 index fund is rested for two weeks. Past results of fake-money trades; they say nothing certain about the future.</div></details>
+            </table></div><div style="font-size: 0.8rem; margin-top: 8px;">${versus ? '' : 'The comparison with an S&amp;P 500 index fund is left out while it would only repeat the average (the share market has not traded since these trades, or there is nothing to compare yet). '}A group needs ${need} trades before the autopilot acts on it. A screener whose recent trades clearly lag an S&amp;P 500 index fund is rested for two weeks. Past results of fake-money trades; they say nothing certain about the future.</div></details>
             ${lessons}
         </div>`;
     }
