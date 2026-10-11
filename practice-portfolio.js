@@ -6,6 +6,10 @@
     const PRICE_API = 'https://dohdeb4vpu67fa2tq3ax56ls4i0rshvm.lambda-url.us-east-1.on.aws/?symbol=';
     const SEARCH_API = 'https://3oaokynmssanpzz7bwomt7ft6i0qrwhk.lambda-url.us-east-1.on.aws/';
     const STARTING_CASH = 100000;
+    // A trading cost is taken off every practice buy and every sale, so that a result is not flattered: real trading pays fees
+    // and the gap between buying and selling prices. 0.1% each way is a typical figure for large shares; small coins cost more.
+    // The same figure is in the autopilot function (TRADE_COST): keep the two in step.
+    const TRADE_COST_PCT = (typeof practiceTradeCostPct === 'number') ? practiceTradeCostPct : 0.1;      // eslint-disable-line no-undef
     const DEFAULT_AMOUNT = 1000;
     const BENCHMARK = 'SPY';                      // an S&P 500 fund: "what if the same money had simply gone into the market"
 
@@ -36,7 +40,7 @@
         const holding = {
             id: 'h' + Date.parse(b.now).toString(36) + Math.floor(Math.random() * 1e6).toString(36),
             symbol: b.symbol, label: b.label || b.symbol, name: b.name || '', currency: b.currency || 'USD',
-            qty: amount / (b.price * b.fx), buyPrice: b.price, buyFx: b.fx, costUsd: amount,
+            qty: amount * (1 - TRADE_COST_PCT / 100) / (b.price * b.fx), buyPrice: b.price, buyFx: b.fx, costUsd: amount,      // the cost of buying comes out of what is put in
             boughtAt: b.now, spyAtBuy: b.spy > 0 ? b.spy : null, note: b.note || ''
         };
         state.holdings.push(holding);
@@ -49,7 +53,7 @@
         if (i < 0) throw new Error('That holding is no longer in the list');
         if (!(s.price > 0) || !(s.fx > 0)) throw new Error('No price available to sell at');
         const h = state.holdings[i];
-        const proceeds = Math.round(h.qty * s.price * s.fx * 100) / 100;
+        const proceeds = Math.round(h.qty * s.price * s.fx * (1 - TRADE_COST_PCT / 100) * 100) / 100;      // less the cost of selling
         state.holdings.splice(i, 1);
         state.closed.push(Object.assign({}, h, { sellPrice: s.price, sellFx: s.fx, proceedsUsd: proceeds, soldAt: s.now, spyAtSell: s.spy > 0 ? s.spy : null }));
         if (state.closed.length > 200) state.closed = state.closed.slice(-200);
@@ -182,7 +186,7 @@
             + ' The AI model also reviews it at every check-in and may sell it earlier.' + shut;
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -424,7 +428,7 @@
                 <button data-pp="reset" style="${BTN2}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>Reset fake money to ${usd(STARTING_CASH)}</button>
             </div>
             <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
-                <span>Fake money for practice: no real trades are placed. Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. General information only, not financial advice.</span>
+                <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. General information only, not financial advice.</span>
             </div>`;
     }
 
