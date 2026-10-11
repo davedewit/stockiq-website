@@ -902,6 +902,28 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaving(); });
 
     if (typeof setInterval === 'function') { setInterval(() => refresh(false), REFRESH_MS); setInterval(tick, 1000); }
-    window.practiceAutopilot = { reload: load, flush, refresh, tick, leftText, marketSlots };
+    // A few plain lines on what the autopilot panel shows right now, for the AI chat on the dashboard (ai-chat.js)
+    function summary() {
+        if (!data) return '';
+        if (!data.allowed) return data.locked === 'plan' ? 'AI AUTOPILOT (Beta): not available to this account, which is not on a paid plan. It is included in every paid plan; the plans are under the tabs.' : '';
+        const s = data.settings, o = data.options, r = (o.risk || {})[String(s.risk)] || {}, lines = [], cut = (t, n) => String(t || '').slice(0, n);
+        const auto = (k) => Array.isArray(s.auto) && s.auto.includes(k) ? ' (automatic from the risk level)' : ' (set by the user)';
+        lines.push(`AI AUTOPILOT (Beta, fake money): switched ${s.enabled ? 'ON' : 'OFF'}. Risk level ${r.name || s.risk} (up to ${r.positions} holdings; loss limit ${data.rules ? data.rules.stop : r.stop}%, gain mark +${data.rules ? data.rules.take : r.take}%). Budget ${usd0(s.budgetUsd)}; built up over ${s.periodDays} day${s.periodDays === 1 ? '' : 's'}${auto('periodDays')}; checks in ${everyText(s.everyHours)}${auto('everyHours')}; keeps a holding at most ${holdText(s.maxHoldDays)}${auto('maxHoldDays')}. Trailing stop: ${(TRAILS[trailOf(s)] || {}).name || 'default'}.`);
+        lines.push('Screeners ticked: ' + (s.screeners.map(k => (o.screeners[k] || {}).name || k).join(', ') || 'none') + '.' + (sharesOn() ? ' ' + cut(splitText(s).split(' On automatic')[0], 320) : ''));
+        lines.push(`May by itself: sell early on the AI review ${s.aiSell !== false ? 'yes' : 'no'}; try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.`);
+        if (data.money) lines.push(`Practice money it can use: ${usd0(data.money.reach)} (${usd0(data.money.cash)} cash, ${usd0(data.money.invested)} it has invested).`);
+        if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${data.nextCheck.markets.join(' and ')} market.`);
+        (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
+        lines.push('Needs the user: ' + ((data.needs || []).map(n => cut(n.text, 200)).join(' | ') || 'nothing') + '.');
+        (data.plans || []).slice(0, 8).forEach(p => lines.push(`Holds ${p.label}: sold at the latest ${when(p.sellBy)}, sooner at ${p.stop}% or +${p.take}%${p.closed ? '; its market is closed now' : ''}.`));
+        const c = data.scorecard, m = data.month && data.month.last30;
+        if (c && c.n) lines.push(`Finished trades: ${c.n} (${c.up} up), average ${pc(c.avg)} each${m ? `; last 30 days ${usd2(m.usd)}` : ''}. Too few to judge under ${data.minSample || 8}.`);
+        else lines.push('Finished trades: none yet.');
+        if (data.tune && data.tune.trial) lines.push('Trial of its own rules running: ' + cut(data.tune.trial.text, 160) + '.');
+        if (data.order && data.order.mode === 'trial') lines.push(`Trial for shares running: every second share bought is the one furthest above its 52-week low (${data.order.with} finished that way, ${data.order.without} as ranked).`);
+        (data.log || []).slice(-3).forEach(e => lines.push(`Recent (${when(e.t)}): ${e.type === 'buy' ? 'bought ' + e.symbol + '. ' : e.type === 'sell' ? 'sold ' + e.symbol + '. ' : ''}${cut(e.text, 200)}`));
+        return lines.join('\n');
+    }
+    window.practiceAutopilot = { reload: load, flush, refresh, tick, leftText, marketSlots, summary };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();

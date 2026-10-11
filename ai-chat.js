@@ -163,7 +163,15 @@
                 return { page: 'stock', symbol, company };
             }
             if (path.includes('analysis.html')) return { page: 'analysis' };
-            if (path.includes('dashboard.html')) return { page: 'dashboard' };
+            if (path.includes('dashboard.html')) {
+                // what the dashboard shows right now, in a few plain lines, so questions about it can be answered from the user's own figures
+                let shown = '';
+                try {
+                    shown = [window.practicePortfolio && window.practicePortfolio.summary && window.practicePortfolio.summary(),
+                             window.practiceAutopilot && window.practiceAutopilot.summary && window.practiceAutopilot.summary()].filter(Boolean).join('\n').slice(0, 2500);
+                } catch (e) { shown = ''; }
+                return { page: 'dashboard', dashboard: shown };
+            }
             if (path.includes('index.html') || path === '/') return { page: 'home' };
             return { page: 'other' };
         }
@@ -183,7 +191,7 @@
             } else if (ctx.page === 'analysis') {
                 questions = ['How does the screener work?', 'Which screener should I use?', 'What do the scores mean?'];
             } else if (ctx.page === 'dashboard') {
-                questions = ['How do I track performance?', 'What do the scores mean?', 'How do I export my data?'];
+                questions = ['What is my autopilot going to do next?', 'What does the risk level change?', 'How do I set how much goes into each market?'];
             } else {
                 questions = ['What does the data say about Apple stock?', 'How does the S&P 500 screener work?', 'What can you help me with?'];
             }

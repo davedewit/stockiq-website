@@ -501,6 +501,16 @@
     };
 
     // for practice-autopilot.js: show what the autopilot has just bought or sold
-    window.practicePortfolio = { reload: load, setPlans };
+    // A few plain lines on what the practice portfolio shows right now, for the AI chat on the dashboard (ai-chat.js)
+    function summary() {
+        if (!state || !loaded) return '';
+        const s = summarize(state, quotes), mine = state.holdings.filter(h => h.by !== 'ai'), its = state.holdings.filter(h => h.by === 'ai');
+        const one = (h) => { const v = valueOf(h, quotes); return `${h.label || h.symbol} ${usd(v.valueUsd)} (${v.priced ? moved(v.gainUsd) : 'no price now'})`; };
+        return ['PRACTICE PORTFOLIO (fake money): account value ' + usd(s.accountValue) + ', ' + moved(s.gainUsd) + ' since the start of ' + usd(STARTING_CASH) + '; practice cash left ' + usd(state.cash) + '.',
+            'Bought by the user (' + mine.length + '): ' + (mine.slice(0, 12).map(one).join('; ') || 'none') + '.',
+            'Bought by the autopilot and still held (' + its.length + '): ' + (its.slice(0, 12).map(one).join('; ') || 'none') + '.',
+            'Sold so far: ' + state.closed.length + '.'].join('\n');
+    }
+    window.practicePortfolio = { reload: load, setPlans, summary };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
