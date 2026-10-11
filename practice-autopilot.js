@@ -169,6 +169,10 @@
     async function api(action, extra, keepalive) {
         const res = await fetch(API, { method: 'POST', keepalive: !!keepalive, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action, userId: userId() }, extra || {})) });
         const body = await res.json().catch(() => ({}));
+        if (res.status === 402) {                           // not on a paid plan (any more): show what it is, and take them to the plans
+            data = { success: true, allowed: false, locked: 'plan' }; draft = null;
+            try { window.location.hash = 'upgrade'; } catch (e) {}
+        }
         if (!res.ok) throw new Error(body.error || 'The autopilot could not be reached');
         return body;
     }
@@ -325,8 +329,8 @@
         const tab = document.querySelector && document.querySelector('[data-dash-tab="autopilot"]');
         if (!tab || typeof tab.textContent !== 'string') return;
         const n = data && data.allowed && Array.isArray(data.needs) ? data.needs.length : 0;
-        const want = '🤖 AI autopilot' + (n ? ' ⚠' : '');
-        if (tab.textContent !== want) { tab.textContent = want; tab.title = n ? `${n === 1 ? 'One thing needs' : n + ' things need'} you: see "Needs you" on this tab` : ''; }
+        const want = '🤖 AI autopilot' + (n ? ' ⚠' : data && !data.allowed && data.locked === 'plan' ? ' 🔒' : '');
+        if (tab.textContent !== want) { tab.textContent = want; tab.title = !n && want.indexOf('🔒') > 0 ? 'Part of the paid plans' : n ? `${n === 1 ? 'One thing needs' : n + ' things need'} you: see "Needs you" on this tab` : ''; }
     }
     // The first thing under Activity: what is coming, soonest first, each with a countdown; then what goes by the number of trades
     function comingHtml() {
@@ -533,13 +537,35 @@
         </div>`;
     }
 
+    // ---------------------------------------------------------------- for an account that is not on a paid plan
+    // The autopilot is part of the paid plans. Everyone can see what it is; only the practice portfolio by hand is free.
+    function lockedHtml() {
+        if (data.locked !== 'plan') return `<div class="ap-wrap"><div class="ap-head"><h3>🤖 AI autopilot</h3></div><div class="ap-status">Your plan could not be checked just now. Refresh the page in a moment.</div></div>`;
+        return `<div class="ap-wrap">
+            <div class="ap-head"><h3>🤖 AI autopilot <span class="ap-sub">fake money · part of the paid plans</span></h3></div>
+            <p class="ap-intro">The AI autopilot runs a practice portfolio for you. At times you choose, it makes practice buys and sells with fake money from the latest results of the screeners you tick, inside a budget and limits you set, and shows what it did, why, and what it will do next. No real trade is ever placed and nothing here is advice; past screener results have not shown a reliable edge.</p>
+            <div id="ap-locked" class="ap-status"><strong>It is included in every paid plan (Starter, Pro and Elite).</strong> This account is not on a paid plan at the moment, so the autopilot is not available to it. Buying and selling by hand with the fake money stays free: that is the <a href="#practice">Practice portfolio</a> tab.</div>
+            <div class="ap-actions"><a id="ap-upgrade" class="ap-btn primary" href="#upgrade" style="text-decoration: none; color: #fff;">See the plans</a></div>
+            <div class="ap-section"><h4>What it does</h4>
+                <ul style="margin: 4px 0 0 18px; padding: 0; line-height: 1.6;">
+                    <li>Buys from the screeners you choose (US, Australian, UK and Japanese shares, and coins), spreading the budget over the markets as you set it.</li>
+                    <li>Sells by rules you can see: a loss limit, a gain mark, a stop that follows a rising holding, and a longest holding time. An AI model also reviews each holding at every check-in.</li>
+                    <li>Shows a countdown to its next check-in, what it plans to do, and every buy and sale with the reason.</li>
+                    <li>Keeps a record of its results, compares each 20 finished trades with the 20 before, and tries changes to its own rules, keeping one only if it did clearly better.</li>
+                </ul>
+                <div style="font-size: 0.8rem; margin-top: 8px;">A practice tool with fake money. General information only, not financial advice.</div>
+            </div>
+        </div>`;
+    }
+
     // ---------------------------------------------------------------- the panel
     function render() {
         const el = box();
         if (!el) return;
         markTab();
-        if (!data || !data.allowed) { el.innerHTML = ''; return; }
+        if (!data || (!data.allowed && !data.locked)) { el.innerHTML = ''; return; }
         ensureStyle();
+        if (!data.allowed) { el.innerHTML = lockedHtml(); return; }
         if (!part) part = rememberedPart() || (data.settings.enabled && data.settings.screeners.length ? 'activity' : 'settings');
         const breakdown = byId('ap-breakdown');
         if (breakdown && typeof breakdown.open === 'boolean') breakdownOpen = breakdown.open;
