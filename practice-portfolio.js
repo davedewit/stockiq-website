@@ -155,11 +155,17 @@
         if (h.by !== 'ai') return 'Bought by you: it stays until you sell it.';
         if (!plan) return '🤖 Bought by the autopilot.';
         if (!plan.auto) return '🤖 Bought by the autopilot, which is switched off: it stays until you sell it or switch the autopilot back on.';
-        return `🤖 Autopilot: it sells this by itself, at the check-in around ${when(plan.sellBy)} at the latest, sooner at ${plan.stop}% or +${plan.take}%`
-            + (plan.mode === 'off' ? '.' : plan.mode === 'full' && typeof plan.floor === 'number' && !(plan.peak >= plan.arm) ? `, or when its trailing stop is hit: it is at ${plan.floor >= 0 ? '+' : ''}${plan.floor}% now and follows the price up.`
-                : `, or to keep part of a gain once it has been up ${plan.arm}%.` + (typeof plan.floor === 'number' ? ` It has been up enough: it is sold if it slips back to ${plan.floor >= 0 ? '+' : ''}${plan.floor}%.` : ''))
+        const up = (n) => (n >= 0 ? '+' : '') + n;
+        // Written so that the point where the stop starts cannot be read as a selling price: rising is never a reason to sell
+        const stop = plan.mode === 'off' ? ''
+            : plan.mode === 'full' && typeof plan.floor === 'number' && !(plan.peak >= plan.arm) ? ` Its trailing stop is at ${up(plan.floor)}% now and follows the price up.`
+            : typeof plan.floor === 'number' ? ` It has been up enough for a stop to follow it: it is sold if it falls back to ${up(plan.floor)}%.`
+            : ` While it rises it is kept; once it has been up ${plan.arm}% a stop follows it up, and it is sold only if it then falls back.`;
+        // Nothing is bought or sold in a closed market (a weekend, a night): say so, and when it opens
+        const shut = plan.closed ? ` The ${plan.market} market is closed now, so nothing happens to it until it opens${plan.opens ? ` (around ${when(plan.opens)})` : ''}.` : '';
+        return `🤖 Autopilot: it sells this by itself, at the check-in around ${when(plan.sellBy)} at the latest, sooner if it falls to ${plan.stop}% or reaches +${plan.take}%.` + stop
             + (plan.trial ? ' Part of a trial of one of its own rules.' : '')
-            + ' The AI model also reviews it at every check-in and may sell it earlier.';
+            + ' The AI model also reviews it at every check-in and may sell it earlier.' + shut;
     }
 
     const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
