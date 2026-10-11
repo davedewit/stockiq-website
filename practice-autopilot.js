@@ -302,6 +302,14 @@
         if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now.${data.settings.enabled ? ' It checks in, reviews its own rules and tries changes to them by itself; nothing has to be approved or pushed.' : ''}</div>`;
         return `<div id="ap-needs" class="ap-needs" role="status"><strong>⚠ Needs you</strong><ul>${data.needs.map(n => `<li>${esc(n.text)}${n.at ? ` <span style="color: var(--text-secondary);">(${esc(when(n.at))})</span>` : ''}</li>`).join('')}</ul></div>`;
     }
+    // The dashboard's own tab for this panel carries a mark while something needs the user, so it is seen from any tab
+    function markTab() {
+        const tab = document.querySelector && document.querySelector('[data-dash-tab="autopilot"]');
+        if (!tab || typeof tab.textContent !== 'string') return;
+        const n = data && data.allowed && Array.isArray(data.needs) ? data.needs.length : 0;
+        const want = '🤖 AI autopilot' + (n ? ' ⚠' : '');
+        if (tab.textContent !== want) { tab.textContent = want; tab.title = n ? `${n === 1 ? 'One thing needs' : n + ' things need'} you: see "Needs you" on this tab` : ''; }
+    }
     // The first thing under Activity: what is coming, soonest first, each with a countdown; then what goes by the number of trades
     function comingHtml() {
         const list = data.coming;
@@ -394,6 +402,7 @@
     function render() {
         const el = box();
         if (!el) return;
+        markTab();
         if (!data || !data.allowed) { el.innerHTML = ''; return; }
         ensureStyle();
         if (!part) part = rememberedPart() || (data.settings.enabled && data.settings.screeners.length ? 'activity' : 'settings');
