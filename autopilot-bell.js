@@ -14,7 +14,7 @@
     // always takes over, and the older one is left with nothing to draw: it reads its trades from its own place in the browser's
     // store (emptied below), is told nothing by the function (which answers only the question marked "list: 2"), and its marks
     // and its sign on the red number have other names than the ones used here.
-    const VERSION = 7;
+    const VERSION = 8;
     if (window.autopilotBell && window.autopilotBell.version >= VERSION) return;
     const hadOlder = window.autopilotBell ? 'version ' + (window.autopilotBell.version || 'before 4') : 'none';
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
@@ -197,32 +197,7 @@
     // the marks of the copies before this one are taken over once; their list of trades is emptied so that they draw nothing
     ['Bell', 'Read'].forEach(name => { const was = get(oldKey(name)); if (user() && get(key(name)) === null && was && was > '2000') put(key(name), was); });
     try { if (user()) localStorage.removeItem(oldKey('Trades')); } catch (e) { /* a private window */ }
-    window.autopilotBell = { version: VERSION, set, trades, reports, unseen, unread, markSeen, markRead, html, place, open, report, badge, load, onTop, state: () => ({ version: VERSION, draws: draws.length, gaveUp }) };
-
-    // ---- what this browser holds, told to the site (temporary, 11 Oct 2026: the owner sees nothing of the trades and every test
-    // here shows them). The function writes it to its log for the site's own accounts only and ignores everyone else's.
-    let themeCopy = 'not looked at yet';
-    function lookAtTheme() {                                // the theme.js this browser keeps: an old one asks for an old copy of this script
-        try {
-            fetch(SITE + 'theme.js', { cache: 'force-cache' }).then(r => r.text()).then(t => {
-                const old = /autopilot-bell\.js\?v=(\d+)/.exec(t);
-                themeCopy = old ? 'old: asks for version ' + old[1] : /autopilot-bell\.js\?h=/.test(t) ? 'current' : 'has no loader';
-                if (themeCopy !== 'current') return fetch(SITE + 'theme.js', { cache: 'reload' }).then(() => { themeCopy += ', now replaced by the current one'; });
-            }).catch(() => { themeCopy = 'could not be read'; });
-        } catch (e) { themeCopy = 'could not be read'; }
-    }
-    function tell(kind) {
-        try {
-            const u = user();
-            if (!u) return;
-            const drop = document.getElementById('notification-dropdown'), first = drop && drop.firstElementChild, c = cache();
-            const info = { kind, version: VERSION, page: location.pathname, servedFrom: location.origin, site: SITE, olderCopyOnPage: hadOlder, inCharge: window.autopilotBell && window.autopilotBell.version === VERSION,
-                trades: trades().length, allowed: c ? c.allowed : null, listAgeSec: c ? Math.round((Date.now() - c.at) / 1000) : null, reports: reports().length, unseen: unseen(), unread: unread(),
-                bellList: drop ? { first: first ? (first.id || first.tagName) : null, parts: drop.children.length, lines: drop.querySelectorAll('.bell-row').length, tradeLines: drop.querySelectorAll('.bell-row[data-kind="trade"]').length, olderGroup: !!document.getElementById('autopilot-bell-section') } : 'not open',
-                draws: draws.length, gaveUp, fault, themeCopy, panel: !!(window.practiceAutopilot && window.practiceAutopilot.bellFeed), browser: String(navigator.userAgent).slice(0, 110) };
-            fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'belllog', userId: u, info }) }).catch(() => { /* nothing depends on it */ });
-        } catch (e) { /* nothing depends on it */ }
-    }
+    window.autopilotBell = { version: VERSION, set, trades, reports, unseen, unread, markSeen, markRead, html, place, open, report, badge, load, onTop, state: () => ({ version: VERSION, site: SITE, draws: draws.length, gaveUp, fault }) };
 
     function start() {
         document.addEventListener('click', (e) => {
@@ -232,7 +207,6 @@
                 const drop = document.getElementById('notification-dropdown');
                 if (!drop) return;
                 place(); watch(drop); markSeen();
-                setTimeout(() => tell('bell opened'), 1500);
             }, 0);
         }, true);                                           // on the way down: a page's own handler cannot stop it from being heard
         if (typeof MutationObserver !== 'undefined') {      // the page sets the number from its reports: add the trades to it
@@ -244,8 +218,6 @@
         window.addEventListener('storage', (e) => { if (e.key && e.key.indexOf('stockiqBell') === 0) refresh(); });
         refresh();
         load();
-        lookAtTheme();
-        setTimeout(() => tell('page loaded'), 4000);
         setInterval(() => { if (!document.hidden) load(); }, FRESH_MS);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

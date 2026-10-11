@@ -7,13 +7,14 @@ Source code for [StockIQ.tech](https://stockiq.tech) - Professional AI-powered s
 Visit **[stockiq.tech](https://stockiq.tech)** for:
 - AI-powered stock analysis with GPT-4o-mini
 - 3,467 individual stock pages with automated news
-- Real-time technical indicators and trading signals
+- Technical indicators, signals and market screeners (they describe what the data shows; not financial advice)
+- A practice portfolio with fake money, and an AI autopilot (Beta) that runs it on paid plans
 - Free trial: 15 analyses
 
 ## 📊 Content
 
 - **3,467 stock pages** - Individual pages with SEO metadata
-- **1,500+ pages with news** - Automated updates with AI summaries
+- **About 3,150 pages with news** - Automated updates with AI summaries
 - **Responsive design** - Mobile-friendly with dark mode
 
 ## 🛠️ Automation
