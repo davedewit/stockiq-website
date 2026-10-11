@@ -2578,7 +2578,7 @@ Analysis Date: ${new Date().toLocaleString()}
                 output += `🟢 TOP ${topCount} BY SCORE:\n`;
                 allResults.slice(0, topCount).forEach((stock, i) => {
                     const symbol = (stock.symbol || 'N/A').padEnd(8);
-                    const price = `£${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(8);
+                    const price = `${screenerMoney(stock, stock.current_price || stock.price, 'GBp')}`.padStart(8);
                     const score = (stock.total_score || stock.score || 0) >= 0 ? `+${(stock.total_score || stock.score || 0).toFixed(1)}` : `${(stock.total_score || stock.score || 0).toFixed(1)}`;
                     const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
                     const ytd = (stock.ytd_change || 0) >= 0 ? `+${(stock.ytd_change || 0).toFixed(1)}%` : `${(stock.ytd_change || 0).toFixed(1)}%`;
@@ -2589,7 +2589,7 @@ Analysis Date: ${new Date().toLocaleString()}
                 output += '\n</pre><div style="margin: 20px 0; padding: 15px; background: var(--card-bg); border-radius: 8px; text-align: center; font-size: 1rem;">📊 Showing top 10 results. For the complete screener report, download from your <a href="dashboard.html" style="color: #007bff; text-decoration: underline; cursor: pointer;">dashboard</a>.</div><pre style="white-space: pre-wrap; font-family: monospace;">\n🎯 TOP 3 DETAILED ANALYSIS:\n';
                 output += '================================================================\n';
                 allResults.slice(0, 3).forEach((stock, i) => {
-                    output += `${i+1}. ${stock.symbol}: £${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+                    output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, stock.price, 'GBp')} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
                     
                     if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                         output += '   📊 Score Breakdown:\n';
@@ -2599,8 +2599,8 @@ Analysis Date: ${new Date().toLocaleString()}
                     }
                     
                     output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
-                    output += `   💰 Levels: Support £${(stock.support || 0).toFixed(2)} | Resistance £${(stock.resistance || 0).toFixed(2)}\n`;
-                    output += `   📏 Reference levels: Lower £${(stock.stop_loss || 0).toFixed(2)} | Upper £${(stock.take_profit || 0).toFixed(2)}\n`;
+                    output += `   💰 Levels: Support ${screenerMoney(stock, stock.support, 'GBp')} | Resistance ${screenerMoney(stock, stock.resistance, 'GBp')}\n`;
+                    output += `   📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, 'GBp')} | Upper ${screenerMoney(stock, stock.take_profit, 'GBp')}\n`;
                     output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
                 });
                 
@@ -3471,6 +3471,19 @@ Signals Generated: ${apiData.symbols_analyzed}
     return { type: 'option_22_auto_signals', data: output };
 }
 
+// A price in the currency the share trades in, as the workers report it (stock.currency: 'USD', 'AUD', 'JPY', 'GBp' = pence;
+// fallback: the currency of the screener's market, for a result without the field). The same rule as the single-stock report
+// (money() in stockiq-option-1-1-custom-analysis) and the coordinator's money(): keep the three alike. The dashboard's 🎯
+// tracker reads the price from these lines (a leading sign, or a number followed by "p"): parseScreenerTop10 in dashboard.html.
+const SCREENER_MONEY_SIGNS = { USD: '$', AUD: 'A$', CAD: 'C$', NZD: 'NZ$', HKD: 'HK$', SGD: 'S$', GBP: '£', EUR: '€', JPY: '¥', CNY: 'CN¥', INR: '₹', KRW: '₩' };
+const SCREENER_MINOR_UNITS = { GBp: 'p', GBX: 'p', ZAc: 'c', ZAC: 'c', ILA: ' agorot' };
+function screenerMoney(stock, value, fallback) {
+    const cur = (stock && stock.currency) || fallback || 'USD';
+    const number = (Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (SCREENER_MINOR_UNITS[cur]) return number + SCREENER_MINOR_UNITS[cur];
+    return SCREENER_MONEY_SIGNS[cur] !== undefined ? SCREENER_MONEY_SIGNS[cur] + number : cur + ' ' + number;
+}
+
 function formatOption3Result(apiData, subOption) {
     const titles = { '100': 'S&P 100 (LARGECAP)', '2': 'S&P 400+600 (MID+SMALLCAP)', '3': 'S&P 500 COMPLETE', '4': 'S&P COMPOSITE 1500', '5': 'RUSSELL 1000 LARGE-CAP', '6': 'RUSSELL 2000 SMALL-CAP', '7': 'NASDAQ 100 TECH', '8': 'DOW JONES 30 BLUE CHIP' };
     const universeSize = { '100': 101, '2': 995, '3': 502, '4': 1497, '5': 877, '6': 1829, '7': 101, '8': 30 };  // real list sizes (refreshed 10 Oct 2026)
@@ -3493,7 +3506,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '🟢 TOP 10 BY SCORE:\n';
         sortedResults.slice(0, 10).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(5);
-            const price = `$${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(8);
+            const price = `${screenerMoney(stock, stock.current_price || stock.price, 'USD')}`.padStart(8);
             const score = (stock.total_score || stock.score || 0) >= 0 ? `+${(stock.total_score || stock.score || 0).toFixed(1)}` : `${(stock.total_score || stock.score || 0).toFixed(1)}`;
             const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
             const ytd = (stock.ytd_change || 0) >= 0 ? `+${(stock.ytd_change || 0).toFixed(1)}%` : `${(stock.ytd_change || 0).toFixed(1)}%`;
@@ -3507,7 +3520,7 @@ Analysis Date: ${new Date().toLocaleString()}
             output += '\n🎯 TOP 3 DETAILED ANALYSIS:\n';
             output += '================================================================\n';
             sortedResults.slice(0, 3).forEach((stock, i) => {
-                output += `${i+1}. ${stock.symbol}: $${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+                output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, stock.price, 'USD')} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
                 
                 if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                     output += '   📊 Score Breakdown:\n';
@@ -3517,8 +3530,8 @@ Analysis Date: ${new Date().toLocaleString()}
                 }
                 
                 output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
-                output += `   💰 Levels: Support $${(stock.support || 0).toFixed(2)} | Resistance $${(stock.resistance || 0).toFixed(2)}\n`;
-                output += `   📏 Reference levels: Lower $${(stock.stop_loss || 0).toFixed(2)} | Upper $${(stock.take_profit || 0).toFixed(2)}\n`;
+                output += `   💰 Levels: Support ${screenerMoney(stock, stock.support, 'USD')} | Resistance ${screenerMoney(stock, stock.resistance, 'USD')}\n`;
+                output += `   📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, 'USD')} | Upper ${screenerMoney(stock, stock.take_profit, 'USD')}\n`;
                 output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
             });
         }
@@ -3937,7 +3950,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `🟢 TOP ${topCount} BY SCORE:\n`;
         sortedResults.slice(0, topCount).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(8);
-            const price = `$AUD${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(10);
+            const price = `${screenerMoney(stock, stock.current_price || stock.price, 'AUD')}`.padStart(10);
             const score = (stock.total_score || stock.score || 0) >= 0 ? `+${(stock.total_score || stock.score || 0).toFixed(1)}` : `${(stock.total_score || stock.score || 0).toFixed(1)}`;
             const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
             const ytd = (stock.ytd_change || 0) >= 0 ? `+${(stock.ytd_change || 0).toFixed(1)}%` : `${(stock.ytd_change || 0).toFixed(1)}%`;
@@ -3951,7 +3964,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += '\n🎯 TOP 3 DETAILED ANALYSIS:\n';
         output += '================================================================\n';
         sortedResults.slice(0, 3).forEach((stock, i) => {
-            output += `${i+1}. ${stock.symbol}: $AUD${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+            output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, stock.price, 'AUD')} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
             
             if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                 output += '   📊 Score Breakdown:\n';
@@ -3961,8 +3974,8 @@ Analysis Date: ${new Date().toLocaleString()}
             }
             
             output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
-            output += `   💰 Levels: Support $AUD${(stock.support || 0).toFixed(2)} | Resistance $AUD${(stock.resistance || 0).toFixed(2)}\n`;
-            output += `   📏 Reference levels: Lower $AUD${(stock.stop_loss || 0).toFixed(2)} | Upper $AUD${(stock.take_profit || 0).toFixed(2)}\n`;
+            output += `   💰 Levels: Support ${screenerMoney(stock, stock.support, 'AUD')} | Resistance ${screenerMoney(stock, stock.resistance, 'AUD')}\n`;
+            output += `   📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, 'AUD')} | Upper ${screenerMoney(stock, stock.take_profit, 'AUD')}\n`;
             output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
         });
         
@@ -4819,7 +4832,7 @@ Analysis Date: ${new Date().toLocaleString()}
             
             sortedResults.slice(0, Math.min(10, data.results.length)).forEach((stock, i) => {
                 const symbol = (stock.symbol || 'N/A').padEnd(8);
-                const price = `£${(stock.current_price || stock.price || 0).toFixed(2)}`.padStart(8);
+                const price = `${screenerMoney(stock, stock.current_price || stock.price, 'GBp')}`.padStart(8);
                 const score = (stock.total_score || stock.score || 0) >= 0 ? `+${(stock.total_score || stock.score || 0).toFixed(1)}` : `${(stock.total_score || stock.score || 0).toFixed(1)}`;
                 const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
                 const ytd = (stock.ytd_change || 0) >= 0 ? `+${(stock.ytd_change || 0).toFixed(1)}%` : `${(stock.ytd_change || 0).toFixed(1)}%`;
@@ -4829,7 +4842,7 @@ Analysis Date: ${new Date().toLocaleString()}
             
             output += '🎯 TOP 3 DETAILED ANALYSIS:\n';
             sortedResults.slice(0, 3).forEach((stock, i) => {
-                output += `${stock.symbol}: £${(stock.price || 0).toFixed(2)} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
+                output += `${stock.symbol}: ${screenerMoney(stock, stock.price, 'GBp')} | ${signalLabel(stock.recommendation)} | Score: ${(stock.total_score || stock.score || 0) >= 0 ? '+' : ''}${(stock.total_score || stock.score || 0).toFixed(1)}\n`;
                 
                 if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                     output += '📊 Score Breakdown:\n';
@@ -4839,8 +4852,8 @@ Analysis Date: ${new Date().toLocaleString()}
                 }
                 
                 output += `📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'BULLISH'}\n`;
-                output += `💰 Levels: Support £${(stock.support || 0).toFixed(2)} | Resistance £${(stock.resistance || 0).toFixed(2)}\n`;
-                output += `📏 Reference levels: Lower £${(stock.stop_loss || 0).toFixed(2)} | Upper £${(stock.take_profit || 0).toFixed(2)}\n`;
+                output += `💰 Levels: Support ${screenerMoney(stock, stock.support, 'GBp')} | Resistance ${screenerMoney(stock, stock.resistance, 'GBp')}\n`;
+                output += `📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, 'GBp')} | Upper ${screenerMoney(stock, stock.take_profit, 'GBp')}\n`;
                 output += `📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 70).toFixed(0)}%\n\n`;
             });
             
@@ -5009,7 +5022,7 @@ Analysis Date: ${new Date().toLocaleString()}
         sortedResults.slice(0, topCount).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(8);
             const name = NIKKEI_COMPANY_NAMES[stock.symbol] || stock.symbol;
-            const price = `\u00A5${(stock.current_price || stock.price || 0).toFixed(0)}`.padStart(10);
+            const price = `${screenerMoney(stock, stock.current_price || stock.price, 'JPY')}`.padStart(10);
             const scoreVal = stock.total_score || stock.score || 0;
             const score = scoreVal >= 0 ? `+${scoreVal.toFixed(1)}` : `${scoreVal.toFixed(1)}`;
             const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
@@ -5023,7 +5036,7 @@ Analysis Date: ${new Date().toLocaleString()}
         sortedResults.slice(0, 3).forEach((stock, i) => {
             const priceVal = stock.price || 0;
             const scoreVal = stock.total_score || stock.score || 0;
-            output += `${i+1}. ${stock.symbol}: \u00A5${priceVal.toFixed(0)} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
+            output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, priceVal, 'JPY')} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
             if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                 output += '   📊 Score Breakdown:\n';
                 stock.score_breakdown.forEach(breakdown => {
@@ -5031,8 +5044,8 @@ Analysis Date: ${new Date().toLocaleString()}
                 });
             }
             output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
-            output += `   💰 Levels: Support \u00A5${(stock.support || 0).toFixed(0)} | Resistance \u00A5${(stock.resistance || 0).toFixed(0)}\n`;
-            output += `   📏 Reference levels: Lower \u00A5${(stock.stop_loss || 0).toFixed(0)} | Upper \u00A5${(stock.take_profit || 0).toFixed(0)}\n`;
+            output += `   💰 Levels: Support ${screenerMoney(stock, stock.support, 'JPY')} | Resistance ${screenerMoney(stock, stock.resistance, 'JPY')}\n`;
+            output += `   📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, 'JPY')} | Upper ${screenerMoney(stock, stock.take_profit, 'JPY')}\n`;
             output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
         });
         const positiveStocks = sortedResults.filter(s => (s.total_score || s.score || 0) > 0).length;
@@ -5062,7 +5075,7 @@ function formatUKResult(apiData, subOption) {
 
 Screening Universe: ${results.length} UK stocks
 Analysis Date: ${new Date().toLocaleString()}
-Currency: GBP (£)
+Currency: pence (p), as London quotes its shares
 
 `;
     
@@ -5071,7 +5084,7 @@ Currency: GBP (£)
     
     results.forEach((stock, i) => {
         const symbol = stock.symbol || 'N/A';
-        const price = stock.price ? `£${stock.price.toFixed(2)}` : 'N/A';
+        const price = stock.price ? `${screenerMoney(stock, stock.price, 'GBp')}` : 'N/A';
         const change = stock.change_pct ? `${stock.change_pct > 0 ? '+' : ''}${stock.change_pct.toFixed(2)}%` : 'N/A';
         const score = stock.total_score || stock.score || 0;
         const recommendation = signalLabel(stock.recommendation);
@@ -5081,7 +5094,7 @@ Currency: GBP (£)
         output += `   Score: ${score}/100 | Signal: ${recommendation}\n`;
         
         if (stock.support && stock.resistance) {
-            output += `   Support: £${stock.support.toFixed(2)} | Resistance: £${stock.resistance.toFixed(2)}\n`;
+            output += `   Support: ${screenerMoney(stock, stock.support, 'GBp')} | Resistance: ${screenerMoney(stock, stock.resistance, 'GBp')}\n`;
         }
         if (stock.rsi) {
             output += `   RSI: ${stock.rsi.toFixed(1)} | Volume Ratio: ${(stock.volume_ratio || 1).toFixed(2)}\n`;

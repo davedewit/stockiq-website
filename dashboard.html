@@ -3580,10 +3580,12 @@ ${analysis.report}
                     if (m) found.push({ symbol: m[1], priceText: m[2].replace(/[A-Z]+/, '') });
                 });
             } else {
-                lines = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/gm) || [];
+                // the price: a currency sign and a number ("A$8.43", "¥5,613.00", and the older "$AUD8.43", "£2614.00"), or a number of
+                // pence ("503.80p"). London prices are pence in every form, old reports' "£" included.
+                lines = plainText.match(/^\s*\d+\.\s+([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?(?:[$£€¥₹₩]([A-Z]*[0-9][0-9,.]*)|([0-9][0-9,.]*)p(?=\s|\||$))/gm) || [];
                 lines.slice(0, 10).forEach(l => {
-                    const m = l.match(/([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?[$£€¥]([A-Z]*[0-9.]+)/);
-                    if (m) found.push({ symbol: m[1], priceText: m[2].replace(/[A-Z]+/, '') });
+                    const m = l.match(/([A-Z0-9]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?(?:[$£€¥₹₩]([A-Z]*[0-9][0-9,.]*)|([0-9][0-9,.]*)p(?=\s|\||$))/);
+                    if (m) found.push({ symbol: m[1], priceText: (m[2] || m[3]).replace(/[A-Z]+/, '').replace(/,/g, '') });
                 });
             }
             const rows = found.map(f => {
