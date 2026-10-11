@@ -317,7 +317,7 @@
     // Under the status box: the countdown to the next check-in
     function countLine() {
         const n = data.settings.enabled && data.nextCheck && data.nextCheck.at;
-        return n ? `<div class="ap-countline">⏱ Next check-in ${until(n)} <span style="color: var(--text-secondary);">(${esc(when(n))}).</span> <a href="#" data-ap-part="activity">What happens then</a></div>` : '';
+        return n ? `<div class="ap-countline">⏱ Next check-in ${until(n)} <span style="color: var(--text-secondary);">(${esc(when(n))}).</span> <a href="#ap-coming" data-ap-part="activity" data-ap-goto="ap-coming">What happens then</a></div>` : '';
     }
     // What needs the user. Its own reviews and trials do not: they happen by themselves at check-ins
     function needsHtml() {
@@ -340,7 +340,7 @@
         const timed = list.filter(c => c.at), counted = list.filter(c => !c.at);
         const row = (c, i) => `${until(c.at, i === 0 ? 'first' : '')}<div><time>${esc(when(c.at))}</time>${esc(c.text)}</div>`;
         const rest = timed.slice(4);
-        return `<div class="ap-section"><h4>What happens next <span class="ap-sub">a forecast from its settings: the prices and rankings of the moment decide what is really bought or sold</span></h4>
+        return `<div class="ap-section" id="ap-coming" style="scroll-margin-top: 120px;"><h4>What happens next <span class="ap-sub">a forecast from its settings: the prices and rankings of the moment decide what is really bought or sold</span></h4>
             <div class="ap-next">${timed.slice(0, 4).map(row).join('')}</div>
             ${rest.length ? `<details data-ap-fold="coming" ${openDetails.coming ? 'open' : ''}><summary>${rest.length} more further ahead</summary><div class="ap-next">${rest.map(c => row(c, 1)).join('')}</div></details>` : ''}
             ${counted.length ? `<div class="ap-next" style="margin-top: 12px;">${counted.map(c => `<span class="ap-count">${typeof c.after === 'number' ? (c.after > 0 ? `after ${c.after} more finished trade${c.after === 1 ? '' : 's'}` : 'at the next check-in') : 'not planned'}</span><div>${esc(c.text)}</div>`).join('')}</div>
@@ -814,7 +814,16 @@
         const level = e.target.closest && e.target.closest('[data-ap-level]');
         if (level && data && byId('ap-risk')) { byId('ap-risk').value = level.getAttribute('data-ap-level'); saveError = null; queueSave(150); return; }
         const view = e.target.closest && e.target.closest('[data-ap-part]');
-        if (view && data) { showPart(view.getAttribute('data-ap-part'), true); return; }
+        if (view && data) {
+            // a link that names a place on the panel (not one of the two part buttons): stay on the page and go down to that place.
+            // Left to itself a "#" link sent the page back to the top, so "What happens then" seemed to do nothing
+            const goto = view.getAttribute('data-ap-goto');
+            if (view.tagName === 'A' && e.preventDefault) e.preventDefault();
+            showPart(view.getAttribute('data-ap-part'), true);
+            const place = goto && byId(goto);
+            if (place && place.scrollIntoView) place.scrollIntoView({ block: 'start' });
+            return;
+        }
         const preset = e.target.closest && e.target.closest('[data-ap-preset]');
         if (preset && data && byId('ap-risk')) {
             const p = PRESETS.find(x => x.key === preset.getAttribute('data-ap-preset'));
