@@ -221,13 +221,18 @@ document.addEventListener('visibilitychange', function() {
 // pages also fetch it themselves, between their AUTOPILOT_BELL comments, so that it does not wait on this file's day-long cache;
 // this is what covers the generated stock pages.)
 (function () {
+    // The script is asked for beside this file, wherever the site is served from: at the top of its address on stockiq.tech,
+    // below a folder in a local preview, one folder up from a stock page. (It was asked for at "/autopilot-bell.js", which is
+    // nowhere unless the site sits at the top of its address: in a local preview the bell showed none of the trades.)
+    var here = (document.currentScript && document.currentScript.src) || '';
+    var beside = /theme\.js/.test(here) ? here.replace(/theme\.js.*$/, '') : '/';
     function go() {
         try {
             if (window.autopilotBell || !(document.getElementById('notification-bell') || document.getElementById('mobile-notification-bell'))) return;
             const user = localStorage.getItem('userId');
             if (!user || user === 'anonymous') return;
             const script = document.createElement('script');
-            script.src = '/autopilot-bell.js?h=' + Math.floor(Date.now() / 36e5); script.async = true;   // a new address every hour: a change to that script needs no version number anywhere
+            script.src = beside + 'autopilot-bell.js?h=' + Math.floor(Date.now() / 36e5); script.async = true;   // a new address every hour: a change to that script needs no version number anywhere
             document.head.appendChild(script);
         } catch (e) { /* the page works without it */ }
     }

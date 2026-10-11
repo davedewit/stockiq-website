@@ -14,10 +14,13 @@
     // always takes over, and the older one is left with nothing to draw: it reads its trades from its own place in the browser's
     // store (emptied below), is told nothing by the function (which answers only the question marked "list: 2"), and its marks
     // and its sign on the red number have other names than the ones used here.
-    const VERSION = 6;
+    const VERSION = 7;
     if (window.autopilotBell && window.autopilotBell.version >= VERSION) return;
     const hadOlder = window.autopilotBell ? 'version ' + (window.autopilotBell.version || 'before 4') : 'none';
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
+    // Where the site's own pages and files are: beside this script, wherever the site is served from (the top of its address on
+    // stockiq.tech, below a folder in a local preview). Never "/something": that is nowhere unless the site is at the top.
+    const SITE = (() => { try { const me = document.currentScript && document.currentScript.src; return me && /autopilot-bell\.js/.test(me) ? me.replace(/autopilot-bell\.js.*$/, '') : '/'; } catch (e) { return '/'; } })();
     const FRESH_MS = 2 * 60 * 1000, LOCKED_MS = 30 * 60 * 1000, KEEP = 12, SHOW = 6;
     const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
     const put = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* a private window: it works for this page only */ } };
@@ -100,8 +103,8 @@
                 <h4 style="margin: 0; color: var(--text-primary); font-size: 14px;">🔔 Notifications</h4>
                 <p style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 12px;">${newReports + newTrades} unread${mine.length ? ': ' + count(newReports, 'report', 'reports') + ', ' + count(newTrades, 'autopilot buy or sell', 'autopilot buys and sells') + ' (practice, fake money)' : ''}</p></div>`;
         const body = items.length ? items.map(i => i.row()).join('')
-            : `<div style="padding: 20px; text-align: center; color: var(--text-secondary);"><p style="margin: 0 0 6px;">Nothing here yet</p><a href="/analysis.html" style="color: #007bff; text-decoration: none;">Start your first analysis</a></div>`;
-        return head + body + `<a href="/dashboard.html" onclick="event.stopPropagation();" style="position: sticky; bottom: 0; display: block; padding: 13px 15px; text-align: center; border-top: 1px solid var(--border-color); background: var(--bg-secondary); color: #007bff; text-decoration: none; font-size: 13px; font-weight: 500; z-index: 2;">View Dashboard</a>`;
+            : `<div style="padding: 20px; text-align: center; color: var(--text-secondary);"><p style="margin: 0 0 6px;">Nothing here yet</p><a href="${SITE}analysis.html" style="color: #007bff; text-decoration: none;">Start your first analysis</a></div>`;
+        return head + body + `<a href="${SITE}dashboard.html" onclick="event.stopPropagation();" style="position: sticky; bottom: 0; display: block; padding: 13px 15px; text-align: center; border-top: 1px solid var(--border-color); background: var(--bg-secondary); color: #007bff; text-decoration: none; font-size: 13px; font-weight: 500; z-index: 2;">View Dashboard</a>`;
     }
     const newestTrade = () => { const t = trades(); return t.length ? ms(t[t.length - 1].t) : 0; };
     const newestReport = () => reports().reduce((best, r) => Math.max(best, ms(r.timestamp)), 0);
@@ -149,11 +152,11 @@
         const drop = document.getElementById('notification-dropdown');
         if (drop) drop.remove();
         if (window.practiceAutopilot && window.practiceAutopilot.bellOpen) window.practiceAutopilot.bellOpen();
-        else window.location.href = '/dashboard.html#autopilot';
+        else window.location.href = SITE + 'dashboard.html#autopilot';
     }
     function report(id) {                                   // a click on a report: what the page itself does with it, or the dashboard
         if (has('viewAnalysisFromNotification')) window.viewAnalysisFromNotification(id);
-        else window.location.href = '/dashboard.html';
+        else window.location.href = SITE + 'dashboard.html';
     }
 
     // ---- the red number: unread reports plus the trades made since the bell was last opened
@@ -201,10 +204,10 @@
     let themeCopy = 'not looked at yet';
     function lookAtTheme() {                                // the theme.js this browser keeps: an old one asks for an old copy of this script
         try {
-            fetch('/theme.js', { cache: 'force-cache' }).then(r => r.text()).then(t => {
+            fetch(SITE + 'theme.js', { cache: 'force-cache' }).then(r => r.text()).then(t => {
                 const old = /autopilot-bell\.js\?v=(\d+)/.exec(t);
                 themeCopy = old ? 'old: asks for version ' + old[1] : /autopilot-bell\.js\?h=/.test(t) ? 'current' : 'has no loader';
-                if (themeCopy !== 'current') return fetch('/theme.js', { cache: 'reload' }).then(() => { themeCopy += ', now replaced by the current one'; });
+                if (themeCopy !== 'current') return fetch(SITE + 'theme.js', { cache: 'reload' }).then(() => { themeCopy += ', now replaced by the current one'; });
             }).catch(() => { themeCopy = 'could not be read'; });
         } catch (e) { themeCopy = 'could not be read'; }
     }
@@ -213,7 +216,7 @@
             const u = user();
             if (!u) return;
             const drop = document.getElementById('notification-dropdown'), first = drop && drop.firstElementChild, c = cache();
-            const info = { kind, version: VERSION, page: location.pathname, olderCopyOnPage: hadOlder, inCharge: window.autopilotBell && window.autopilotBell.version === VERSION,
+            const info = { kind, version: VERSION, page: location.pathname, servedFrom: location.origin, site: SITE, olderCopyOnPage: hadOlder, inCharge: window.autopilotBell && window.autopilotBell.version === VERSION,
                 trades: trades().length, allowed: c ? c.allowed : null, listAgeSec: c ? Math.round((Date.now() - c.at) / 1000) : null, reports: reports().length, unseen: unseen(), unread: unread(),
                 bellList: drop ? { first: first ? (first.id || first.tagName) : null, parts: drop.children.length, lines: drop.querySelectorAll('.bell-row').length, tradeLines: drop.querySelectorAll('.bell-row[data-kind="trade"]').length, olderGroup: !!document.getElementById('autopilot-bell-section') } : 'not open',
                 draws: draws.length, gaveUp, fault, themeCopy, panel: !!(window.practiceAutopilot && window.practiceAutopilot.bellFeed), browser: String(navigator.userAgent).slice(0, 110) };
