@@ -39,6 +39,12 @@
         #practice-autopilot .ap-input { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); white-space: nowrap; }
         #practice-autopilot .ap-input input, #practice-autopilot .ap-input select { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; }
         #practice-autopilot .ap-group { display: grid; grid-template-columns: 150px 1fr; gap: 6px 12px; align-items: start; padding: 9px 0; border-top: 1px solid var(--border-color); }
+        #practice-autopilot .ap-group.shared { grid-template-columns: 150px minmax(0, 1fr) 370px; gap: 8px 16px; align-items: center; padding: 12px 0; }
+        #practice-autopilot .ap-group.shared.off .ap-group-name { opacity: 0.75; }
+        #practice-autopilot .ap-group-name .ap-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: baseline; }
+        #practice-autopilot .ap-splitbar { display: flex; height: 30px; border-radius: 8px; overflow: hidden; margin: 8px 0 12px; border: 1px solid var(--border-color); background: var(--bg-secondary); }
+        #practice-autopilot .ap-splitbar span { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0 8px; color: #fff; font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #practice-autopilot .ap-splitbar span.idle { color: var(--text-secondary); background: none; font-weight: 400; }
         #practice-autopilot .ap-group.first { border-top: none; padding-top: 2px; }
         #practice-autopilot .ap-group-name { color: var(--text-secondary); padding-top: 6px; }
         #practice-autopilot .ap-chips { display: flex; flex-wrap: wrap; gap: 6px 8px; }
@@ -96,8 +102,12 @@
         #practice-autopilot .ap-bd td.ap-bd-num { font-weight: 600; }
         #practice-autopilot .ap-bd tr.ap-bd-gap td { border: 0; padding: 0; height: 10px; }
         #practice-autopilot .ap-bd tr.ap-bd-head td { text-align: left; padding: 7px 10px; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.02em; color: var(--text-primary); background: var(--bg-secondary); border-bottom: 0; border-left: 3px solid #007bff; border-radius: 4px; }
-        #practice-autopilot .ap-share { margin-top: 7px; font-size: 0.82rem; color: var(--text-secondary); display: flex; gap: 6px 8px; flex-wrap: wrap; align-items: center; }
-        #practice-autopilot .ap-share select { padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; max-width: 100%; }
+        #practice-autopilot .ap-share { font-size: 0.8rem; color: var(--text-secondary); padding: 8px 10px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-left-width: 4px; }
+        #practice-autopilot .ap-share .ap-share-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 5px; }
+        #practice-autopilot .ap-share .ap-share-label .ap-auto { margin-left: 0; text-transform: none; letter-spacing: 0; font-size: 0.75rem; }
+        #practice-autopilot .ap-share select { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #007bff; border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; font-weight: 500; cursor: pointer; }
+        #practice-autopilot .ap-share.none { border: 0; background: none; padding: 0 2px; font-size: 0.8rem; }
+        @media (max-width: 980px) { #practice-autopilot .ap-group.shared { grid-template-columns: 150px minmax(0, 1fr); } #practice-autopilot .ap-group.shared > div:last-child { grid-column: 2; } }
         #practice-autopilot .ap-countline { margin-top: 6px; color: var(--text-primary); }
         #practice-autopilot .ap-count { display: inline-block; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
         #practice-autopilot .ap-needs { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); background: rgba(217, 119, 6, 0.12); border: 1px solid rgba(217, 119, 6, 0.5); }
@@ -108,7 +118,7 @@
         #practice-autopilot .ap-next .ap-count.first { background: rgba(0, 123, 255, 0.14); border-color: #007bff; }
         #practice-autopilot .ap-next time { color: var(--text-primary); font-weight: 600; margin-right: 6px; white-space: nowrap; }
         @media (max-width: 640px) { #practice-autopilot .ap-next { grid-template-columns: 1fr; gap: 2px 0; } #practice-autopilot .ap-next .ap-count { justify-self: start; margin-top: 8px; } }
-        @media (max-width: 640px) { #practice-autopilot .ap-group { grid-template-columns: 1fr; } #practice-autopilot .ap-group-name { padding-top: 0; } #practice-autopilot .ap-chip { white-space: normal; } #practice-autopilot .ap-input { white-space: normal; } }
+        @media (max-width: 640px) { #practice-autopilot .ap-group, #practice-autopilot .ap-group.shared { grid-template-columns: 1fr; } #practice-autopilot .ap-group.shared > div:last-child { grid-column: 1; } #practice-autopilot .ap-group-name { padding-top: 0; } #practice-autopilot .ap-chip { white-space: normal; } #practice-autopilot .ap-input { white-space: normal; } }
     `;
 
     let data = null, draft = null, working = '', notice = null, showAll = false;
@@ -399,14 +409,30 @@
     // What a market would get on automatic, the others staying as they are
     function autoSlots(d, group) { const sh = Object.assign({}, d.shares); delete sh[group]; return marketSlots(Object.assign({}, d, { shares: sh }))[group] || 0; }
     // One market's line under its screeners: its share of the budget, automatic unless picked from the steps
+    // one colour per market, the same in its share box and in the bar that shows the split
+    const MARKET_COLOURS = ['#3b82f6', '#22c55e', '#a855f7', '#ef4444', '#f59e0b', '#14b8a6'];
+    const marketColour = (group) => MARKET_COLOURS[Math.max(0, (data.options.groups || []).indexOf(group)) % MARKET_COLOURS.length];
+    const isTicked = (d, group) => d.screeners.some(k => (data.options.screeners[k] || {}).group === group);
+    // The split at a glance: a bar with one coloured part per market, as wide as its share of the budget
+    function splitBar(d) {
+        if (!sharesOn()) return '';
+        const positions = (data.options.risk[String(d.risk)] || {}).positions || 0, slots = marketSlots(d), groups = Object.keys(slots).filter(g => slots[g] > 0);
+        if (!positions) return '';
+        if (!groups.length) return '<span class="idle" style="flex: 1;">Tick a screener and its market gets a share of the budget</span>';
+        const used = groups.reduce((a, g) => a + slots[g], 0), pctOf = (n) => Math.round(n / positions * 100);
+        return groups.map(g => `<span style="flex: ${slots[g]} 1 0; background: ${marketColour(g)};" title="${esc(g)}: ${holdingsWord(slots[g])}">${esc(g)} ${pctOf(slots[g])}%</span>`).join('')
+            + (used < positions ? `<span class="idle" style="flex: ${positions - used} 1 0;" title="Not given to any market: it stays in cash">cash ${pctOf(positions - used)}%</span>` : '');
+    }
     function shareRow(d, group, index) {
         if (!sharesOn()) return '';
         const r = data.options.risk[String(d.risk)] || {}, positions = r.positions || 0, size = d.budgetUsd / (positions || 1);
-        const ticked = d.screeners.some(k => (data.options.screeners[k] || {}).group === group);
-        if (!ticked || !positions) return '';
+        const ticked = isTicked(d, group);
+        if (!positions) return '';
+        // nothing ticked in this market: say so, where its share would be (an empty space looked like something missing)
+        if (!ticked) return `<div class="ap-share none">No share of the budget: nothing is ticked in this market.</div>`;
         const mine = typeof (d.shares || {})[group] === 'number', chosen = mine ? Math.min(positions, Math.max(0, Math.round(d.shares[group] / 100 * positions))) : -1;
         const steps = []; for (let k = 0; k <= positions; k++) steps.push(`<option value="${stepPct(k, positions)}" ${k === chosen ? 'selected' : ''}>${stepLabel(k, positions, size)}</option>`);
-        return `<div class="ap-share">Share of the budget <select id="ap-share-${index}" data-ap-share="${esc(group)}" aria-label="Share of the budget for ${esc(group)}"><option value="auto" ${mine ? '' : 'selected'}>Automatic: ${stepLabel(autoSlots(d, group), positions, size)}</option>${steps.join('')}</select><span class="ap-auto ${mine ? 'own' : ''}">${mine ? 'set by you' : 'automatic'}</span></div>`;
+        return `<div class="ap-share" style="border-left-color: ${marketColour(group)};"><div class="ap-share-label"><span>Share of the budget</span> <span class="ap-auto ${mine ? 'own' : ''}">${mine ? 'set by you' : 'automatic'}</span></div><select id="ap-share-${index}" data-ap-share="${esc(group)}" aria-label="Share of the budget for ${esc(group)}" title="Choose how much of the budget this market may hold, or leave it on Automatic"><option value="auto" ${mine ? '' : 'selected'}>Automatic: ${stepLabel(autoSlots(d, group), positions, size)}</option>${steps.join('')}</select></div>`;
     }
     // In words, under the screeners: where the budget goes, and what is left over or left out
     function splitText(d) {
@@ -649,7 +675,8 @@
 
                 <div class="ap-card">
                     <span class="ap-label">Screeners it buys from <span id="ap-chosen" class="ap-sub">${chosen} chosen</span></span>
-                    ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''}"><div class="ap-group-name">${esc(group)}</div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div></div>`).join('')}
+                    ${sharesOn() ? `<div class="ap-help" style="margin-top: 2px;">Tick the screeners it may buy from. Each market you tick gets a share of the budget, shown in the bar and set in the box on its right.</div><div id="ap-splitbar" class="ap-splitbar" aria-label="How the budget is spread over the markets">${splitBar(d)}</div>` : ''}
+                    ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''} ${sharesOn() ? 'shared' + (isTicked(d, group) ? '' : ' off') : ''}"><div class="ap-group-name">${sharesOn() ? `<span class="ap-dot" style="background: ${isTicked(d, group) ? marketColour(group) : 'var(--border-color)'};"></span>` : ''}${esc(group)}</div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div></div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div>`).join('')}
                     <div id="ap-split" class="ap-help">${esc(splitText(d))}</div>
                     <div class="ap-help">Each share market is only traded while it is open, also when you press "Check in now"; coins at any time. Bigger lists take a little longer to check.</div>
                 </div>
@@ -722,7 +749,7 @@
         set('ap-chosen', el => { el.textContent = draft.screeners.length + ' chosen'; });
         set('ap-split', el => { el.textContent = splitText(draft); });
         // the share menus show dollars and holdings, which follow the budget and the level: rebuild them in place (none of them has the cursor)
-        if (sharesOn()) screenerGroups(data.options.screeners).forEach(([group], i) => set('ap-sharebox-' + i, el => { el.innerHTML = shareRow(draft, group, i); }));
+        if (sharesOn()) { screenerGroups(data.options.screeners).forEach(([group], i) => set('ap-sharebox-' + i, el => { el.innerHTML = shareRow(draft, group, i); })); set('ap-splitbar', el => { el.innerHTML = splitBar(draft); }); }
         if (document.querySelectorAll) Array.from(document.querySelectorAll('[data-ap-level]')).forEach(el => { if (el.classList) el.classList.toggle('now', el.getAttribute('data-ap-level') === String(draft.risk)); });
     }
     function validate(d) {
