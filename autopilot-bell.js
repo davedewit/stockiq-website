@@ -86,15 +86,29 @@
         const drop = document.getElementById('notification-dropdown');
         if (!drop) return;
         const old = document.getElementById('autopilot-bell-section'), markup = html();
-        if (!markup) { if (old) old.remove(); return; }
+        if (!markup) { if (old) old.remove(); const line = document.getElementById('autopilot-bell-pointer'); if (line) line.remove(); return; }
         const top = onTop(), sig = (top ? 'top' : 'end') + '|' + (cache() || {}).at + '|' + get(key('Read'));
-        if (old && old.parentNode === drop && old.getAttribute('data-sig') === sig && (top ? drop.firstElementChild === old : true)) return;
+        if (old && old.parentNode === drop && old.getAttribute('data-sig') === sig && (top ? drop.firstElementChild === old : !!document.getElementById('autopilot-bell-pointer'))) return;
         if (old) old.remove();
         const box = document.createElement('div');
         box.id = 'autopilot-bell-section'; box.setAttribute('data-sig', sig); box.setAttribute('data-place', top ? 'top' : 'end'); box.innerHTML = markup;
         if (!top) box.style.borderTop = '1px solid var(--border-color)';
         const foot = top ? null : Array.from(drop.children).reverse().find(c => c.tagName === 'A');     // the "view all" link stays last
         if (top) drop.insertBefore(box, drop.firstChild); else if (foot) drop.insertBefore(box, foot); else drop.appendChild(box);
+        pointer(drop, top);
+    }
+    // When the report history is on top, the trades can be below a long list: a slim line stays at the top of the bell's list
+    // and takes the reader down to them.
+    function pointer(drop, top) {
+        const old = document.getElementById('autopilot-bell-pointer');
+        if (old) old.remove();
+        if (top) return;
+        const n = unread(), line = document.createElement('div');
+        line.id = 'autopilot-bell-pointer';
+        line.style.cssText = 'position: sticky; top: 0; z-index: 1; padding: 8px 15px; font-size: 12px; cursor: pointer; background: var(--card-bg); border-bottom: 1px solid var(--border-color); color: var(--text-secondary); display: flex; justify-content: space-between; gap: 10px;';
+        line.innerHTML = `<span><strong style="color: var(--text-primary);">🤖 AI autopilot (Beta)</strong> · ${n ? n + ' unread buy' + (n === 1 ? ' or sell' : 's and sells') : 'buys and sells'}</span><span style="color: #007bff; white-space: nowrap;">below ↓</span>`;
+        line.onclick = (e) => { e.stopPropagation(); const box = document.getElementById('autopilot-bell-section'); if (box && box.scrollIntoView) box.scrollIntoView({ block: 'start' }); };
+        drop.insertBefore(line, drop.firstChild);
     }
     let watched = null;
     function watch(drop) {                                  // the page redraws its list now and then: put the trades back
@@ -156,7 +170,7 @@
                 if (!drop) return;
                 place(); watch(drop); markSeen();
             }, 0);
-        });
+        }, true);                                           // on the way down: a page's own handler cannot stop it from being heard
         if (typeof MutationObserver !== 'undefined') {      // the page sets the number from its reports: add the trades to it
             ['notification-badge', 'mobile-notification-badge'].forEach(id => {
                 const b = document.getElementById(id);

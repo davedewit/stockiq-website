@@ -217,7 +217,9 @@ document.addEventListener('visibilitychange', function() {
 });
 
 // The notification bell also lists the AI autopilot's practice buys and sells (fake money). This file is the one script every
-// page with a bell loads, so the small script that does it is fetched from here, for signed-in visitors only.
+// page with a bell loads, so the small script that does it is fetched from here, for signed-in visitors only. (The hand-edited
+// pages also fetch it themselves, between their AUTOPILOT_BELL comments, so that it does not wait on this file's day-long cache;
+// this is what covers the generated stock pages.)
 (function () {
     function go() {
         try {
@@ -225,7 +227,7 @@ document.addEventListener('visibilitychange', function() {
             const user = localStorage.getItem('userId');
             if (!user || user === 'anonymous') return;
             const script = document.createElement('script');
-            script.src = '/autopilot-bell.js?v=1'; script.async = true;
+            script.src = '/autopilot-bell.js?v=2'; script.async = true;
             document.head.appendChild(script);
         } catch (e) { /* the page works without it */ }
     }
