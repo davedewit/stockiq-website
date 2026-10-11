@@ -300,6 +300,8 @@
         .dash-tab:focus-visible { outline: 2px solid #007bff; outline-offset: -2px; }
         .dash-tab[hidden], [data-dash-panel][hidden] { display: none !important; }
         @media (max-width: 768px) { .dash-tab { padding: 10px 14px; font-size: 0.95rem; } }
+        /* on a phone the three tabs share the width (they had to be scrolled sideways, with the third half hidden) */
+        @media (max-width: 560px) { .dash-tabs { gap: 0; overflow-x: visible; } .dash-tab { flex: 1 1 0; min-width: 0; padding: 10px 4px; font-size: 0.8rem; line-height: 1.25; white-space: normal; text-align: center; } }
         .button-container {
             display: flex;
             gap: 8px;
@@ -5019,8 +5021,8 @@ ${analysis.report}
         }
     </style>
     <script src="news.js"></script>
-    <script src="practice-portfolio.js?v=15"></script>
-    <script src="practice-autopilot.js?v=34"></script>
+    <script src="practice-portfolio.js?v=16"></script>
+    <script src="practice-autopilot.js?v=35"></script>
     <script src="ai-chat.js?v=2"></script>
     <script src="js/timezone-converter.js"></script>
     <script>

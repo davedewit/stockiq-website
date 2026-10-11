@@ -108,6 +108,8 @@
         #practice-autopilot .ap-share select { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #007bff; border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; font-weight: 500; cursor: pointer; }
         #practice-autopilot .ap-share.none { border: 0; background: none; padding: 0 2px; font-size: 0.8rem; }
         @media (max-width: 980px) { #practice-autopilot .ap-group.shared { grid-template-columns: 150px minmax(0, 1fr); } #practice-autopilot .ap-group.shared > div:last-child { grid-column: 2; } }
+        #practice-autopilot .ap-only-phone { display: none; }
+        @media (max-width: 640px) { #practice-autopilot .ap-only-phone { display: inline; } }
         #practice-autopilot .ap-countline { margin-top: 6px; color: var(--text-primary); }
         #practice-autopilot .ap-count { display: inline-block; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
         #practice-autopilot .ap-needs { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); background: rgba(217, 119, 6, 0.12); border: 1px solid rgba(217, 119, 6, 0.5); }
@@ -117,6 +119,32 @@
         #practice-autopilot .ap-next .ap-count { padding: 2px 9px; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); font-size: 0.82rem; text-align: center; }
         #practice-autopilot .ap-next .ap-count.first { background: rgba(0, 123, 255, 0.14); border-color: #007bff; }
         #practice-autopilot .ap-next time { color: var(--text-primary); font-weight: 600; margin-right: 6px; white-space: nowrap; }
+        @media (max-width: 640px) {
+            #practice-autopilot table.ap-stack, #practice-autopilot table.ap-stack tbody, #practice-autopilot table.ap-stack tr, #practice-autopilot table.ap-stack td { display: block !important; width: auto !important; box-sizing: border-box; }
+            #practice-autopilot table.ap-stack tr.ap-stack-head { display: none !important; }
+            #practice-autopilot table.ap-stack tr { border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; }
+            #practice-autopilot table.ap-stack td { text-align: left !important; white-space: normal !important; padding: 3px 0 !important; }
+            #practice-autopilot table.ap-stack td[data-label] { display: flex !important; justify-content: space-between; gap: 12px; }
+            #practice-autopilot table.ap-stack td[data-label]::before { content: attr(data-label); color: var(--text-secondary); font-weight: 400; flex: none; }
+            #practice-autopilot table.ap-stack td.ap-stack-wide { display: block !important; }
+            #practice-autopilot table.ap-stack td.ap-stack-wide::before { display: block; }
+            #practice-autopilot table.ap-stack td.ap-stack-title { font-weight: 700; padding-bottom: 6px !important; margin-bottom: 4px; border-bottom: 1px solid var(--border-color); }
+            #practice-autopilot .ap-bd { width: 100%; }
+            #practice-autopilot .ap-bd th, #practice-autopilot .ap-bd td { padding: 6px 5px; }
+            #practice-autopilot .ap-bd td.ap-bd-name { min-width: 0; padding-left: 8px; }
+            #practice-autopilot .ap-bd th { white-space: normal; letter-spacing: 0; font-size: 0.66rem; vertical-align: bottom; line-height: 1.2; }
+            #practice-autopilot .ap-bd td { font-size: 0.8rem; }
+            #practice-autopilot .ap-bd tr.ap-bd-head td { padding: 6px 8px; white-space: normal; }
+            #practice-autopilot .ap-own label { flex-basis: 100%; }
+            #practice-autopilot .ap-own select { display: block; width: 100% !important; max-width: 100% !important; margin: 6px 0 0 !important; box-sizing: border-box; }
+            #practice-autopilot .ap-fresh { float: none; display: block; margin-top: 4px; }
+            #practice-autopilot .ap-fresh .ap-mini { margin-left: 0; margin-top: 6px; display: flex; }
+            #practice-autopilot .ap-actions .ap-btn { flex: 1 1 100%; padding: 12px 16px; }
+            #practice-autopilot .ap-views .ap-view { flex: 1; padding: 11px 8px; }
+            #practice-autopilot .ap-card { padding: 12px 12px; }
+            #practice-autopilot .ap-splitbar { height: auto; min-height: 30px; }
+            #practice-autopilot .ap-splitbar span { white-space: normal; text-align: center; padding: 4px 4px; font-size: 0.72rem; line-height: 1.2; }
+        }
         @media (max-width: 640px) { #practice-autopilot .ap-next { grid-template-columns: 1fr; gap: 2px 0; } #practice-autopilot .ap-next .ap-count { justify-self: start; margin-top: 8px; } }
         @media (max-width: 640px) { #practice-autopilot .ap-group, #practice-autopilot .ap-group.shared { grid-template-columns: 1fr; } #practice-autopilot .ap-group.shared > div:last-child { grid-column: 1; } #practice-autopilot .ap-group-name { padding-top: 0; } #practice-autopilot .ap-chip { white-space: normal; } #practice-autopilot .ap-input { white-space: normal; } }
     `;
@@ -503,15 +531,15 @@
         const word = { better: ['better', '#22c55e'], worse: ['worse', '#ef4444'], same: ['about the same', 'var(--text-secondary)'] };
         const row = (b) => {
             const r = reports[b.no], v = word[b.verdict];
-            return `<tr><td style="${left} padding-left: 0; color: var(--text-primary); white-space: nowrap;">${b.first} to ${b.last}${b.full ? '' : ` <span style="color: var(--text-secondary);">(${b.n} of ${size} so far)</span>`}</td>
-                <td style="${cell}">${esc(day(b.from))} to ${esc(day(b.to))}</td><td style="${cell}">${b.up} of ${b.n}</td><td style="${cell} color: ${tint(b.avg)}; font-weight: 600;">${(b.avg >= 0 ? '+' : '') + b.avg.toFixed(2)}%</td><td style="${cell} color: ${tint(b.usd)};">${usd2(b.usd)}</td>
-                <td style="${left}">${v ? `<span style="color: ${v[1]}; font-weight: 600;">${v[0]}</span> <span style="white-space: nowrap;">(${(b.prev >= 0 ? '+' : '') + b.prev.toFixed(2)}% before)</span>` : b.full ? 'the first batch' : 'still filling'}</td>
-                <td style="${left}">${r ? esc((r.actions || []).join(' ')) : ''}</td></tr>`;
+            return `<tr><td class="ap-stack-title" style="${left} padding-left: 0; color: var(--text-primary); white-space: nowrap;"><span class="ap-only-phone">Trades </span>${b.first} to ${b.last}${b.full ? '' : ` <span style="color: var(--text-secondary);">(${b.n} of ${size} so far)</span>`}</td>
+                <td data-label="When" style="${cell}">${esc(day(b.from))} to ${esc(day(b.to))}</td><td data-label="Ended up" style="${cell}">${b.up} of ${b.n}</td><td data-label="Average a trade" style="${cell} color: ${tint(b.avg)}; font-weight: 600;">${(b.avg >= 0 ? '+' : '') + b.avg.toFixed(2)}%</td><td data-label="In dollars" style="${cell} color: ${tint(b.usd)};">${usd2(b.usd)}</td>
+                <td class="ap-stack-wide" data-label="Against the ${size} before" style="${left}">${v ? `<span style="color: ${v[1]}; font-weight: 600;">${v[0]}</span> <span style="white-space: nowrap;">(${(b.prev >= 0 ? '+' : '') + b.prev.toFixed(2)}% before)</span>` : b.full ? 'the first batch' : 'still filling'}</td>
+                ${r ? `<td class="ap-stack-wide" data-label="What it did" style="${left}">${esc((r.actions || []).join(' '))}</td>` : `<td style="${left}"></td>`}</tr>`;
         };
         const latest = (p.reports || []).slice(-1)[0];
         return `<div class="ap-section"><h4>Progress, ${size} finished trades at a time</h4>
-            <div style="overflow-x: auto;"><table style="border-collapse: collapse; font-size: 0.85rem; width: 100%;">
-                <tr style="color: var(--text-secondary);"><td style="${left} padding-left: 0;">Trades</td><td style="${cell}">When</td><td style="${cell}">Ended up</td><td style="${cell}">Average a trade</td><td style="${cell}">In dollars</td><td style="${left}">Against the ${size} before</td><td style="${left}">What it did</td></tr>
+            <div style="overflow-x: auto;"><table class="ap-stack" style="border-collapse: collapse; font-size: 0.85rem; width: 100%;">
+                <tr class="ap-stack-head" style="color: var(--text-secondary);"><td style="${left} padding-left: 0;">Trades</td><td style="${cell}">When</td><td style="${cell}">Ended up</td><td style="${cell}">Average a trade</td><td style="${cell}">In dollars</td><td style="${left}">Against the ${size} before</td><td style="${left}">What it did</td></tr>
                 ${p.batches.slice().reverse().map(row).join('')}
             </table></div>
             ${latest && (latest.findings || []).length ? fold('progress-found', `What stood out in trades ${(latest.no - 1) * size + 1} to ${latest.no * size}`, latest.findings) : ''}

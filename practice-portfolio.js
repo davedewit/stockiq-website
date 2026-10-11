@@ -176,6 +176,27 @@
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
     // ---------------------------------------------------------------- page
+    // On a phone a table of seven columns cannot be read: each holding becomes a card, every figure on its own labelled line.
+    // (The cells carry inline styles, hence the !important.)
+    const PP_CSS = `
+        @media (max-width: 640px) {
+            #practice-portfolio table.pp-stack, #practice-portfolio table.pp-stack tbody, #practice-portfolio table.pp-stack tr, #practice-portfolio table.pp-stack td { display: block !important; width: auto !important; box-sizing: border-box; }
+            #practice-portfolio table.pp-stack tr.pp-head { display: none !important; }
+            #practice-portfolio table.pp-stack tr { border: 1px solid var(--border-color) !important; border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; }
+            #practice-portfolio table.pp-stack td { text-align: left !important; white-space: normal !important; padding: 3px 0 !important; border: 0 !important; }
+            #practice-portfolio table.pp-stack td[data-label] { display: flex !important; justify-content: space-between; gap: 12px; }
+            #practice-portfolio table.pp-stack td[data-label]::before { content: attr(data-label); color: var(--text-secondary); font-weight: 400; flex: none; }
+            #practice-portfolio table.pp-stack td.pp-name { padding-bottom: 6px !important; margin-bottom: 4px; border-bottom: 1px solid var(--border-color) !important; }
+            #practice-portfolio table.pp-stack td.pp-act { text-align: right !important; padding-top: 8px !important; }
+            #practice-portfolio table.pp-stack td.pp-act button { width: 100%; padding: 10px 12px !important; font-size: 0.95rem !important; }
+            #practice-portfolio #pp-amount, #practice-portfolio #pp-qty { flex: 1 1 0 !important; min-width: 0; box-sizing: border-box; }
+            #practice-portfolio #pp-note { flex: 1 1 100% !important; min-width: 0 !important; box-sizing: border-box; }
+            #practice-portfolio [data-pp="buy"] { flex: 1 1 100%; padding: 12px 18px !important; }
+        }`;
+    function ensureStyle() {
+        if (!document.head || !document.createElement || document.getElementById('pp-style')) return;
+        const style = document.createElement('style'); style.id = 'pp-style'; style.textContent = PP_CSS; document.head.appendChild(style);
+    }
     const BTN2 = 'background: none; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     const BTN = 'background: #007bff; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     let state = null, version = 0, quotes = {}, loaded = false, loadError = null, notice = null, working = false, searchTimer = null;
@@ -315,6 +336,7 @@
     }
 
     function render() {
+        ensureStyle();
         const el = box();
         if (!el) return;
         const soldBox = document.getElementById('pp-sold');
@@ -331,19 +353,19 @@
         const rows = state.holdings.slice().reverse().map(h => {
             const v = valueOf(h, quotes);
             return `<tr>
-                <td style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div></td>
-                <td style="${cell}">${esc(when(h.boughtAt))}</td>
-                <td style="${cell}">${money(h.buyPrice, h.currency)}</td>
-                <td style="${cell}">${v.priced ? money(v.price, h.currency) : '<span title="No price available right now">–</span>'}</td>
-                <td style="${cell}">${usd(h.costUsd)} → ${usd(v.valueUsd)}</td>
-                <td style="${cell} font-weight: 600; color: ${v.priced ? colour(v.changePct) : 'var(--text-secondary)'};">${v.priced ? pct(v.changePct) + ' (' + usd(v.gainUsd) + ')' : 'no price'}</td>
-                <td style="${cell}"><button data-pp="sell" data-id="${esc(h.id)}" style="${BTN}" ${working ? 'disabled' : ''}>Sell</button></td>
+                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div></td>
+                <td data-label="Bought" style="${cell}">${esc(when(h.boughtAt))}</td>
+                <td data-label="Price then" style="${cell}">${money(h.buyPrice, h.currency)}</td>
+                <td data-label="Price now" style="${cell}">${v.priced ? money(v.price, h.currency) : '<span title="No price available right now">–</span>'}</td>
+                <td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(v.valueUsd)}</td>
+                <td data-label="Change" style="${cell} font-weight: 600; color: ${v.priced ? colour(v.changePct) : 'var(--text-secondary)'};">${v.priced ? pct(v.changePct) + ' (' + usd(v.gainUsd) + ')' : 'no price'}</td>
+                <td class="pp-act" style="${cell}"><button data-pp="sell" data-id="${esc(h.id)}" style="${BTN}" ${working ? 'disabled' : ''}>Sell</button></td>
             </tr>`;
         }).join('');
 
         const closed = state.closed.slice().reverse().map(h => {
             const change = (h.proceedsUsd / h.costUsd - 1) * 100;
-            return `<tr><td style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td style="${cell}">${esc(when(h.boughtAt))} → ${esc(when(h.soldAt))}</td><td style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)} (${usd(h.proceedsUsd - h.costUsd)})</td><td style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
+            return `<tr><td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td data-label="Held" style="${cell}">${esc(when(h.boughtAt))} → ${esc(when(h.soldAt))}</td><td data-label="Price" style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td data-label="Result" style="${cell} font-weight: 600; color: ${colour(change)};">${pct(change)} (${usd(h.proceedsUsd - h.costUsd)})</td><td class="pp-act" style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
         }).join('');
         const sold = soldSummary(state);
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}, <span style="color: ${colour(sold.gainUsd)}; font-weight: 600;">${pct(sold.gainPct)} (${usd(sold.gainUsd)})</span>.` : '';
@@ -371,8 +393,8 @@
                 <button data-pp="buy" style="${BTN} padding: 10px 18px; font-size: 0.95rem;" ${working ? 'disabled' : ''}>${working ? 'Working…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
-            ${state.holdings.length ? `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
-            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr>${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" style="${BTN2}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>Clear sold list</button></div></details>` : ''}
+            ${state.holdings.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
+            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" style="${BTN2}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>Clear sold list</button></div></details>` : ''}
             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
                 <button data-pp="refresh" style="${BTN2}" ${working ? 'disabled' : ''}>↻ Refresh prices</button>
                 <button data-pp="reset" style="${BTN2}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>Reset fake money to ${usd(STARTING_CASH)}</button>
