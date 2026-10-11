@@ -222,7 +222,7 @@
     function planText(d) {
         const r = data.options.risk[String(d.risk)];
         if (!r || !(d.budgetUsd > 0) || !(d.periodDays > 0) || !(d.everyHours > 0) || !(d.maxHoldDays > 0)) return '';
-        const cash = data.practiceCash || 100000, size = d.budgetUsd / r.positions, start = `It checks in ${everyText(d.everyHours)}.`;
+        const size = d.budgetUsd / r.positions, start = `It checks in ${everyText(d.everyHours)}.`;
         const up = buildUp(d, r, d.budgetUsd);            // with only coin screeners ticked the whole budget may go into coins (coin_share in the Lambda)
         if (!up.count) return start + ` The ${r.name} level spreads the budget over ${r.positions} holdings, which makes each about ${usd0(size)}: under the $25 smallest buy, so it will buy nothing. Raise the budget.`;
         const quickest = Math.min.apply(null, data.options.everyHours), oftener = d.everyHours > quickest && d.maxHoldDays * 24 > quickest + 1e-9;   // would checking in more often let it hold more?
@@ -234,7 +234,15 @@
                 : ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: it buys at most 3 at a check-in and sells each holding after ${holdText(d.maxHoldDays)}. Keep holdings longer${oftener ? ', or check in more often,' : ''} for it to use more.`)
             + (mixed(d) && r.crypto < 1 ? ` Of that, at most ${Math.round(r.crypto * 100)}% (${usd0(d.budgetUsd * r.crypto)}) goes into coins at this level.` : '')
             + (d.everyHours <= 3 && d.screeners.some(k => (data.options.screeners[k] || {}).kind === 'crypto') ? ' A coin is only bought once it has been near the top at two check-ins running (coin rankings change fast and many drop out again within the hour), so coin buying starts one check-in later than this.' : '')
-            + (d.budgetUsd > cash ? ` The practice portfolio starts with ${usd0(cash)}, so it can never invest more than the cash that is left.` : '');
+;
+    }
+    // Under the budget field: how much practice money there is for it, and a plain warning (with the fix) when the budget is more
+    function budgetHint(d) {
+        const m = data.money;
+        if (!m || !(m.reach >= 0)) return '';
+        const parts = m.invested > 0 ? `${usd0(m.cash)} of practice cash plus the ${usd0(m.invested)} it has invested` : `the practice cash you have left`;
+        if (d.budgetUsd > m.reach) return `<span style="color: #d97706;">⚠ That is more than the practice money there is. Its budget can be at most <strong>${usd0(m.reach)}</strong> (${parts}).</span> <a href="#" data-ap="maxbudget">Set it to ${usd0(m.reach)}</a>`;
+        return `Its budget can be up to ${usd0(m.reach)}: ${parts}.`;
     }
     // shares and coins both ticked? Then the level's coin share applies
     function mixed(d) {
@@ -473,11 +481,12 @@
 
                 <div class="ap-card">
                     <div class="ap-fields">
-                        <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" step="500" value="${d.budgetUsd}"></div></div>
+                        <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" ${data.money ? `max="${data.money.reach}"` : ''} step="500" value="${d.budgetUsd}"></div></div>
                         <div><label class="ap-label" for="ap-period">Build up to it over${tag('periodDays')}</label><div class="ap-input"><input id="ap-period" type="number" min="1" max="90" step="1" ${lvl ? `placeholder="${lvl.periodDays}"` : ''} value="${isAuto(d, 'periodDays') ? '' : d.periodDays}"> days</div></div>
                         <div><label class="ap-label" for="ap-every">Checks in${tag('everyHours')}</label><div class="ap-input">${select('ap-every', 'everyHours', o.everyHours, d.everyHours, everyText)}</div></div>
                         <div><label class="ap-label" for="ap-hold">Keeps a holding at most${tag('maxHoldDays')}</label><div class="ap-input">${select('ap-hold', 'maxHoldDays', o.holdDays, d.maxHoldDays, holdText)}</div></div>
                     </div>
+                    <div id="ap-budget-hint" class="ap-help">${budgetHint(d)}</div>
                     ${lvl ? `<div class="ap-help">The last three follow the risk level while they are left on automatic (an empty box, or "Automatic" in a menu): move the slider and they move with it. Set one yourself and it stays where you put it.${(d.auto || []).length < 3 ? ' <a href="#" data-ap="autopace">Let the risk level set all three</a>' : ''}</div>` : ''}
                     <div id="ap-plan" class="ap-help">${esc(planText(d))}</div>
                     <div id="ap-pace" class="ap-help">${esc(paceText(d))}</div>
@@ -543,6 +552,7 @@
         }
         set('ap-stop', el => { el.placeholder = hint(draft.risk, 'stop'); });
         set('ap-take', el => { el.placeholder = hint(draft.risk, 'take'); });
+        set('ap-budget-hint', el => { el.innerHTML = budgetHint(draft); });
         set('ap-plan', el => { el.textContent = planText(draft); });
         set('ap-pace', el => { el.textContent = paceText(draft); });
         set('ap-chosen', el => { el.textContent = draft.screeners.length + ' chosen'; });
@@ -552,6 +562,8 @@
         const cash = data.practiceCash || 100000;
         if (!(d.budgetUsd >= 100)) throw new Error('the budget must be at least $100.');
         if (d.budgetUsd > cash * 10) throw new Error(`the budget cannot be more than ${usd0(cash * 10)}.`);
+        // only when the budget is being changed: other settings must still save while an older, too-large budget is being put right
+        if (data.money && d.budgetUsd > data.money.reach && d.budgetUsd !== data.settings.budgetUsd) throw new Error(`the budget can be at most ${usd0(data.money.reach)}: that is all the practice money there is.`);
         if (!(d.periodDays >= 1 && d.periodDays <= 90)) throw new Error('spread the buying over 1 to 90 days.');
         if (d.stopPct !== null && d.stopPct !== undefined && !(d.stopPct >= 1.5 && d.stopPct <= 30)) throw new Error('your own loss limit must be between 1.5% and 30% (or empty).');
         if (d.takePct !== null && d.takePct !== undefined && !(d.takePct >= 2 && d.takePct <= 80)) throw new Error('your own gain mark must be between 2% and 80% (or empty).');
@@ -649,6 +661,11 @@
         const action = t.getAttribute('data-ap');
         if (action === 'more') { readDraft(); showAll = true; render(); }
         else if (action === 'refresh') refresh(true);
+        else if (action === 'maxbudget') {                  // the budget was more than the practice money: put it to the most there is
+            if (byId('ap-budget') && data.money) byId('ap-budget').value = String(data.money.reach);
+            saveError = null; notice = { text: `Budget set to ${usd0(data.money.reach)}: all the practice money there is for it.` };
+            queueSave(150);
+        }
         else if (action === 'autopace') {                   // hand all three pace settings back to the risk level
             if (byId('ap-period')) byId('ap-period').value = '';
             ['ap-every', 'ap-hold'].forEach(id => { if (byId(id)) byId(id).value = 'auto'; });
