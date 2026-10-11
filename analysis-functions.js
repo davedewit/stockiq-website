@@ -124,7 +124,7 @@ function generateExcelExport(results, filename) {
     }
     
     const headers = [
-        'Rank', 'Symbol', 'Price', 'Score', 'Signal', 'Support', 'Resistance', 'Lower_Level', 'Upper_Level', 'Model_Probability_%', 'Horizon', 'Horizon_Days', 'Timeframe', 'Confidence_%',
+        'Rank', 'Symbol', 'Price', 'Currency', 'Score', 'Signal', 'Support', 'Resistance', 'Lower_Level', 'Upper_Level', 'Model_Probability_%', 'Horizon', 'Horizon_Days', 'Timeframe', 'Confidence_%',
         '24h_Change_%', '5d_Change_%', '7d_Change_%', '10d_Change_%', '30d_Change_%', '90d_Change_%', '200d_Change_%', 'YTD_Change_%',
         'RSI', 'MACD_Signal', 'BB_Signal', 'Momentum_Signal', 'Volume_Ratio', 'Stoch_K', 'ATR',
         'Price_vs_MA20_%', 'Price_vs_MA50_%', 'Price_vs_MA200_%',
@@ -141,6 +141,7 @@ function generateExcelExport(results, filename) {
             index + 1,
             stock.symbol || 'N/A',
             (stock.price || 0).toFixed(2),
+            screenerCurrencyName(stock),      // what the row's prices are in: London figures are pence
             stock.total_score || 0,
             `"${signalLabel(stock.recommendation)}"`,
             (stock.support || 0).toFixed(2),
@@ -2901,6 +2902,24 @@ Analysis Date: ${apiData.timestamp}
 `;
     }
 
+    // Several reports in one run (Magnificent 7, Popular ETFs, several typed symbols): a short comparison first.
+    // The price is taken as the report itself writes it (it knows the share's currency; the result carries no currency field).
+    if (results.length > 1) {
+        const rows = results.map(stock => {
+            const written = String(stock.comprehensive_analysis || '').match(/Current Price: (.+?) \(/);
+            const price = written ? written[1] : (typeof stock.current_price === 'number' ? `$${stock.current_price.toFixed(2)}` : 'N/A');
+            const day = typeof stock.daily_change_pct === 'number' ? `${stock.daily_change_pct >= 0 ? '+' : ''}${stock.daily_change_pct.toFixed(2)}%` : 'N/A';
+            const score = typeof stock.investment_score === 'number' ? `${Math.round(stock.investment_score)}/100` : 'N/A';
+            return [reportText(stock.symbol || 'N/A'), price, day, score, reportText(stock.clear_recommendation || signalLabel(stock.recommendation))];
+        });
+        const head = ['Symbol', 'Price', 'Today', 'Score', 'Signal'];
+        const width = head.map((h, c) => Math.max(h.length, ...rows.map(r => r[c].length)));
+        const line = (r) => r.map((cell, c) => c === 0 || c === 4 ? cell.padEnd(width[c]) : cell.padStart(width[c])).join('   ').trimEnd();
+        output += `============================================================\n📋 SIDE BY SIDE: ${results.length} SYMBOLS IN THIS RUN\n============================================================\n\n`;
+        output += line(head) + '\n' + rows.map(line).join('\n') + '\n\n';
+        output += `ℹ️ The score is each report's own 0-100 score; the full reports follow. General information only, not financial advice.\n\n`;
+    }
+
     results.forEach((stock, i) => {
         if (stock.comprehensive_analysis) {
             output += stock.comprehensive_analysis + "\n";
@@ -3417,8 +3436,39 @@ function horizonLabel(code) {
     return labels[raw.toUpperCase()] || raw;
 }
 
+// One reading of the trading signals (options 2.1 and 2.2) as text. Its first line stays "N. SYMBOL - name - price": the
+// dashboard's tracker reads the symbol and the price from it (parseScreenerTop10 in dashboard.html), which is why the
+// name is cut to 30 characters and set off with " - ". Prices go through screenerMoney, from the reading's own currency.
+// Text from outside (a company's name, a typed symbol, the function's own sentences) goes into a report that the page shows
+// as HTML: "AT&T" must be written "AT&amp;T". (Unescaped, the dashboard's tracker also lost the line: it clears
+// everything from an "&" to the next ";".)
+function reportText(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function signalBlock(signal, i) {
+    const money = (value) => screenerMoney(signal, value, 'USD');
+    const signed = (value, places) => `${value >= 0 ? '+' : ''}${(Number(value) || 0).toFixed(places)}`;
+    const price = Number(signal.current_price) || 0;
+    const name = String(signal.name || '').replace(/\s+/g, ' ').trim().slice(0, 30).trim();
+    const change = typeof signal.change_pct === 'number' ? ` (${signed(signal.change_pct, 2)}% today)` : '';
+    const emoji = signal.action === 'BUY' ? '🟢' : signal.action === 'SELL' ? '🔴' : '⚪';
+    const strength = typeof signal.signal_strength === 'number' ? `${signed(signal.signal_strength, 0)} on the scale, ` : '';
+    let out = `${i + 1}. ${reportText(signal.symbol)} - ${name ? reportText(name) + ' - ' : ''}${money(price)}${change}\n`;
+    out += `   ${emoji} ${signalLabel(signal.action)} signal (${strength}${reportText(signal.confidence)} confidence)\n`;
+    (Array.isArray(signal.reasons) ? signal.reasons : []).forEach(reason => { out += `      • ${reportText(reason)}\n`; });
+    if (signal.trend) out += `   📈 Trend: ${reportText(signal.trend)}\n`;
+    // The two levels are facts, not aims: the highest and the lowest price of the last 20 sessions
+    const levels = [signal.take_profit, signal.stop_loss].map(Number).filter(isFinite);
+    const high = isFinite(Number(signal.resistance)) && signal.resistance != null ? Number(signal.resistance) : Math.max(...levels);
+    const low = isFinite(Number(signal.support)) && signal.support != null ? Number(signal.support) : Math.min(...levels);
+    const away = (level) => price ? ` (${signed((level - price) / price * 100, 1)}% from the price)` : '';
+    if (isFinite(high)) out += `   📏 20-day high: ${money(high)}${away(high)}\n`;
+    if (isFinite(low)) out += `   📏 20-day low: ${money(low)}${away(low)}\n`;
+    return out + '\n';
+}
+
 function formatOption2Result(apiData) {
-    const signals = apiData.signals;
+    const signals = apiData.signals || [];
+    const notFound = Array.isArray(apiData.not_found) ? apiData.not_found : [];
     let output = `
 ============================================================
 ⚡ TRADING SIGNALS GENERATOR RESULTS (REAL-TIME DATA)
@@ -3426,48 +3476,36 @@ function formatOption2Result(apiData) {
 
 Signals Generated: ${apiData.symbols_analyzed}
 Analysis Date: ${new Date(apiData.timestamp).toLocaleString()}
-
+${apiData.scale ? `How to read it: ${reportText(apiData.scale)}\n` : ''}${apiData.levels ? `Levels shown: ${reportText(apiData.levels)}\n` : ''}
 🎯 TRADING SIGNALS:
 ℹ️ General information only. Signals and levels are calculated automatically and are not recommendations to buy or sell.
 
 `;
-    signals.forEach((signal, i) => {
-        const actionEmoji = signal.action === 'BUY' ? '🟢' : signal.action === 'SELL' ? '🔴' : '⚪';
-        output += `${i + 1}. ${signal.symbol} - $${signal.current_price.toFixed(2)}\n`;
-        // The two calculated levels sit either side of the price; which one is higher depends on the signal
-        const tpIsUpper = signal.take_profit >= signal.stop_loss;
-        const upper = tpIsUpper ? [signal.take_profit, signal.take_profit_pct] : [signal.stop_loss, signal.stop_loss_pct];
-        const lower = tpIsUpper ? [signal.stop_loss, signal.stop_loss_pct] : [signal.take_profit, signal.take_profit_pct];
-        output += `   ${actionEmoji} ${signalLabel(signal.action)} signal (${signal.confidence} confidence)\n`;
-        output += `   📍 Price when calculated: $${signal.entry_price.toFixed(2)}\n`;
-        output += `   📏 Upper reference level: $${upper[0].toFixed(2)} (${upper[1] >= 0 ? '+' : ''}${upper[1].toFixed(1)}%)\n`;
-        output += `   📏 Lower reference level: $${lower[0].toFixed(2)} (${lower[1] >= 0 ? '+' : ''}${lower[1].toFixed(1)}%)\n\n`;
-    });
+    signals.forEach((signal, i) => { output += signalBlock(signal, i); });
+    if (notFound.length > 0) {
+        output += `⚠️ No prices were found for: ${notFound.map(reportText).join(', ')}\n   Check the spelling. A share outside the US needs its exchange's ending (for example BHP.AX, IMB.L, 7203.T).\n`;
+    }
     return { type: 'option_21_custom_signals', data: output };
 }
 
 function formatOption22Result(apiData) {
-    const signals = apiData.signals;
+    const signals = apiData.signals || [];
+    const readings = apiData.readings || null;
+    const strongest = Array.isArray(apiData.top_performers) ? apiData.top_performers : signals.map(s => s.symbol);
     let output = `
 ============================================================
 ⚡ AUTO-DETECT TRADING SIGNALS RESULTS (REAL-TIME DATA)
 ============================================================
 
-Methodology: ${apiData.methodology}
-Top Performers Found: ${apiData.top_performers.join(', ')}
+Methodology: ${reportText(apiData.methodology)}
+${apiData.scanned != null ? `Scanned: ${apiData.scanned}${apiData.universe_size != null ? ` of ${apiData.universe_size}` : ''}${apiData.universe ? ` ${reportText(apiData.universe)} shares` : ' shares'}\n` : ''}${readings ? `Readings across the list: ${readings.positive} positive, ${readings.negative} negative, ${readings.mixed} mixed\n` : ''}Strongest readings: ${strongest.map(reportText).join(', ')}
 Signals Generated: ${apiData.symbols_analyzed}
-
-🎯 TRADING SIGNALS FOR TOP PERFORMERS:
+${apiData.timestamp ? `Analysis Date: ${new Date(apiData.timestamp).toLocaleString()}\n` : ''}${apiData.scale ? `How to read it: ${reportText(apiData.scale)}\n` : ''}${apiData.levels ? `Levels shown: ${reportText(apiData.levels)}\n` : ''}
+🎯 THE STRONGEST READINGS, IN EITHER DIRECTION:
 ℹ️ General information only. Signals and levels are calculated automatically and are not recommendations to buy or sell.
 
 `;
-    signals.forEach((signal, i) => {
-        const actionEmoji = signal.action === 'BUY' ? '🟢' : signal.action === 'SELL' ? '🔴' : '⚪';
-        output += `${i + 1}. ${signal.symbol} - $${signal.current_price.toFixed(2)}\n`;
-        output += `   ${actionEmoji} ${signalLabel(signal.action)} signal (${signal.confidence} confidence)\n`;
-        output += `   📍 Price when calculated: $${signal.entry_price.toFixed(2)}\n`;
-        output += `   📏 Reference level: $${signal.take_profit.toFixed(2)} (${signal.take_profit_pct >= 0 ? '+' : ''}${signal.take_profit_pct.toFixed(1)}%)\n\n`;
-    });
+    signals.forEach((signal, i) => { output += signalBlock(signal, i); });
     return { type: 'option_22_auto_signals', data: output };
 }
 
@@ -3477,6 +3515,12 @@ Signals Generated: ${apiData.symbols_analyzed}
 // tracker reads the price from these lines (a leading sign, or a number followed by "p"): parseScreenerTop10 in dashboard.html.
 const SCREENER_MONEY_SIGNS = { USD: '$', AUD: 'A$', CAD: 'C$', NZD: 'NZ$', HKD: 'HK$', SGD: 'S$', GBP: '£', EUR: '€', JPY: '¥', CNY: 'CN¥', INR: '₹', KRW: '₩' };
 const SCREENER_MINOR_UNITS = { GBp: 'p', GBX: 'p', ZAc: 'c', ZAC: 'c', ILA: ' agorot' };
+// What a CSV row's prices are in: the currency code as the workers report it, with pence spelled out. The coordinator's
+// currency_name() writes the same.
+function screenerCurrencyName(stock) {
+    const cur = (stock && stock.currency) || '';
+    return cur === 'GBp' || cur === 'GBX' ? `${cur} (pence)` : cur;
+}
 function screenerMoney(stock, value, fallback) {
     const cur = (stock && stock.currency) || fallback || 'USD';
     const number = (Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
