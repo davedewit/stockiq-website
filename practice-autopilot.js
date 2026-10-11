@@ -13,6 +13,7 @@
         #practice-autopilot .ap-wrap { color: var(--text-primary); font-size: 0.9rem; }
         #practice-autopilot .ap-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         #practice-autopilot .ap-head h3 { margin: 0; font-size: 1.15rem; color: var(--text-primary); }
+        #practice-autopilot .ap-beta { display: inline-block; vertical-align: middle; margin-left: 4px; padding: 1px 8px; border-radius: 10px; border: 1px solid #f59e0b; color: #f59e0b; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
         #practice-autopilot .ap-sub { font-size: 0.8rem; font-weight: normal; color: var(--text-secondary); }
         #practice-autopilot .ap-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; position: relative; }
         #practice-autopilot .ap-switch input { position: absolute; opacity: 0; width: 46px; height: 26px; margin: 0; cursor: pointer; right: 0; }
@@ -329,7 +330,7 @@
         const tab = document.querySelector && document.querySelector('[data-dash-tab="autopilot"]');
         if (!tab || typeof tab.textContent !== 'string') return;
         const n = data && data.allowed && Array.isArray(data.needs) ? data.needs.length : 0;
-        const want = '🤖 AI autopilot' + (n ? ' ⚠' : data && !data.allowed && data.locked === 'plan' ? ' 🔒' : '');
+        const want = '🤖 AI autopilot (Beta)' + (n ? ' ⚠' : data && !data.allowed && data.locked === 'plan' ? ' 🔒' : '');
         if (tab.textContent !== want) { tab.textContent = want; tab.title = !n && want.indexOf('🔒') > 0 ? 'Part of the paid plans' : n ? `${n === 1 ? 'One thing needs' : n + ' things need'} you: see "Needs you" on this tab` : ''; }
     }
     // The first thing under Activity: what is coming, soonest first, each with a countdown; then what goes by the number of trades
@@ -540,10 +541,10 @@
     // ---------------------------------------------------------------- for an account that is not on a paid plan
     // The autopilot is part of the paid plans. Everyone can see what it is; only the practice portfolio by hand is free.
     function lockedHtml() {
-        if (data.locked !== 'plan') return `<div class="ap-wrap"><div class="ap-head"><h3>🤖 AI autopilot</h3></div><div class="ap-status">Your plan could not be checked just now. Refresh the page in a moment.</div></div>`;
+        if (data.locked !== 'plan') return `<div class="ap-wrap"><div class="ap-head"><h3>🤖 AI autopilot <span class="ap-beta" title="Beta: new, still being tested and changed">Beta</span></h3></div><div class="ap-status">Your plan could not be checked just now. Refresh the page in a moment.</div></div>`;
         return `<div class="ap-wrap">
-            <div class="ap-head"><h3>🤖 AI autopilot <span class="ap-sub">fake money · part of the paid plans</span></h3></div>
-            <p class="ap-intro">The AI autopilot runs a practice portfolio for you. At times you choose, it makes practice buys and sells with fake money from the latest results of the screeners you tick, inside a budget and limits you set, and shows what it did, why, and what it will do next. No real trade is ever placed and nothing here is advice; past screener results have not shown a reliable edge.</p>
+            <div class="ap-head"><h3>🤖 AI autopilot <span class="ap-beta" title="Beta: new, still being tested and changed">Beta</span> <span class="ap-sub">fake money · part of the paid plans</span></h3></div>
+            <p class="ap-intro">The AI autopilot runs a practice portfolio for you. At times you choose, it makes practice buys and sells with fake money from the latest results of the screeners you tick, inside a budget and limits you set, and shows what it did, why, and what it will do next. No real trade is ever placed and nothing here is advice; past screener results have not shown a reliable edge. It is in beta: new, and still being tested and changed.</p>
             <div id="ap-locked" class="ap-status"><strong>It is included in every paid plan (Starter, Pro and Elite).</strong> This account is not on a paid plan at the moment, so the autopilot is not available to it. Buying and selling by hand with the fake money stays free: that is the <a href="#practice">Practice portfolio</a> tab.</div>
             <div class="ap-actions"><a id="ap-upgrade" class="ap-btn primary" href="#upgrade" style="text-decoration: none; color: #fff;">See the plans</a></div>
             <div class="ap-section"><h4>What it does</h4>
@@ -586,10 +587,10 @@
         el.innerHTML = `
             <div class="ap-wrap">
                 <div class="ap-head">
-                    <h3>🤖 AI autopilot <span class="ap-sub">fake money, an experiment to watch</span></h3>
+                    <h3>🤖 AI autopilot <span class="ap-beta" title="Beta: new, still being tested and changed">Beta</span> <span class="ap-sub">fake money, an experiment to watch</span></h3>
                     <label class="ap-switch" title="Switch the autopilot on or off. This is saved straight away."><span id="ap-switch-text">${d.enabled ? 'On' : 'Off'}</span><input id="ap-enabled" type="checkbox" ${d.enabled ? 'checked' : ''} ${working ? 'disabled' : ''}><span class="ap-track"></span></label>
                 </div>
-                <p class="ap-intro">An AI model makes practice buys and sells for you from the latest results of the screeners you choose, inside the limits you set here. It uses the fake money of your <a href="#practice">practice portfolio</a>, where its holdings are listed with your own. Nothing here is advice, and past screener results have not shown a reliable edge.</p>
+                <p class="ap-intro">An AI model makes practice buys and sells for you from the latest results of the screeners you choose, inside the limits you set here. It uses the fake money of your <a href="#practice">practice portfolio</a>, where its holdings are listed with your own. Nothing here is advice, and past screener results have not shown a reliable edge. It is in beta: new, and still being tested and changed.</p>
                 <div id="ap-status" class="ap-status ${on ? 'on' : ''}">${esc(statusText())}${countLine()}</div>
                 ${needsHtml()}
 

@@ -147,6 +147,9 @@
         return prefix !== undefined ? prefix + number : number + (currency ? ' ' + currency : '');
     }
     function colour(n) { return Math.round(n * 100) / 100 >= 0 ? '#22c55e' : '#ef4444'; }
+    // A result in words, so that a mix of gains and losses cannot be misread: "up $144.12", "down $202.60", "level"
+    function moved(n) { n = Math.round(n * 100) / 100 || 0; return n === 0 ? 'level' : (n > 0 ? 'up ' : 'down ') + usd(Math.abs(n)); }
+    function movedHtml(n) { const r = Math.round(n * 100) / 100 || 0; return r === 0 ? 'level' : `<span style="color: ${colour(r)}; font-weight: 600;">${moved(r)}</span>`; }
     function day(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
     function when(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
     // Whose holding it is and what will happen to it. `plan` comes from the autopilot (practice-autopilot.js) for the
@@ -168,7 +171,7 @@
             + ' The AI model also reviews it at every check-in and may sell it earlier.' + shut;
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, usd, pct, money, esc, STARTING_CASH, DEFAULT_AMOUNT };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -345,12 +348,12 @@
         const sold = soldSummary(state);
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}, <span style="color: ${colour(sold.gainUsd)}; font-weight: 600;">${pct(sold.gainPct)} (${usd(sold.gainUsd)})</span>.` : '';
         // one total mixes the user's own buys with the autopilot's: say which part is whose
-        const split = splitGain(state, quotes, autoRealized), signed = (n) => `<span style="color: ${colour(n)}; font-weight: 600;">${Math.round(n * 100) / 100 >= 0 ? '+' : ''}${usd(n)}</span>`;
-        const splitLine = split.any ? `<div style="font-size: 0.85rem; color: var(--text-secondary); margin: -6px 0 14px;">Of the ${signed(split.total)} since the start: your own buys ${signed(split.yours)}; the autopilot ${signed(split.auto)} (${signed(split.autoSold)} on what it has sold, ${signed(split.autoOpen)} on what it still holds). A holding that is not sold yet counts at its latest price.</div>` : '';
+        const split = splitGain(state, quotes, autoRealized);
+        const splitLine = split.any ? `<div style="font-size: 0.85rem; color: var(--text-secondary); margin: -6px 0 14px;">Whose result is whose: the account is ${movedHtml(split.total)} since the start. Your own buys are ${movedHtml(split.yours)}; the autopilot is ${movedHtml(split.auto)} (${moved(split.autoSold)} on what it has sold, ${moved(split.autoOpen)} on what it still holds). The two add up to the account's change; a holding that is not sold yet counts at its latest price.</div>` : '';
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
         el.innerHTML = `
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
-                ${card('Account value', usd(s.accountValue), `<span style="color: ${colour(s.gainUsd)}; font-weight: 600;">${pct(s.gainPct)} (${usd(s.gainUsd)})</span> since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? `<br>${usd(s.gainUsd - s.openGainUsd)} from what has been sold, ${usd(s.openGainUsd)} on what is still held (at the latest prices)` : ''}`)}
+                ${card('Account value', usd(s.accountValue), `<span style="color: ${colour(s.gainUsd)}; font-weight: 600;">${Math.abs(Math.round(s.gainUsd * 100)) === 0 ? 'Level' : (s.gainUsd > 0 ? 'Up ' : 'Down ') + usd(Math.abs(s.gainUsd)) + ' (' + pct(Math.abs(s.gainPct)).replace('+', '') + ')'}</span> since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? `<br>Sold holdings: ${moved(s.gainUsd - s.openGainUsd)}. Still held: ${moved(s.openGainUsd)} at the latest prices.` : ''}`)}
                 ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
                 ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `<span style="color: ${colour(s.openGainPct)}; font-weight: 600;">${pct(s.openGainPct)}</span> on ${usd(s.cost)} put in`)}
                 ${card('For comparison', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : `<span style="color: ${colour(s.marketPct)};">${pct(s.marketPct)}</span>`, s.marketFlat ? 'the same money in an S&amp;P 500 index fund instead: the US stock market has not traded since you bought (it is closed at weekends), so there is nothing to compare yet' : 'the same money in an S&amp;P 500 index fund instead')}
