@@ -477,6 +477,28 @@
         </div>`;
     }
 
+    // Its own trial of which share to buy: as its screener ranks them, or the one furthest above its 52-week low
+    function orderHtml() {
+        const o = data.order;
+        // not started yet: it starts with the next share it buys (the function sends `progress` from the version that has this trial)
+        if (!o) return 'progress' in data && data.settings.selfTune !== false && data.settings.screeners.some(k => (data.options.screeners[k] || {}).kind === 'stock')
+            ? `<div style="margin-top: 6px;"><strong style="color: var(--text-primary);">Next, for shares:</strong> starting with the next share it buys, every second one will be the share furthest above its 52-week low on the shortlist, instead of the one its screener ranks highest. A test on four years of prices found that figure linked to what shares did next, and the screener's own ranking not. After 10 finished each way it keeps the new order only if those trades did clearly better.</div>` : '';
+        const side = (n, avg) => `${n} finished${n ? ' (average ' + pc(avg) + ')' : ''}`, cap = (x) => x ? x.charAt(0).toUpperCase() + x.slice(1) + '.' : '';
+        if (o.mode === 'trial') return `<div style="margin-top: 6px;"><strong style="color: var(--text-primary);">Also trying, for shares</strong> (since ${esc(day(o.since))}): every second share it buys is the one furthest above its 52-week low on the shortlist, instead of the one its screener ranks highest. Why: ${esc(o.why)}. So far: bought that way ${side(o.with, o.avgWith)}, bought as ranked ${side(o.without, o.avgWithout)}. It decides after ${o.group} each way and keeps the new order only if it did clearly better. <a href="#" data-ap="stoporder">Stop this trial</a></div>`;
+        if (o.mode === 'low52') return `<div style="margin-top: 6px;"><strong style="color: var(--text-primary);">Changed by itself after a trial</strong> (${esc(day(o.ended))}): every share it buys is now the one furthest above its 52-week low on the shortlist. ${esc(cap(o.result))} <a href="#" data-ap="restoreorder">put it back</a></div>`;
+        return o.ended ? `<div style="margin-top: 6px;">Tried for shares, ${esc(day(o.since))} to ${esc(day(o.ended))}: buying the one furthest above its 52-week low instead of the top-ranked one. Not kept: shares are bought as their screener ranks them. ${esc(cap(o.result))}</div>` : '';
+    }
+    // In one line: what it has tried on itself, what it kept, what it put back
+    function improvedLine() {
+        const past = (data.tune && data.tune.past) || [], o = data.order || {};
+        const running = (data.tune && data.tune.trial ? 1 : 0) + (o.mode === 'trial' ? 1 : 0);
+        const kept = past.filter(p => p.verdict === 'kept' && !p.undone).length + (o.mode === 'low52' ? 1 : 0);
+        const back = past.filter(p => p.undone).length + (o.undone ? 1 : 0);
+        const tried = past.length + (o.ended ? 1 : 0) + running;
+        const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+        return `<div><strong style="color: var(--text-primary);">Improvements so far:</strong> ${n(running, 'change is', 'changes are')} being tried now, ${n(kept, 'has', 'have')} been kept after a trial, ${n(back, 'was', 'were')} put back, ${tried} tried in all. A change is kept only if the trades made with it did clearly better than those made without it over the same days.</div>`;
+    }
+
     function tuneHtml() {
         const t = data.tune, r = data.rules;
         if (!t || !r) return '';
@@ -490,11 +512,13 @@
         const verdicts = { kept: 'kept', dropped: 'not kept', stopped: 'stopped' };
         const past = (t.past || []).slice().reverse();
         return `<div class="ap-section"><h4>Improving its own rules</h4>
-            <div>Its rules now (${esc(r.name)} level): ${esc(ruleWords(r))}.${(r.yours || []).length ? ` Set by you: ${esc(r.yours.map(k => names[k]).join(' and '))}; its trials leave ${r.yours.length === 1 ? 'that' : 'those'} alone.` : ''}${changed.length ? ` Changed by itself after a trial: ${changed.map(k => esc(names[k] + ' (the level starts at ' + r.changed[k] + ')') + ` <a href="#" data-ap="restore" data-param="${esc(k)}">put it back</a>`).join(', ')}.` : ''}</div>
+            ${improvedLine()}
+            <div style="margin-top: 6px;">Its rules now (${esc(r.name)} level): ${esc(ruleWords(r))}.${(r.yours || []).length ? ` Set by you: ${esc(r.yours.map(k => names[k]).join(' and '))}; its trials leave ${r.yours.length === 1 ? 'that' : 'those'} alone.` : ''}${changed.length ? ` Changed by itself after a trial: ${changed.map(k => esc(names[k] + ' (the level starts at ' + r.changed[k] + ')') + ` <a href="#" data-ap="restore" data-param="${esc(k)}">put it back</a>`).join(', ')}.` : ''}</div>
             ${now}
+            ${orderHtml()}
             ${data.aiSellPausedUntil ? `<div style="margin-top: 6px;">The AI model's early sells are paused until ${esc(day(data.aiSellPausedUntil))}: the holdings it had sold early went on rising afterwards. The fixed selling rules still apply.</div>` : ''}
             ${past.length ? fold('past-trials', `Earlier trials (${past.length})`, past.map(p => `${day(p.since)} to ${day(p.ended)}: ${p.text}: ${verdicts[p.verdict] || p.verdict}. ${p.result ? p.result.charAt(0).toUpperCase() + p.result.slice(1) + '.' : ''}`)) : ''}
-            <div style="font-size: 0.8rem; margin-top: 6px;">It can only change these five rules, inside fixed limits, for its own fake-money trades. It never changes your settings, the budget or anything else on the site. Each review is emailed to your account address.</div>
+            <div style="font-size: 0.8rem; margin-top: 6px;">It can only change these five rules, inside fixed limits, and the order it buys shares in, for its own fake-money trades. It never changes your settings, the budget or anything else on the site. Each review is emailed to your account address.</div>
         </div>`;
     }
 
@@ -715,7 +739,7 @@
     // practice-portfolio.js marks the autopilot's holdings with when and at what they will be sold
     function sharePlans() { if (data && data.allowed && window.practicePortfolio && window.practicePortfolio.setPlans) window.practicePortfolio.setPlans(data.plans || [], { realizedUsd: data.realizedUsd }); }
     // What changes when the autopilot acts: its activity list and what it holds
-    const stamp = (r) => JSON.stringify([r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck]);
+    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck]);
     // Ask again without disturbing anything: not while a change is being typed, saved or run
     async function refresh(byHand) {
         if (!data || !data.allowed || refreshing || working || saving || saveTimer || isDirty() || (editing() && !byHand)) return;
@@ -799,6 +823,9 @@
                 notice = r.summary && r.summary.sent ? { text: `A test email is on its way to ${userId()}. If it is not in your inbox in a few minutes, look in junk.` }
                     : { text: `The test email could not be sent${r.mail && r.mail.why ? ' (' + r.mail.why + ')' : ''}.`, bad: true };
             });
+        }
+        else if (action === 'stoporder' || action === 'restoreorder') {
+            act('tune', async () => { take(await api('tune', { op: action })); notice = { text: action === 'stoporder' ? 'Trial stopped. Shares are bought as their screener ranks them.' : 'Put back: shares are bought as their screener ranks them.' }; });
         }
         else if (action === 'restore' || action === 'stoptrial') {
             act('tune', async () => { take(await api('tune', action === 'restore' ? { op: 'restore', param: t.getAttribute('data-param') } : { op: 'stop' })); notice = { text: action === 'restore' ? 'Put back to the level\'s own rule.' : 'Trial stopped. The rule stays as it was.' }; });
