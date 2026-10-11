@@ -14,8 +14,9 @@
     // always takes over, and the older one is left with nothing to draw: it reads its trades from its own place in the browser's
     // store (emptied below), is told nothing by the function (which answers only the question marked "list: 2"), and its marks
     // and its sign on the red number have other names than the ones used here.
-    const VERSION = 4;
+    const VERSION = 6;
     if (window.autopilotBell && window.autopilotBell.version >= VERSION) return;
+    const hadOlder = window.autopilotBell ? 'version ' + (window.autopilotBell.version || 'before 4') : 'none';
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
     const FRESH_MS = 2 * 60 * 1000, LOCKED_MS = 30 * 60 * 1000, KEEP = 12, SHOW = 6;
     const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -68,7 +69,7 @@
         if (!list) { try { const c = JSON.parse(get('dashboardHistoryCache_' + user()) || 'null'); list = c && c.data && c.data.history; } catch (e) { list = null; } }
         return (Array.isArray(list) ? list : []).filter(i => i && !i.deleted && i.analysisId).slice(0, 10);
     }
-    const unreadReportIds = () => { try { return JSON.parse(get('unreadReports_' + user()) || '[]'); } catch (e) { return []; } };
+    const unreadReportIds = () => { try { const ids = JSON.parse(get('unreadReports_' + user()) || '[]'); return Array.isArray(ids) ? ids : []; } catch (e) { return []; } };      // whatever is stored there, a list comes back
     const has = (name) => { try { return typeof window[name] === 'function'; } catch (e) { return false; } };
     function tradeRow(e, readAt) {
         const isNew = String(e.t) > readAt, sold = e.type === 'sell', gain = sold && typeof e.gain === 'number' ? e.gain : null;
@@ -114,7 +115,7 @@
         try { const c = JSON.parse(get(oldKey('Trades')) || 'null'); at = c && Array.isArray(c.trades) ? c.at : undefined; } catch (e) { at = undefined; }
         return [at, get(oldKey('Read')), get('unreadReports_' + user()), reports().map(r => r.analysisId + '@' + r.timestamp).join(','), has('rerunFromNotification')].join('|');
     }
-    let draws = [], gaveUp = false;
+    let draws = [], gaveUp = false, fault = null;
     function place() {
         const drop = document.getElementById('notification-dropdown');
         if (!drop || !user() || gaveUp) return;
@@ -128,7 +129,7 @@
         draws = draws.filter(t => now - t < 2000).concat(now);
         if (draws.length > 12) { gaveUp = true; return; }    // something keeps undoing it: leave the list as it is rather than fight over it
         let markup = '';
-        try { markup = html(); } catch (e) { return; }      // on any fault the page's own list stays as it is
+        try { markup = html(); } catch (e) { fault = String(e && e.message || e).slice(0, 160); return; }      // on any fault the page's own list stays as it is
         if (!markup) return;
         const box = document.createElement('div');
         box.id = 'bell-list'; box.setAttribute('data-mine', sig); box.setAttribute('data-sig', older); box.setAttribute('data-version', VERSION);
@@ -195,6 +196,31 @@
     try { if (user()) localStorage.removeItem(oldKey('Trades')); } catch (e) { /* a private window */ }
     window.autopilotBell = { version: VERSION, set, trades, reports, unseen, unread, markSeen, markRead, html, place, open, report, badge, load, onTop, state: () => ({ version: VERSION, draws: draws.length, gaveUp }) };
 
+    // ---- what this browser holds, told to the site (temporary, 11 Oct 2026: the owner sees nothing of the trades and every test
+    // here shows them). The function writes it to its log for the site's own accounts only and ignores everyone else's.
+    let themeCopy = 'not looked at yet';
+    function lookAtTheme() {                                // the theme.js this browser keeps: an old one asks for an old copy of this script
+        try {
+            fetch('/theme.js', { cache: 'force-cache' }).then(r => r.text()).then(t => {
+                const old = /autopilot-bell\.js\?v=(\d+)/.exec(t);
+                themeCopy = old ? 'old: asks for version ' + old[1] : /autopilot-bell\.js\?h=/.test(t) ? 'current' : 'has no loader';
+                if (themeCopy !== 'current') return fetch('/theme.js', { cache: 'reload' }).then(() => { themeCopy += ', now replaced by the current one'; });
+            }).catch(() => { themeCopy = 'could not be read'; });
+        } catch (e) { themeCopy = 'could not be read'; }
+    }
+    function tell(kind) {
+        try {
+            const u = user();
+            if (!u) return;
+            const drop = document.getElementById('notification-dropdown'), first = drop && drop.firstElementChild, c = cache();
+            const info = { kind, version: VERSION, page: location.pathname, olderCopyOnPage: hadOlder, inCharge: window.autopilotBell && window.autopilotBell.version === VERSION,
+                trades: trades().length, allowed: c ? c.allowed : null, listAgeSec: c ? Math.round((Date.now() - c.at) / 1000) : null, reports: reports().length, unseen: unseen(), unread: unread(),
+                bellList: drop ? { first: first ? (first.id || first.tagName) : null, parts: drop.children.length, lines: drop.querySelectorAll('.bell-row').length, tradeLines: drop.querySelectorAll('.bell-row[data-kind="trade"]').length, olderGroup: !!document.getElementById('autopilot-bell-section') } : 'not open',
+                draws: draws.length, gaveUp, fault, themeCopy, panel: !!(window.practiceAutopilot && window.practiceAutopilot.bellFeed), browser: String(navigator.userAgent).slice(0, 110) };
+            fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'belllog', userId: u, info }) }).catch(() => { /* nothing depends on it */ });
+        } catch (e) { /* nothing depends on it */ }
+    }
+
     function start() {
         document.addEventListener('click', (e) => {
             const t = e.target && e.target.closest ? e.target : null;
@@ -203,6 +229,7 @@
                 const drop = document.getElementById('notification-dropdown');
                 if (!drop) return;
                 place(); watch(drop); markSeen();
+                setTimeout(() => tell('bell opened'), 1500);
             }, 0);
         }, true);                                           // on the way down: a page's own handler cannot stop it from being heard
         if (typeof MutationObserver !== 'undefined') {      // the page sets the number from its reports: add the trades to it
@@ -214,6 +241,8 @@
         window.addEventListener('storage', (e) => { if (e.key && e.key.indexOf('stockiqBell') === 0) refresh(); });
         refresh();
         load();
+        lookAtTheme();
+        setTimeout(() => tell('page loaded'), 4000);
         setInterval(() => { if (!document.hidden) load(); }, FRESH_MS);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
