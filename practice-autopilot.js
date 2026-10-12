@@ -133,6 +133,19 @@
         @media (max-width: 640px) { #practice-autopilot .ap-only-phone { display: inline; } }
         #practice-autopilot .ap-countline { margin-top: 6px; color: var(--text-primary); }
         #practice-autopilot .ap-count { display: inline-block; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        #practice-autopilot .ap-held { margin-top: 6px; border-bottom: 1px solid var(--border-color); }
+        #practice-autopilot .ap-held-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--border-color); }
+        #practice-autopilot .ap-held-name { color: var(--text-primary); min-width: 92px; }
+        #practice-autopilot .ap-held-when { color: var(--text-secondary); }
+        #practice-autopilot .ap-hchip { font-size: 0.76rem; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border-color); color: var(--text-secondary); white-space: nowrap; }
+        #practice-autopilot .ap-hchip.up { color: #16a34a; border-color: rgba(22, 163, 74, 0.5); }
+        #practice-autopilot .ap-hchip.trial { color: #2563eb; border-color: rgba(37, 99, 235, 0.5); }
+        #practice-autopilot .ap-held-more { font-size: 0.82rem; color: var(--text-secondary); margin-left: auto; }
+        #practice-autopilot .ap-held-more[open] { flex-basis: 100%; margin-left: 0; }
+        #practice-autopilot .ap-held-more summary, #practice-autopilot .ap-held-rest > summary { cursor: pointer; color: var(--text-secondary); }
+        #practice-autopilot .ap-held-more > div { padding: 4px 0 2px 12px; line-height: 1.5; }
+        #practice-autopilot .ap-held-rest > summary { padding: 7px 0; border-top: 1px solid var(--border-color); }
+        @media (max-width: 640px) { #practice-autopilot .ap-hchip { white-space: normal; } #practice-autopilot .ap-held-name { min-width: 0; } }
         #practice-autopilot .ap-needs { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); background: rgba(217, 119, 6, 0.12); border: 1px solid rgba(217, 119, 6, 0.5); }
         #practice-autopilot .ap-needs.none { background: none; border: 0; padding: 0; color: var(--text-secondary); }
         #practice-autopilot .ap-needs ul { margin: 4px 0 0 18px; padding: 0; }
@@ -415,7 +428,7 @@
     // What needs the user. Its own reviews and trials do not: they happen by themselves at check-ins
     function needsHtml() {
         if (!Array.isArray(data.needs)) return '';
-        if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now.${data.settings.enabled ? ' It checks in, reviews its own rules and tries changes to them by itself; nothing has to be approved or pushed.' : ''}</div>`;
+        if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now.${data.settings.enabled ? ' It checks in, reviews its own rules and tests changes to them by itself; nothing has to be approved or pushed.' : ''}</div>`;
         return `<div id="ap-needs" class="ap-needs" role="status"><strong>⚠ Needs you</strong><ul>${data.needs.map(n => `<li>${esc(n.text)}${n.at ? ` <span style="color: var(--text-secondary);">(${esc(when(n.at))})</span>` : ''}</li>`).join('')}</ul></div>`;
     }
     // The dashboard's own tab for this panel carries a mark while something needs the user, so it is seen from any tab
@@ -542,8 +555,22 @@
     // ---------------------------------------------------------------- "How it is doing": its own closed trades
     function recordHtml() {
         const c = data.scorecard, need = data.minSample || 8, plans = data.plans || [], on = data.settings.enabled;
+        const heldPlan = (p) => `<strong style="color: var(--text-primary);">${esc(p.label)}</strong> (bought ${esc(when(p.boughtAt))}; ${on ? `it sells it at the check-in around ${esc(when(p.sellBy))} at the latest, sooner at ${p.stop}% or +${p.take}%` : 'the autopilot is off, so it stays until you sell it'}${on && p.closed ? `; the ${esc(p.market)} market is closed now, so nothing happens to it until it opens${p.opens ? ` (around ${esc(when(p.opens))})` : ''}` : ''}${on && p.mode === 'full' && typeof p.floor === 'number' && !(p.peak >= p.arm) ? `; its trailing stop is at ${pc(p.floor)} and follows the price up` : on && typeof p.floor === 'number' ? `; it has been up ${pc(p.peak)} at its best and is sold if it slips back to ${pc(p.floor)}` : on && p.mode === 'off' ? '; no stop follows it' : on && typeof p.arm === 'number' ? `; while it rises it is kept, and once it has been up ${p.arm}% a stop follows it up and sells only on a fall-back` : ''}${on && typeof p.move === 'number' ? ` (it normally moves about ${p.move.toFixed(1)}% between check-ins and may slip ${p.room} such moves from its best${p.tight ? '; the AI review asked for a tighter stop' : ''})` : ''}${on && p.view ? `; the AI model's latest review, ${esc(when(p.view.t))}${p.view.larger ? ', by the larger model' : ''}: ${p.view.sell ? 'sell' : p.view.tighten ? 'keep, with a tighter stop' : 'keep'} (${esc(p.view.text)})` : ''})`;
+        // one row a holding: what differs from the others at a glance, the full plan folded under it (ten holdings in one paragraph were unreadable, and there can be fifty)
+        const chip = (text, tone) => `<span class="ap-hchip${tone ? ' ' + tone : ''}">${text}</span>`;
+        const heldRow = (p) => {
+            const chips = [];
+            if (on && p.closed) chips.push(chip(`${esc(p.market)} market closed${p.opens ? ' until ' + esc(when(p.opens)) : ''}`, 'quiet'));
+            if (on && p.mode === 'full' && typeof p.floor === 'number' && !(p.peak >= p.arm)) chips.push(chip(`trailing stop at ${pc(p.floor)}`));
+            else if (on && typeof p.floor === 'number') chips.push(chip(`has been up ${pc(p.peak)}: sold if it falls back to ${pc(p.floor)}`, 'up'));
+            else if (on && p.mode !== 'off' && typeof p.arm === 'number') chips.push(chip(`a stop follows it once it has been up ${p.arm}%`, 'quiet'));
+            if (on && p.patient) chips.push(chip('patient share (trial)', 'trial'));
+            if (on && p.view) chips.push(chip(`AI review: ${p.view.sell ? 'sell' : p.view.tighten ? 'keep, tighter stop' : 'keep'}`));
+            return `<div class="ap-held-row"><strong class="ap-held-name">${esc(p.label)}</strong><span class="ap-held-when">bought ${esc(when(p.boughtAt))}${on ? ` · sold by ${esc(when(p.sellBy))} at the latest, sooner at ${p.stop}% or +${p.take}%` : ' · the autopilot is off: it stays until you sell it'}</span>${chips.join('')}<details class="ap-held-more"><summary>the plan for it</summary><div>${heldPlan(p)}.</div></details></div>`;
+        };
+        const sorted = plans.slice().sort((x, y) => String(y.boughtAt).localeCompare(String(x.boughtAt))), shown = sorted.slice(0, 8), older = sorted.slice(8);
         const held = plans.length
-            ? `<div>Holding now: ${plans.map(p => `<strong style="color: var(--text-primary);">${esc(p.label)}</strong> (bought ${esc(when(p.boughtAt))}; ${on ? `it sells it at the check-in around ${esc(when(p.sellBy))} at the latest, sooner at ${p.stop}% or +${p.take}%` : 'the autopilot is off, so it stays until you sell it'}${on && p.closed ? `; the ${esc(p.market)} market is closed now, so nothing happens to it until it opens${p.opens ? ` (around ${esc(when(p.opens))})` : ''}` : ''}${on && p.mode === 'full' && typeof p.floor === 'number' && !(p.peak >= p.arm) ? `; its trailing stop is at ${pc(p.floor)} and follows the price up` : on && typeof p.floor === 'number' ? `; it has been up ${pc(p.peak)} at its best and is sold if it slips back to ${pc(p.floor)}` : on && p.mode === 'off' ? '; no stop follows it' : on && typeof p.arm === 'number' ? `; while it rises it is kept, and once it has been up ${p.arm}% a stop follows it up and sells only on a fall-back` : ''}${on && typeof p.move === 'number' ? ` (it normally moves about ${p.move.toFixed(1)}% between check-ins and may slip ${p.room} such moves from its best${p.tight ? '; the AI review asked for a tighter stop' : ''})` : ''}${on && p.view ? `; the AI model's latest review, ${esc(when(p.view.t))}${p.view.larger ? ', by the larger model' : ''}: ${p.view.sell ? 'sell' : p.view.tighten ? 'keep, with a tighter stop' : 'keep'} (${esc(p.view.text)})` : ''})`).join('; ')}.</div>`
+            ? `<div>Holding now: ${plans.length}, newest first. Each row opens to the plan for it.</div><div class="ap-held">${shown.map(heldRow).join('')}${older.length ? `<details class="ap-held-rest"><summary>and ${older.length} bought earlier</summary>${older.map(heldRow).join('')}</details>` : ''}</div>`
             : `<div>Holding nothing right now.</div>`;
         const m = data.month && data.month.last30, before = data.month && data.month.before30;
         const month = m && m.n ? `<div style="margin-top: 4px;">Last 30 days: <span style="color: ${tint(m.usd)}; font-weight: 600;">${usd2(m.usd)}</span> from ${m.n} finished trade${m.n === 1 ? '' : 's'} (${m.up} up)${m.pct !== null ? `, which is <span style="color: ${tint(m.pct)}; font-weight: 600;">${(m.pct >= 0 ? '+' : '') + m.pct.toFixed(2)}%</span> of the ${usd0(data.settings.budgetUsd)} budget` : ''}.${before && before.n ? ` The 30 days before: ${usd2(before.usd)} from ${before.n}${before.pct !== null ? ' (' + (before.pct >= 0 ? '+' : '') + before.pct.toFixed(2) + '%)' : ''}.` : ''}${typeof m.afterCosts === 'number' && data.costEachWay && Math.abs(m.afterCosts - m.usd) > 0.005 ? ` Trades made before 11 Oct 2026 had no trading cost taken off: with ${data.costEachWay}% on each buy and each sale the figure would be <span style="color: ${tint(m.afterCosts)}; font-weight: 600;">${usd2(m.afterCosts)}</span>.` : data.costEachWay ? ` A trading cost of ${data.costEachWay}% on each buy and each sale is already in these figures.` : ''}</div>` : '';
@@ -688,7 +715,7 @@
                     <li>Buys from the screeners you choose (US, Australian, UK and Japanese shares, and coins), spreading the budget over the markets as you set it.</li>
                     <li>Sells by rules you can see: a loss limit, a gain mark, a stop that follows a rising holding, and a longest holding time. An AI model also reviews each holding at every check-in.</li>
                     <li>Shows a countdown to its next check-in, what it plans to do, and every buy and sale with the reason.</li>
-                    <li>Keeps a record of its results, compares each 20 finished trades with the 20 before, and tries changes to its own rules, keeping one only if it did clearly better.</li>
+                    <li>Keeps a record of its results, compares each 20 finished trades with the 20 before, and tests changes to its own rules, keeping one only if it did clearly better.</li>
                 </ul>
                 <div style="font-size: 0.8rem; margin-top: 8px;">A practice tool with fake money. General information only, not financial advice.</div>
             </div>
