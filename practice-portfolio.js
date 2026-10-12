@@ -371,6 +371,14 @@
         #practice-portfolio .pp-cross { stroke: var(--text-secondary); stroke-width: 1; }
         #practice-portfolio .pp-dot { fill: var(--pp-line); stroke: var(--bg-primary); stroke-width: 2; }
         #practice-portfolio .pp-chart-note { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+        #practice-portfolio .pp-top { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+        #practice-portfolio .pp-top .pp-card-value { font-size: 1.7rem; }
+        #practice-portfolio .pp-top .pp-card-value .pp-delta { font-weight: 700 !important; }
+        #practice-portfolio .pp-facts { font-size: 0.88rem; color: var(--text-secondary); margin: 0 2px 8px; line-height: 1.6; }
+        #practice-portfolio .pp-facts strong { color: var(--text-primary); }
+        #practice-portfolio #pp-more { margin-bottom: 14px; }
+        #practice-portfolio #pp-more > summary { cursor: pointer; font-size: 0.82rem; color: var(--text-secondary); margin: 0 2px 10px; }
+        #practice-portfolio #pp-more > summary:hover { color: var(--text-primary); }
         #practice-portfolio .pp-plan { font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px; margin-top: 2px; }
         #practice-portfolio .pp-plan > summary { cursor: pointer; list-style: none; }
         #practice-portfolio .pp-plan > summary::-webkit-details-marker { display: none; }
@@ -441,6 +449,7 @@
         return ppQuote;
     }
     const openPlans = new Set();                  // the holdings whose plan is unfolded (kept across redraws)
+    let moreOpen = false;                         // whether the breakdown under the three figures is unfolded (kept across redraws)
     let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-portfolio');
@@ -604,7 +613,24 @@
         const split = splitGain(state, quotes, autoRealized);
         const splitLine = split.any ? `<div class="pp-split" title="The two add up to the account's change since the start. A holding that is not sold yet counts at its latest price."><span class="pp-split-head">Whose result is whose</span><span class="pp-split-item"><span>Your own buys</span> ${movedHtml(split.yours)} <span class="pp-split-sub">(sold ${movedHtml(split.yoursSold)} · still held ${movedHtml(split.yoursOpen)})</span></span><span class="pp-split-item"><span>🤖 AI autopilot</span> ${movedHtml(split.auto)} <span class="pp-split-sub">(sold ${movedHtml(split.autoSold)} · still held ${movedHtml(split.autoOpen)})</span></span></div>` : '';
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
+        // The top answers three questions at a glance: what is it worth, how is today, how is it since the start. Everything else
+        // (cash, what is in holdings, the index fund, sold and still held, whose result is whose) was on show at once, about
+        // seventeen figures with several of them twice: it is one line now, and the full breakdown one click away.
+        const big = (n) => movedHtml(n, null), share = (p) => (p === null || p === undefined || !isFinite(p)) ? '' : Math.abs(p).toFixed(2) + '%';
+        const dayOfAccount = s.dayUsd !== null && s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null;
+        const gap = s.openGainPct !== null && s.marketPct !== null ? s.openGainPct - s.marketPct : null;
+        const fund = s.marketPct === null ? '' : s.marketFlat ? ' · S&amp;P 500 fund: no change yet to compare with'
+            : ` · Against an S&amp;P 500 fund over the same days: <strong>${gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : (gap > 0 ? 'ahead' : 'behind') + ' by ' + Math.abs(gap).toFixed(2) + '%'}</strong>`;
+        const breakdown = document.getElementById('pp-more');
+        if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
+            <div class="pp-top">
+                ${card('Account value', usd(s.accountValue), 'fake money · it started with ' + usd(state.startingCash), s.gainUsd)}
+                ${card('Today', s.dayUsd === null ? '–' : big(s.dayUsd), s.dayUsd === null ? 'nothing held' : share(dayOfAccount) + ' of the account · what it holds now', s.dayUsd === null ? 0 : s.dayUsd)}
+                ${card('Since the start', big(s.gainUsd), share(s.gainPct), s.gainUsd)}
+            </div>
+            <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong>${fund}</div>
+            <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: what was sold and what is still held, yours and the autopilot’s, the index fund</summary>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
                 ${card('Account value', usd(s.accountValue), `${s.dayUsd === null ? '' : `<span class="pp-today">Today ${movedHtml(s.dayUsd, s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null)}</span><br>`}${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
                 ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
@@ -612,6 +638,7 @@
                 ${card('For comparison: S&amp;P 500 fund', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? `the same money in an S&amp;P 500 index fund instead: <span id="pp-us-opens">${esc(marketWait())}</span>, so there is nothing to compare yet` : 'the same money in an S&amp;P 500 index fund instead' + versusFund(s))}
             </div>
             ${splitLine}
+            </details>
             <div id="pp-chart">${chartHtml()}</div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 6px;">
                 <div class="pp-find" style="position: relative; flex: 2; min-width: 200px;">
