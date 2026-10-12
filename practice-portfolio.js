@@ -135,7 +135,9 @@
         state.holdings.forEach(h => { if (h.by === 'ai') { held++; autoOpen += valueOf(h, quotes).gainUsd; } });
         state.closed.forEach(h => { if (h.by === 'ai') { sold++; listed += h.proceedsUsd - h.costUsd; } });
         const autoSold = typeof autoRealized === 'number' && isFinite(autoRealized) ? autoRealized : listed;
-        return { total, autoSold, autoOpen, auto: autoSold + autoOpen, yours: total - autoSold - autoOpen, any: held > 0 || sold > 0 || Math.abs(autoSold) > 0.004 };
+        const open = summarize(state, quotes).openGainUsd, yours = total - autoSold - autoOpen, yoursOpen = open - autoOpen;
+        // yoursSold / yoursOpen: the user's own part split the same way as the autopilot's, so the two rows read alike
+        return { total, autoSold, autoOpen, auto: autoSold + autoOpen, yours, yoursOpen, yoursSold: yours - yoursOpen, any: held > 0 || sold > 0 || Math.abs(autoSold) > 0.004 };
     }
 
     // ---------------------------------------------------------------- formatting
@@ -300,6 +302,25 @@
     // On a phone a table of seven columns cannot be read: each holding becomes a card, every figure on its own labelled line.
     // (The cells carry inline styles, hence the !important.)
     const PP_CSS = `
+        .pp-btn { background: #007bff; color: #fff; border: 1px solid #007bff; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; font-family: inherit;
+                  transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.05s; }
+        .pp-btn:hover:not(:disabled) { background: #0069d9; border-color: #0062cc; }
+        .pp-btn:active:not(:disabled) { background: #0056b3; border-color: #0056b3; transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); }
+        .pp-btn:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
+        .pp-btn:disabled { opacity: 0.6; cursor: default; }
+        .pp-btn.big { padding: 10px 18px; font-size: 0.95rem; }
+        .pp-btn.ghost { background: transparent; color: var(--text-primary); border-color: var(--border-color); }
+        .pp-btn.ghost:hover:not(:disabled) { background: var(--bg-secondary); border-color: var(--text-secondary); }
+        .pp-btn.ghost:active:not(:disabled) { background: var(--border-color); border-color: var(--text-secondary); transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18); }
+        .pp-btn.busy::before { content: ''; display: inline-block; width: 0.75em; height: 0.75em; margin-right: 7px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: pp-spin 0.7s linear infinite; }
+        @keyframes pp-spin { to { transform: rotate(360deg); } }
+        @keyframes pp-flash { 0%, 55% { color: #16a34a; font-weight: 600; } }
+        @media (prefers-reduced-motion: reduce) { .pp-btn.busy::before { animation-duration: 2.4s; } .pp-btn { transition: none; } }
+        .pp-headrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+        #pp-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 10px; }
+        #pp-tools .pp-updated { font-size: 0.78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+        #pp-tools .pp-updated.fresh { animation: pp-flash 2.4s ease-out; }
+        @media (max-width: 640px) { #pp-tools { justify-content: flex-start; width: 100%; } #pp-tools .pp-updated { flex: 1 1 100%; order: 3; } #pp-tools .pp-btn { flex: 1 1 0; padding: 9px 10px; } }
         #practice-portfolio { --pp-line: #2563eb; }
         [data-theme="dark"] #practice-portfolio { --pp-line: #3b82f6; }
         #practice-portfolio .pp-chart { border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px 8px; margin-bottom: 14px; background: var(--bg-primary); }
@@ -358,9 +379,9 @@
         if (!document.head || !document.createElement || document.getElementById('pp-style')) return;
         const style = document.createElement('style'); style.id = 'pp-style'; style.textContent = PP_CSS; document.head.appendChild(style);
     }
-    const BTN2 = 'background: none; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
-    const BTN = 'background: #007bff; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;';
     let state = null, version = 0, quotes = {}, loaded = false, loadError = null, notice = null, working = false, searchTimer = null;
+    let busy = null;                              // which button is at work ('refresh', 'buy', 'sell:<id>' ...): it shows a spinner and says so
+    let pricesAt = 0, flash = false;              // when the prices on show were fetched; flash: say "updated" once, after a refresh by hand
     let ppBasis = 'usd';                          // which of dollars / quantity the user typed last
     let ppQuote = null;                           // latest price of the code in the search box: { symbol, price, fx, currency, name }
     // Works out the field the user did not type from the one they did, once the price of the code in the box is known
@@ -417,6 +438,7 @@
         const list = [...wanted];
         const got = await Promise.all(list.map(fetchQuote));
         list.forEach((s, i) => { if (got[i]) quotes[s] = got[i]; });
+        pricesAt = Date.now();
     }
 
     async function load() {
@@ -501,11 +523,14 @@
         ensureStyle();
         const el = box();
         if (!el) return;
+        // the page's own place for the two buttons, beside the heading (an older page has none: they are then drawn at the bottom, as before)
+        const tools = document.getElementById('pp-tools'), beside = tools && tools.parentNode && tools.parentNode !== el ? tools : null;
+        if (beside) beside.innerHTML = '';
         const soldBox = document.getElementById('pp-sold');
         if (soldBox && typeof soldBox.open === 'boolean') soldOpen = soldBox.open;
         if (!userId()) { el.innerHTML = '<p style="color: var(--text-secondary);">Sign in to use the practice portfolio.</p>'; return; }
         if (!loaded) { el.innerHTML = '<p style="color: var(--text-secondary);">Loading…</p>'; return; }
-        if (!state) { el.innerHTML = `<p style="color: #ef4444;">${esc(loadError || 'The practice portfolio could not be loaded.')}</p><button data-pp="reload" style="${BTN}">Try again</button>`; return; }
+        if (!state) { el.innerHTML = `<p style="color: #ef4444;">${esc(loadError || 'The practice portfolio could not be loaded.')}</p><button data-pp="reload" class="pp-btn">Try again</button>`; return; }
 
         const s = summarize(state, quotes);
         const card = (label, value, sub, way) => `<div class="pp-card${way > 0.004 ? ' up' : way < -0.004 ? ' down' : ''}"><div class="pp-card-label">${label}</div><div class="pp-card-value">${value}</div><div class="pp-card-sub">${sub || '&nbsp;'}</div></div>`;
@@ -521,7 +546,7 @@
                 <td data-label="Price now" style="${cell}">${v.priced ? money(v.price, h.currency) : '<span title="No price available right now">–</span>'}</td>
                 <td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(v.valueUsd)}</td>
                 <td data-label="Change" style="${cell}">${v.priced ? pctHtml(v.changePct, v.gainUsd) : '<span style="color: var(--text-secondary);">no price</span>'}</td>
-                <td class="pp-act" style="${cell}"><button data-pp="sell" data-id="${esc(h.id)}" style="${BTN}" ${working ? 'disabled' : ''}>Sell</button></td>
+                <td class="pp-act" style="${cell}"><button data-pp="sell" data-id="${esc(h.id)}" class="pp-btn${busy === 'sell:' + h.id ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'sell:' + h.id ? 'Selling…' : 'Sell'}</button></td>
             </tr>`;
         }).join('');
 
@@ -533,11 +558,11 @@
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}: ${movedHtml(sold.gainUsd, sold.gainPct)}.` : '';
         // one total mixes the user's own buys with the autopilot's: say which part is whose
         const split = splitGain(state, quotes, autoRealized);
-        const splitLine = split.any ? `<div class="pp-split" title="The two add up to the account's change since the start. A holding that is not sold yet counts at its latest price."><span class="pp-split-head">Whose result is whose</span><span class="pp-split-item"><span>Your own buys</span> ${movedHtml(split.yours)}</span><span class="pp-split-item"><span>🤖 AI autopilot</span> ${movedHtml(split.auto)} <span class="pp-split-sub">sold ${movedHtml(split.autoSold)} · still held ${movedHtml(split.autoOpen)}</span></span></div>` : '';
+        const splitLine = split.any ? `<div class="pp-split" title="The two add up to the account's change since the start. A holding that is not sold yet counts at its latest price."><span class="pp-split-head">Whose result is whose</span><span class="pp-split-item"><span>Your own buys</span> ${movedHtml(split.yours)} <span class="pp-split-sub">(sold ${movedHtml(split.yoursSold)} · still held ${movedHtml(split.yoursOpen)})</span></span><span class="pp-split-item"><span>🤖 AI autopilot</span> ${movedHtml(split.auto)} <span class="pp-split-sub">(sold ${movedHtml(split.autoSold)} · still held ${movedHtml(split.autoOpen)})</span></span></div>` : '';
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
         el.innerHTML = `
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
-                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}` : ''}`, s.gainUsd)}
+                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
                 ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
                 ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `${movedHtml(s.openGainUsd, s.openGainPct)} on ${usd(s.cost)} put in`)}
                 ${card('For comparison', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? 'the same money in an S&amp;P 500 index fund instead: the US stock market has not traded since you bought (it is closed at weekends), so there is nothing to compare yet' : 'the same money in an S&amp;P 500 index fund instead')}
@@ -553,21 +578,28 @@
                 <input id="pp-amount" type="number" min="1" step="any" placeholder="Enter $" aria-label="Practice dollars to put in" title="Practice dollars to put in" style="flex: 0 0 110px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
                 <input id="pp-qty" type="number" min="0" step="any" placeholder="or quantity" aria-label="Number of shares or coins" title="Number of shares or coins. Fill in dollars or quantity: the other is worked out from the latest price" style="flex: 0 0 110px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
                 <input id="pp-note" type="text" maxlength="200" placeholder="Why? (optional note)" style="flex: 2; min-width: 160px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
-                <button data-pp="buy" style="${BTN} padding: 10px 18px; font-size: 0.95rem;" ${working ? 'disabled' : ''}>${working ? 'Working…' : 'Practice buy'}</button>
+                <button data-pp="buy" class="pp-btn big${busy === 'buy' ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'buy' ? 'Buying…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
             ${state.holdings.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
-            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" style="${BTN2}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>Clear sold list</button></div></details>` : ''}
-            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-                <button data-pp="refresh" style="${BTN2}" ${working ? 'disabled' : ''}>↻ Refresh prices</button>
-                <button data-pp="reset" style="${BTN2}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>Reset fake money to ${usd(STARTING_CASH)}</button>
-            </div>
+            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" class="pp-btn ghost${busy === 'clearsold' ? ' busy' : ''}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>${busy === 'clearsold' ? 'Clearing…' : 'Clear sold list'}</button></div></details>` : ''}
+            ${beside ? '' : `<div id="pp-tools" style="margin-top: 12px;">${toolsHtml()}</div>`}
             <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
                 <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. General information only, not financial advice.</span>
             </div>`;
+        if (beside) beside.innerHTML = toolsHtml();
     }
 
     function say(text, bad) { notice = text ? { text, bad: !!bad } : null; }
+    // "Refresh prices" and "Reset fake money", with the time of the prices on show. They sit beside the section's heading
+    // (the page has a place for them, #pp-tools) so that nobody has to scroll down to them; on a phone, under the heading.
+    function toolsHtml() {
+        const time = pricesAt ? new Date(pricesAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+        const line = busy === 'refresh' ? 'Getting the latest prices…' : !time ? '' : flash ? '✓ Prices updated ' + time : 'Prices as of ' + time;
+        return `<span class="pp-updated${flash && busy !== 'refresh' ? ' fresh' : ''}" id="pp-updated" role="status">${esc(line)}</span>
+                <button data-pp="refresh" class="pp-btn ghost${busy === 'refresh' ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'refresh' ? 'Refreshing…' : '↻ Refresh prices'}</button>
+                <button data-pp="reset" class="pp-btn ghost${busy === 'reset' ? ' busy' : ''}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>${busy === 'reset' ? 'Resetting…' : 'Reset fake money'}</button>`;
+    }
     // ---------------------------------------------------------------- the graph of the account over time
     const CHART_RANGES = { all: ['All', 0], month: ['1 month', 30 * 86400000], week: ['1 week', 7 * 86400000] };
     let chartKey = 'value', chartRange = 'all';      // which line (the account, the user's own buys, the autopilot's) and how far back
@@ -626,17 +658,18 @@
         chartShow(best, true);
     }
 
-    async function run(task) {
+    async function run(task, key) {
         if (working) return;
         // keep what is typed while the section is redrawn
         const keep = ['pp-symbol', 'pp-amount', 'pp-qty', 'pp-note'].map(id => [id, document.getElementById(id) ? document.getElementById(id).value : null]);
         const restore = () => keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el && v !== null) el.value = v; });
         const showClear = () => { const c = document.getElementById('pp-clear'), b = document.getElementById('pp-symbol'); if (c && b) c.style.display = b.value ? 'block' : 'none'; };
-        working = true; render(); restore(); showClear();
+        working = true; busy = key || null; render(); restore(); showClear();
         let ok = false;
         try { await task(); ok = true; } catch (e) { say(e.message, true); }
-        working = false; render();
-        if (!ok) { restore(); showClear(); }
+        working = false; busy = null; render(); flash = false;
+        // what is typed in the buy row stays, unless the buy went through or the account was reset (a refresh of prices used to wipe it)
+        if (!ok || (key !== 'buy' && key !== 'reset')) { restore(); showClear(); }
     }
 
     document.addEventListener('mousemove', chartPoint);
@@ -687,25 +720,25 @@
                 const r = await buy(text, byQty ? 0 : amount, note, undefined, byQty ? qty : 0);
                 ppBasis = 'usd'; ppQuote = null;
                 say(`Practice buy recorded: ${usd(r.holding.costUsd)} of ${r.holding.label} at ${money(r.holding.buyPrice, r.holding.currency)}.`);
-            });
+            }, 'buy');
         } else if (action === 'sell') {
             const id = t.getAttribute('data-id'), h = state.holdings.find(x => x.id === id);
             if (!h || !confirm(`Sell ${h.label} at the latest price? This closes the practice holding.`)) return;
-            run(async () => { const proceeds = await sell(id); say(`Sold ${h.label} for ${usd(proceeds)} (put in ${usd(h.costUsd)}).`); });
+            run(async () => { const proceeds = await sell(id); say(`Sold ${h.label} for ${usd(proceeds)} (put in ${usd(h.costUsd)}).`); }, 'sell:' + id);
         } else if (action === 'clearsold') {
             const n = state.closed.length;
             if (!n || !confirm(`Clear all ${n} line${n === 1 ? '' : 's'} from the sold list? Your practice cash and account value stay as they are; only the list is emptied.`)) return;
-            run(async () => { await change(st => applyClearSold(st, null)); say('Sold list cleared. Practice cash and account value are unchanged.'); });
+            run(async () => { await change(st => applyClearSold(st, null)); say('Sold list cleared. Practice cash and account value are unchanged.'); }, 'clearsold');
         } else if (action === 'unsold') {
             const id = t.getAttribute('data-id'), h = state.closed.find(x => x.id === id);
             if (!h) return;
             soldOpen = true;
             run(async () => { await change(st => applyClearSold(st, id)); say(`${h.label} removed from the sold list. Practice cash and account value are unchanged.`); });
         } else if (action === 'refresh') {
-            run(async () => { await refreshQuotes(); say('Prices refreshed.'); });
+            run(async () => { await refreshQuotes(); flash = true; say('Prices updated at ' + new Date(pricesAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '.'); }, 'refresh');
         } else if (action === 'reset') {
             if (!confirm(`Reset the fake money to ${usd(STARTING_CASH)}? This clears every practice holding and the sold list.`)) return;
-            run(async () => { await api('reset'); state = newState(new Date().toISOString()); version = 0; quotes = {}; say(`Practice portfolio reset: ${usd(STARTING_CASH)} of fake money to start again.`); });
+            run(async () => { await api('reset'); state = newState(new Date().toISOString()); version = 0; quotes = {}; say(`Practice portfolio reset: ${usd(STARTING_CASH)} of fake money to start again.`); }, 'reset');
         } else if (action === 'reload') {
             load();
         }

@@ -1349,7 +1349,8 @@
 
         <div data-dash-panel="practice" hidden>
         <div class="history-section" id="practice-portfolio-section">
-            <h2>💵 Practice Portfolio <span style="font-size: 0.6em; font-weight: normal; color: var(--text-secondary);">fake money, no real trades</span></h2>
+            <!-- pp-tools: practice-portfolio.js puts "Refresh prices" and "Reset fake money" here, level with the heading -->
+            <div class="pp-headrow"><h2>💵 Practice Portfolio <span style="font-size: 0.6em; font-weight: normal; color: var(--text-secondary);">fake money, no real trades</span></h2><div id="pp-tools"></div></div>
             <div id="practice-portfolio"><p style="color: var(--text-secondary);">Loading…</p></div>
         </div>
         </div>
@@ -5030,10 +5031,10 @@ ${analysis.report}
         }
     </style>
     <script src="news.js"></script>
-    <script src="practice-portfolio.js?v=19"></script>
+    <script src="practice-portfolio.js?v=20"></script>
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
-    <script src="practice-autopilot.js?v=38"></script>
+    <script src="practice-autopilot.js?v=39"></script>
     <script src="ai-chat.js?v=2"></script>
     <script src="js/timezone-converter.js"></script>
     <script>

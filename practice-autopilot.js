@@ -56,6 +56,22 @@
         #practice-autopilot .ap-btn { border-radius: 6px; padding: 9px 16px; font-size: 0.9rem; cursor: pointer; white-space: nowrap; border: 1px solid var(--border-color); background: none; color: var(--text-primary); }
         #practice-autopilot .ap-btn.primary { background: #007bff; border-color: #007bff; color: #fff; }
         #practice-autopilot .ap-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #practice-autopilot .ap-btn { transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.05s; font-family: inherit; }
+        #practice-autopilot .ap-btn:hover:not(:disabled) { background: var(--bg-secondary); border-color: var(--text-secondary); }
+        #practice-autopilot .ap-btn:active:not(:disabled) { background: var(--border-color); transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18); }
+        #practice-autopilot .ap-btn.primary:hover:not(:disabled) { background: #0069d9; border-color: #0062cc; }
+        #practice-autopilot .ap-btn.primary:active:not(:disabled) { background: #0056b3; border-color: #0056b3; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); }
+        #practice-autopilot .ap-btn:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
+        #practice-autopilot .ap-btn.busy::before, #practice-autopilot a.busy::before { content: ''; display: inline-block; width: 0.75em; height: 0.75em; margin-right: 7px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: ap-spin 0.7s linear infinite; }
+        #practice-autopilot a[data-ap="refresh"], #practice-autopilot a[data-ap="mailtest"] { border-radius: 4px; padding: 1px 4px; transition: background-color 0.12s, color 0.12s; }
+        #practice-autopilot a[data-ap="refresh"]:hover, #practice-autopilot a[data-ap="mailtest"]:hover { background: rgba(59, 130, 246, 0.14); color: #1d4ed8; text-decoration: underline; }
+        [data-theme="dark"] #practice-autopilot a[data-ap="refresh"]:hover, [data-theme="dark"] #practice-autopilot a[data-ap="mailtest"]:hover { color: #93c5fd; }
+        #practice-autopilot a[data-ap="refresh"]:active, #practice-autopilot a[data-ap="mailtest"]:active { background: rgba(59, 130, 246, 0.28); }
+        #practice-autopilot a.busy { pointer-events: none; opacity: 0.8; }
+        #practice-autopilot .ap-flash { animation: ap-flash 2.4s ease-out; }
+        @keyframes ap-spin { to { transform: rotate(360deg); } }
+        @keyframes ap-flash { 0%, 55% { color: #16a34a; font-weight: 600; } }
+        @media (prefers-reduced-motion: reduce) { #practice-autopilot .ap-btn.busy::before, #practice-autopilot a.busy::before { animation-duration: 2.4s; } }
         #practice-autopilot .ap-saved { color: var(--text-secondary); font-size: 0.85rem; }
         #practice-autopilot .ap-saved.bad { color: #d97706; }
         #practice-autopilot .ap-note { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; color: var(--text-primary); }
@@ -410,7 +426,7 @@
         const last = !m ? 'No email has been sent yet.'
             : m.ok ? `Last email: "${esc(m.subject)}", ${esc(when(m.t))}, accepted by the mail service for ${esc(to)}. If it is not in your inbox, look in junk.`
             : `<span style="color: #d97706;">Last email could not be sent (${esc(m.why || 'no reason given')}), ${esc(when(m.t))}.</span>`;
-        return `<div id="ap-mail-state" class="ap-help" style="margin-left: 24px;">${last} <a href="#" data-ap="mailtest">${working === 'mailtest' ? 'Sending…' : 'Send me a test email'}</a></div>`;
+        return `<div id="ap-mail-state" class="ap-help" style="margin-left: 24px;">${last} <a href="#" data-ap="mailtest"${working === 'mailtest' ? ' class="busy"' : ''}>${working === 'mailtest' ? 'Sending…' : 'Send me a test email'}</a></div>`;
     }
 
     // The line beside the button: whether what is on screen is saved, and what to do next
@@ -686,8 +702,8 @@
                 ${needsHtml()}
 
                 <div class="ap-actions">
-                    <button id="ap-run" data-ap="run" class="ap-btn ${ready ? 'primary' : ''}" ${working || !ready || state.text === 'Saving…' ? 'disabled' : ''} title="${!on ? 'Switch the autopilot on first' : !ready ? 'Tick at least one screener first' : 'Runs one check-in now instead of waiting for the next one. If the budget is still being built up, pressing this releases the next part of it early. Only markets that are open are traded; coins at any time'}">${working === 'run' ? 'Checking in… this can take up to a minute' : 'Check in now'}</button>
-                    <button id="ap-sellall" data-ap="sellall" class="ap-btn" ${working || !holds ? 'disabled' : ''} title="${holds ? 'Sells every holding the autopilot bought, now, at the latest prices. Holdings you bought yourself are not touched' : 'It holds nothing right now'}">${working === 'sellall' ? 'Selling…' : 'Sell everything it holds' + (holds ? ' (' + holds + ')' : '')}</button>
+                    <button id="ap-run" data-ap="run" class="ap-btn ${ready ? 'primary' : ''}${working === 'run' ? ' busy' : ''}" ${working || !ready || state.text === 'Saving…' ? 'disabled' : ''} title="${!on ? 'Switch the autopilot on first' : !ready ? 'Tick at least one screener first' : 'Runs one check-in now instead of waiting for the next one. If the budget is still being built up, pressing this releases the next part of it early. Only markets that are open are traded; coins at any time'}">${working === 'run' ? 'Checking in… this can take up to a minute' : 'Check in now'}</button>
+                    <button id="ap-sellall" data-ap="sellall" class="ap-btn${working === 'sellall' ? ' busy' : ''}" ${working || !holds ? 'disabled' : ''} title="${holds ? 'Sells every holding the autopilot bought, now, at the latest prices. Holdings you bought yourself are not touched' : 'It holds nothing right now'}">${working === 'sellall' ? 'Selling…' : 'Sell everything it holds' + (holds ? ' (' + holds + ')' : '')}</button>
                     <span id="ap-saved" class="ap-saved ${state.bad ? 'bad' : ''}">${esc(state.text)}</span>
                 </div>
                 <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) : ''}</div>
@@ -932,7 +948,14 @@
         if (t.tagName === 'A') e.preventDefault();
         const action = t.getAttribute('data-ap');
         if (action === 'more') { readDraft(); showAll = true; render(); }
-        else if (action === 'refresh') refresh(true);
+        else if (action === 'refresh') {                    // show that the press was taken, and say when it is done
+            t.classList.add('busy'); t.textContent = 'Refreshing…';
+            Promise.resolve(refresh(true)).catch(() => {}).then(() => {
+                const link = document.querySelector('#practice-autopilot [data-ap="refresh"]'), fresh = byId('ap-fresh');
+                if (link) { link.classList.remove('busy'); link.textContent = '↻ Refresh now'; }
+                if (fresh) { fresh.classList.remove('ap-flash'); void fresh.offsetWidth; fresh.classList.add('ap-flash'); }
+            });
+        }
         else if (action === 'maxbudget') {                  // the budget was more than the practice money: put it to the most there is
             if (byId('ap-budget') && data.money) byId('ap-budget').value = String(data.money.reach);
             saveError = null; notice = { text: `Budget set to ${usd0(data.money.reach)}: all the practice money there is for it.` };
