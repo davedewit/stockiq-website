@@ -608,7 +608,7 @@
     function versusFund(s) {
         if (s.openGainPct === null || s.marketPct === null) return '';
         const d = s.openGainPct - s.marketPct;
-        return `, over the same days.<br>Your holdings: ${pctHtml(s.openGainPct)}, so they are ${Math.abs(d) < 0.005 ? 'level with the fund' : `<strong>${d > 0 ? 'ahead of' : 'behind'} the fund by ${Math.abs(d).toFixed(2)} points</strong>`}`;
+        return `, over the same days.<br>Your holdings: ${pctHtml(s.openGainPct)}, so they are ${Math.abs(d) < 0.005 ? 'level with the fund' : `<strong>${d > 0 ? 'ahead of' : 'behind'} the fund by ${Math.abs(d).toFixed(2)}%</strong>`}`;
     }
     // Why the "For comparison" card has nothing to show yet, with when that changes. The dashboard's sidebar counts down to
     // the US opening: its own figure is used when it is on the page, so the card and the sidebar can never disagree.
