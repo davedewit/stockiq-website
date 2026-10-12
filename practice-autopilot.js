@@ -337,7 +337,7 @@
             : `: ${up.first} at the first check-in` + (up.count - up.first === 1 ? ' and one more' : `, then more as the budget is released, all ${up.count}`) + ` after about ${holdText(up.hours / 24)}.`;
         return `${start} Up to ${many} of about ${usd0(size)} each${whole ? '' : ' at a time'}${steps}`
             + (whole ? ` Then the whole ${usd0(d.budgetUsd)} is in use.`
-                : ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: it buys at most 3 at a check-in and sells each holding after ${holdText(d.maxHoldDays)}. Keep holdings longer${oftener ? ', or check in more often,' : ''} for it to use more.`)
+                : ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: it buys at most ${buysPerCheck(positionsOf(d))} at a check-in and sells each holding after ${holdText(d.maxHoldDays)}. Keep holdings longer${oftener ? ', or check in more often,' : ''} for it to use more.`)
             + (!sharesOn() && mixed(d) && r.crypto < 1 ? ` Of that, at most ${Math.round(r.crypto * 100)}% (${usd0(d.budgetUsd * r.crypto)}) goes into coins at this level.` : '')
             + (d.everyHours <= 3 && d.screeners.some(k => (data.options.screeners[k] || {}).kind === 'crypto') ? ' A coin is only bought once it has been near the top at two check-ins running (coin rankings change fast and many drop out again within the hour), so coin buying starts one check-in later than this.' : '')
 ;
@@ -370,6 +370,7 @@
         const late = d.maxHoldDays * 24 < d.everyHours - 1e-9, quick = d.everyHours < 3 || d.maxHoldDays < 1;
         const shares = d.screeners.some(k => (data.options.screeners[k] || {}).kind !== 'crypto');
         return `It sells a holding once it has had it for ${holdText(d.maxHoldDays)}, whatever the price, and sooner at ${r.stop}% or +${r.take}%${TRAILS[trailOf(d)].says ? ', ' + TRAILS[trailOf(d)].says + ',' : ''} or when its screener signal turns negative or it slips far down the ranking. The money is then free for the next buy. At every check-in the AI model also reviews each holding against the latest screener figures and recent headlines, and may sell it earlier than these rules.`
+            + (shares && d.selfTune !== false ? ' One exception, for as long as "Try changes to its own rules" is on: every second pair of shares it buys is a "patient" share in a trial. A patient share is sold only by the limits and the time above, not when its signal turns or it slips down the ranking, and the AI model does not review it.' : '')
             + (late ? ` It only checks in ${everyText(d.everyHours)}, though, so in practice a holding is sold at the next check-in, about ${holdText(d.everyHours / 24)} after it was bought. Check in more often for it to be sold on time.` : '')
             + (quick && shares ? ' Shares are only traded while their market is open and their rankings change little within a day, so quick settings mostly make a difference for coins.' : '')
             + (data.costEachWay ? ` A trading cost of ${data.costEachWay}% is taken off each buy and each sale${quick ? ': trading this often gives up a good part of every result to costs' : ''}.` : '')
@@ -602,6 +603,14 @@
     }
 
     // Its own trial of which share to buy: as its screener ranks them, or the one furthest above its 52-week low
+    // The patient-shares trial (the function tags every second pair of shares; there is no verdict in its code: the two groups are compared at a review)
+    function patientHtml() {
+        const s = data.settings, shares = (s.screeners || []).some(k => (data.options.screeners[k] || {}).kind !== 'crypto');
+        const live = (data.plans || []).some(p => typeof p.patient === 'boolean');       // an older function does not send it: say nothing then
+        if (!live || s.selfTune === false || !shares) return '';
+        const n = (data.plans || []).filter(p => p.patient).length;
+        return `<div style="margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border-color); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">Also trying, for shares:</strong> every second pair of shares it buys is a &ldquo;patient&rdquo; share. A patient share is sold only by its loss limit, its gain mark, the stop that follows a rise, or at the end of its holding time: never because its screener signal turned or it slipped down the ranking, and the AI model does not review it. The other shares are sold as before, so the two groups can be compared. Why: on four years of past prices, selling on the signal cut rising shares short. It holds ${n} patient share${n === 1 ? '' : 's'} now. Nothing is decided by itself here: the two groups are compared when the results are reviewed.</div>`;
+    }
     function orderHtml() {
         const o = data.order;
         // not started yet: it starts with the next share it buys (the function sends `progress` from the version that has this trial)
@@ -658,6 +667,7 @@
             <div style="margin-top: 6px;">Its rules now (${esc(r.name)} level): ${esc(ruleWords(r))}.${(r.yours || []).length ? ` Set by you: ${esc(r.yours.map(k => names[k]).join(' and '))}; its trials leave ${r.yours.length === 1 ? 'that' : 'those'} alone.` : ''}${changed.length ? ` Changed by itself after a trial: ${changed.map(k => esc(names[k] + ' (the level starts at ' + r.changed[k] + ')') + (mayChange() ? ` <a href="#" data-ap="restore" data-param="${esc(k)}">put it back</a>` : '')).join(', ')}.` : ''}</div>
             ${now}
             ${orderHtml()}
+            ${patientHtml()}
             ${data.aiSellPausedUntil ? `<div style="margin-top: 6px;">The AI model's early sells are paused until ${esc(day(data.aiSellPausedUntil))}: the holdings it had sold early went on rising afterwards. The fixed selling rules still apply.</div>` : ''}
             ${past.length ? fold('past-trials', `Earlier trials (${past.length})`, past.map(p => `${day(p.since)} to ${day(p.ended)}: ${p.text}: ${verdicts[p.verdict] || p.verdict}. ${p.result ? p.result.charAt(0).toUpperCase() + p.result.slice(1) + '.' : ''}`)) : ''}
             <div style="font-size: 0.8rem; margin-top: 6px;">It can only change these five rules, inside fixed limits, and the order it buys shares in, for its own fake-money trades. It never changes your settings, the budget or anything else on the site. Each review is emailed to your account address.</div>
@@ -786,8 +796,8 @@
 
                 <div class="ap-card">
                     <span class="ap-label">What it may do by itself</span>
-                    ${mayRow('ap-aisell', 'aiSell', 'Sell early on the AI model\'s review', 'At every check-in the AI model looks at each holding with the latest screener figures and recent headlines, and may sell it before the fixed rules would, or keep it with a tighter stop: for instance when a rise has stalled or turned. A larger model is asked when a gain is at stake (a few times a day at most). Off: only the fixed rules sell.')}
-                    ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'Every 20 finished trades it may try one change to a selling or buying rule beside the current one, and keeps it only if it did clearly better. Off: its rules stay exactly as they are.')}
+                    ${mayRow('ap-aisell', 'aiSell', 'Sell early on the AI model\'s review', 'At every check-in the AI model looks at each holding with the latest screener figures and recent headlines, and may sell it before the fixed rules would, or keep it with a tighter stop: for instance when a rise has stalled or turned. A larger model is asked when a gain is at stake (a few times a day at most). Shares in the "patient" trial are not reviewed. Off: only the fixed rules sell.')}
+                    ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'Every 20 finished trades it may try one change to a selling or buying rule beside the current one, and keeps it only if it did clearly better. It also runs two standing trials for shares: which share to buy, and "patient" shares that are not sold when their signal turns. Off: its rules stay exactly as they are and no trial runs.')}
                     ${mayRow('ap-mail', 'emails', 'Email me its reviews', 'An email to your account address each time it reviews its rules, starts a trial or finishes one. Nothing needs doing when one arrives.')}
                     ${mailHtml()}
                 </div>

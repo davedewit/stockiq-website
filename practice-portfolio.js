@@ -185,7 +185,7 @@
         const shut = plan.closed ? ` The ${plan.market} market is closed now, so nothing happens to it until it opens${plan.opens ? ` (around ${when(plan.opens)})` : ''}.` : '';
         return `🤖 Autopilot: it sells this by itself, at the check-in around ${when(plan.sellBy)} at the latest, sooner if it falls to ${plan.stop}% or reaches +${plan.take}%.` + stop
             + (plan.trial ? ' Part of a trial of one of its own rules.' : '')
-            + ' The AI model also reviews it at every check-in and may sell it earlier.' + shut;
+            + (plan.patient ? ' A patient share, part of a trial: it is not sold because its screener signal turns, and the AI model does not review it.' : ' The AI model also reviews it at every check-in and may sell it earlier.') + shut;
     }
 
     // ---------------------------------------------------------------- the account over time (no page, no network)
