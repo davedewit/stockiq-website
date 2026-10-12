@@ -299,7 +299,7 @@
         axisTicks(lo, hi, small ? 3 : 4).ticks.forEach(v => {
             out += `<line class="pp-grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="pp-axis" x="${m.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(label(v))}</text>`;
         });
-        const n = small ? 3 : 5;
+        const n = W < 420 ? 2 : small ? 3 : 5;               // on a phone four date labels ran into each other: three there
         for (let i = 0; i <= n; i++) {
             const t = t0 + (t1 - t0) * i / n;
             out += `<text class="pp-axis" x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === n ? 'end' : 'middle'}">${esc(stamp(t))}</text>`;
