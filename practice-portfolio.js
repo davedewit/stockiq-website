@@ -294,7 +294,19 @@
         return { svg: out, placed, base, width: W };
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, valueSeries, axisTicks, chartSvg };
+    // How long until the US stock market next opens ("9h 35m"), or null while it is open: 9:30 to 16:00 New York time,
+    // Monday to Friday, the rule the dashboard's sidebar counts down by (no public holidays in either).
+    function usOpensIn(now) {
+        const ny = new Date(new Date(now).toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const day = ny.getDay(), minutes = ny.getHours() * 60 + ny.getMinutes();
+        if (day >= 1 && day <= 5 && minutes >= 570 && minutes < 960) return null;
+        const next = new Date(ny); next.setHours(9, 30, 0, 0);
+        if (minutes >= 960 || day === 0 || day === 6) { do { next.setDate(next.getDate() + 1); } while (next.getDay() === 0 || next.getDay() === 6); }
+        const left = Math.max(0, next - ny);
+        return Math.floor(left / 3600000) + 'h ' + Math.floor((left % 3600000) / 60000) + 'm';
+    }
+
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, valueSeries, axisTicks, chartSvg, usOpensIn };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -565,7 +577,7 @@
                 ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
                 ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
                 ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `${movedHtml(s.openGainUsd, s.openGainPct)} on ${usd(s.cost)} put in`)}
-                ${card('For comparison', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? 'the same money in an S&amp;P 500 index fund instead: the US stock market has not traded since you bought (it is closed at weekends), so there is nothing to compare yet' : 'the same money in an S&amp;P 500 index fund instead')}
+                ${card('For comparison', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? `the same money in an S&amp;P 500 index fund instead: <span id="pp-us-opens">${esc(marketWait())}</span>, so there is nothing to compare yet` : 'the same money in an S&amp;P 500 index fund instead')}
             </div>
             ${splitLine}
             <div id="pp-chart">${chartHtml()}</div>
@@ -591,6 +603,13 @@
     }
 
     function say(text, bad) { notice = text ? { text, bad: !!bad } : null; }
+    // Why the "For comparison" card has nothing to show yet, with when that changes. The dashboard's sidebar counts down to
+    // the US opening: its own figure is used when it is on the page, so the card and the sidebar can never disagree.
+    function marketWait() {
+        const status = document.getElementById('market-status-sidebar'), count = document.getElementById('market-countdown-sidebar');
+        const shown = status && count && /\d/.test(count.textContent || '') ? (/open in/i.test(status.textContent || '') ? count.textContent.trim() : null) : usOpensIn(Date.now());
+        return shown ? `the US stock market has not traded since you bought (it opens in ${shown})` : 'the US stock market has not moved since you bought';
+    }
     // "Refresh prices" and "Reset fake money", with the time of the prices on show. They sit beside the section's heading
     // (the page has a place for them, #pp-tools) so that nobody has to scroll down to them; on a phone, under the heading.
     function toolsHtml() {
@@ -679,6 +698,8 @@
         const from = e.target && e.target.closest && e.target.closest('#pp-chart-svg'), to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#pp-chart-svg');
         if (from && !to && chartNow) chartShow(chartNow.placed[chartNow.placed.length - 1], false);
     });
+    // the time until the US opening, kept current between redraws
+    if (typeof setInterval === 'function') setInterval(() => { const line = document.getElementById('pp-us-opens'); if (line && line.textContent !== undefined) line.textContent = marketWait(); }, 30000);
     // The picture is drawn to the width it has: draw it again when that changes (a tab opened, a window resized, a phone turned)
     let chartTimer = null, chartWidth = 0;
     const chartFit = () => { const el = box(), w = el ? el.clientWidth : 0; if (w && Math.abs(w - chartWidth) > 8) { chartWidth = w; clearTimeout(chartTimer); chartTimer = setTimeout(drawChart, 120); } };
