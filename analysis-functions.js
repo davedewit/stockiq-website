@@ -2798,23 +2798,18 @@ Analysis Date: ${new Date().toLocaleString()}
             const coinSymbol = document.getElementById('coin-symbol-input').value.trim().toUpperCase();
             if (!coinSymbol) throw new Error('Please enter a cryptocurrency symbol');
             
-            // Use dedicated single coin analysis function
-            const singleCoinUrl = 'https://uotf7ibcklwyuehblv7zsl7ney0ngmrl.lambda-url.us-east-1.on.aws/';
-            
-            console.log(`🔍 Analyzing ${coinSymbol} with dedicated single coin function`);
-            
-            const response = await fetch(singleCoinUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    // some coins need the price source's numbered ticker (e.g. SUI is SUI20947); the plain symbol is a different coin
-                    single_coin: (typeof CRYPTO_TICKER_MAP !== 'undefined' && CRYPTO_TICKER_MAP[coinSymbol]) || coinSymbol,
-                    timestamp: new Date().toISOString() 
-                })
+            // The single-stock report function reports on a coin too (since 12 Oct 2026): it is sent the coin's symbol and
+            // prices it by the ticker the crypto screener uses for it (SUI is SUI20947-USD). Until then this button had a
+            // function of its own, with its own scoring and its own RSI.
+            console.log(`🔍 Analyzing ${coinSymbol} with the report function`);
+            const coinPayload = { symbols: [coinSymbol], asset: 'crypto', timezone_offset: -new Date().getTimezoneOffset() / 60, skipHistorySave: true };
+            if (userId) coinPayload.userId = userId;
+            const response = await fetch('https://5oqosafg2mflk7oyydkk3d3rdq0amufq.lambda-url.us-east-1.on.aws/', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(coinPayload)
             });
-            
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
-            const singleCoinResult = await response.json();
+            // 404 is the function's answer for a symbol the price source does not know: shown as such, not as a failure
+            if (!response.ok && response.status !== 404) throw new Error(`API Error: ${response.status}`);
+            const singleCoinResult = await response.json().catch(() => ({}));
             
             result = formatSingleCoinResult(singleCoinResult, coinSymbol);
         } else {
@@ -3803,170 +3798,21 @@ Analysis Date: ${new Date().toLocaleString()}
 }
 
 function formatSingleCoinResult(apiData, coinSymbol) {
-    let output = `
+    // The report comes ready-made from the single-stock report function (its coin form): chart, 0-100 score, the
+    // points behind it, levels and the note on which ticker the coin was priced by.
+    const report = apiData && apiData.results && apiData.results[0] && apiData.results[0].comprehensive_analysis;
+    if (report) return { type: 'single_coin_analysis', data: report + '\n' };
+    const shown = reportText(String(coinSymbol || '').toUpperCase());
+    return { type: 'single_coin_analysis', data: `
 ============================================================
-🔍 SINGLE COIN ANALYSIS: ${coinSymbol}
+🔍 SINGLE COIN ANALYSIS: ${shown}
 ============================================================
 
-Coin: ${coinSymbol}
-Analysis Date: ${new Date().toLocaleString()}
-📊 Technical Analysis: MACD, RSI, Bollinger Bands, Stochastic, Volume, Momentum
+⚠️ No price data was found for ${shown}.
+Check the symbol (for example BTC, ETH, SOL). Prices come from Yahoo Finance, and a coin it does not list cannot be analysed.
 
-`;
-    
-    if (apiData.coins && apiData.coins.length > 0) {
-        const coin = apiData.coins[0];
-        const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(8)}`;
-        
-        output += `💰 CURRENT ANALYSIS:
-`;
-        output += `Price: ${price} USD
-`;
-        output += `Signal: ${signalLabel(coin.recommendation)}
-`;
-        output += `Score: ${coin.score >= 0 ? '+' : ''}${coin.score || 0}
-`;
-        output += `Confidence: ${coin.confidence || 'LOW'}
-`;
-        output += `Horizon: ${horizonLabel(coin.timeframe)}
-
-`;
-        
-        output += `📊 PERFORMANCE:
-`;
-        output += `24h Change: ${coin.change_24h >= 0 ? '+' : ''}${(coin.change_24h || 0).toFixed(2)}%
-`;
-        output += `7d Change: ${coin.change_7d >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(2)}%
-`;
-        output += `30d Change: ${coin.change_30d >= 0 ? '+' : ''}${(coin.change_30d || 0).toFixed(2)}%
-
-`;
-        
-        output += `📊 TECHNICAL INDICATORS:
-`;
-        output += `RSI: ${(coin.rsi || 50).toFixed(1)} - ${(coin.rsi_signal || 'NEUTRAL').split(' - ')[0]}
-`;
-        output += `MACD: ${coin.macd_signal || 'No data'}
-`;
-        output += `Bollinger Bands: ${coin.bb_signal || 'NEUTRAL'}
-`;
-        output += `Momentum: ${coin.momentum_signal || 'NEUTRAL'}
-`;
-        output += `Stochastic: ${(coin.stoch_k || 50).toFixed(1)} - ${coin.stoch_signal || 'NEUTRAL'}
-`;
-        output += `
-`;
-        
-        output += `🔄 CONFIDENCE:
-`;
-        output += `Confidence: ${coin.confidence || 'LOW'}
-`;
-        output += `Model probability estimate: ${(coin.profit_probability || 50).toFixed(0)}%
-
-`;
-        
-        if (coin.stop_loss && coin.take_profit) {
-            const stopStr = coin.stop_loss >= 1 ? `$${coin.stop_loss.toFixed(2)}` : `$${coin.stop_loss.toFixed(8)}`;
-            const tpStr = coin.take_profit >= 1 ? `$${coin.take_profit.toFixed(2)}` : `$${coin.take_profit.toFixed(8)}`;
-            const supportStr = coin.support >= 1 ? `$${coin.support.toFixed(2)}` : `$${coin.support.toFixed(8)}`;
-            const resistanceStr = coin.resistance >= 1 ? `$${coin.resistance.toFixed(2)}` : `$${coin.resistance.toFixed(8)}`;
-            
-            output += `📏 REFERENCE LEVELS (calculated automatically, not instructions):
-`;
-            output += `Lower reference level: ${stopStr}
-`;
-            output += `Upper reference level: ${tpStr}
-`;
-            output += `Support Level: ${supportStr}
-`;
-            output += `Resistance Level: ${resistanceStr}
-`;
-            output += `Model probability estimate: ${(coin.profit_probability || 50).toFixed(0)}%
-
-`;
-        }
-        
-        // Signals section (like 7.1 format)
-        if (coin.confidence_factors && coin.confidence_factors.length > 0) {
-            output += `🎯 SIGNALS:
-`;
-            output += `   ${coin.confidence_factors.join(', ')}
-`;
-            output += `
-`;
-        }
-        
-        // Confidence factors section (like 7.2 format)
-        if (coin.confidence_factors && coin.confidence_factors.length > 0) {
-            output += `🎯 CONFIDENCE FACTORS:
-`;
-            coin.confidence_factors.forEach(factor => {
-                output += `• ${factor}
-`;
-            });
-            output += `
-`;
-        } else {
-            output += `🎯 CONFIDENCE FACTORS:
-`;
-            output += `• No specific confidence factors identified
-`;
-            output += `• Analysis based on standard technical indicators
-`;
-            output += `
-`;
-        }
-        
-        if (coin.score_breakdown && coin.score_breakdown.length > 0) {
-            output += `Score Breakdown:
-`;
-            coin.score_breakdown.forEach(breakdown => {
-                output += `   ${breakdown}
-`;
-            });
-            output += `
-🧮 Total Score: ${coin.score >= 0 ? '+' : ''}${coin.score || 0}
-
-`;
-            output += `📊 SCORE RANGES:
-`;
-            output += `   +7 and above: Strongly positive
-`;
-            output += `   +4 to +6: Positive
-`;
-            output += `   +2 to +3: Slightly positive
-`;
-            output += `   -1 to +1: Mixed
-`;
-            output += `   -3 to -2: Slightly negative
-`;
-            output += `   -5 to -4: Negative
-`;
-            output += `   Below -5: Strongly negative
-`;
-        }
-    } else {
-        output += `❌ No data available for ${coinSymbol}
-`;
-        output += `This coin may not be available on Yahoo Finance or may have a different symbol.
-`;
-        output += `Try using common symbols like: BTC, ETH, ADA, SOL, DOGE, etc.
-`;
-    }
-    
-    output += `
-✅ Single coin analysis complete!
-`;
-    
-    // Prices come from Yahoo Finance as SYMBOL-USD, and some symbols are shared by more than one coin.
-    // These were confirmed (9 Oct 2026, against CoinGecko) to be priced as a different coin; keep in step with
-    // MISMATCHED_SYMBOLS in the stockiq-option-7-1-orchestrator Lambda.
-    const mismatchedCoinSymbols = ["ACT", "ALPHA", "BEAM", "CAT", "CORE", "CYBER", "FLM", "FRONT", "G", "GFI", "GOAT", "KMD", "LOOM", "MBOX", "MNT", "ONE", "ORN", "PYR", "QUICK", "RFOX", "SCR", "SOLO", "SXP", "TON", "TRIAS", "TRU", "ZCX"];
-    if (mismatchedCoinSymbols.includes(String(coinSymbol || '').toUpperCase())) {
-        output += `\n⚠️ ${coinSymbol}: the price source lists a different coin under this symbol, so this analysis is probably not for the coin you mean.\n`;
-    }
-    output += `\nℹ️ Prices come from Yahoo Finance. Some symbols are shared by more than one coin, so check the price matches the coin you mean.\nGeneral information only, not financial advice.\n`;
-    return { type: 'single_coin_analysis', data: output };
+ℹ️ General information only, not financial advice.
+` };
 }
 
 
