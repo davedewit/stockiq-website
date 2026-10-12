@@ -371,6 +371,13 @@
         #practice-portfolio .pp-cross { stroke: var(--text-secondary); stroke-width: 1; }
         #practice-portfolio .pp-dot { fill: var(--pp-line); stroke: var(--bg-primary); stroke-width: 2; }
         #practice-portfolio .pp-chart-note { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+        #practice-portfolio .pp-plan { font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px; margin-top: 2px; }
+        #practice-portfolio .pp-plan > summary { cursor: pointer; list-style: none; }
+        #practice-portfolio .pp-plan > summary::-webkit-details-marker { display: none; }
+        #practice-portfolio .pp-plan > summary::after { content: " \\25B8"; }
+        #practice-portfolio .pp-plan[open] > summary::after { content: " \\25BE"; }
+        #practice-portfolio .pp-plan > summary:hover { color: var(--text-primary); }
+        #practice-portfolio .pp-plan > div { margin-top: 4px; padding-left: 10px; border-left: 2px solid var(--border-color); line-height: 1.45; }
         #practice-portfolio .pp-chart details { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; }
         #practice-portfolio .pp-chart table { border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
         #practice-portfolio .pp-chart td, #practice-portfolio .pp-chart th { padding: 2px 14px 2px 0; text-align: right; font-weight: normal; }
@@ -433,6 +440,7 @@
         fillOther();
         return ppQuote;
     }
+    const openPlans = new Set();                  // the holdings whose plan is unfolded (kept across redraws)
     let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-portfolio');
@@ -560,6 +568,7 @@
         if (beside) beside.innerHTML = '';
         const soldBox = document.getElementById('pp-sold');
         if (soldBox && typeof soldBox.open === 'boolean') soldOpen = soldBox.open;
+        if (el && el.querySelectorAll) el.querySelectorAll('details.pp-plan').forEach(d => { const id = d.getAttribute('data-id'); if (d.open) openPlans.add(id); else openPlans.delete(id); });
         if (!userId()) { el.innerHTML = '<p style="color: var(--text-secondary);">Sign in to use the practice portfolio.</p>'; return; }
         if (!loaded) { el.innerHTML = '<p style="color: var(--text-secondary);">Loading…</p>'; return; }
         if (!state) { el.innerHTML = `<p style="color: #ef4444;">${esc(loadError || 'The practice portfolio could not be loaded.')}</p><button data-pp="reload" class="pp-btn">Try again</button>`; return; }
@@ -572,7 +581,9 @@
         const rows = state.holdings.slice().reverse().map(h => {
             const v = valueOf(h, quotes), today = dayMove(h, quotes);
             return `<tr>
-                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div></td>
+                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div>${h.by === 'ai' && plans[h.id] && plans[h.id].auto
+                    ? `<details class="pp-plan" data-id="${esc(h.id)}"${openPlans.has(h.id) ? ' open' : ''}><summary>🤖 Autopilot: its plan for this${plans[h.id].patient ? ' · patient share (trial)' : ''}${plans[h.id].closed ? ' · market closed' : ''}</summary><div>${esc(planLine(h, plans[h.id]))}</div></details>`
+                    : `<div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div>`}</td>
                 <td data-label="Bought" style="${cell}">${esc(when(h.boughtAt))}</td>
                 <td data-label="Price then" style="${cell}">${money(h.buyPrice, h.currency)}</td>
                 <td data-label="Price now" style="${cell}">${v.priced ? money(v.price, h.currency) : '<span title="No price available right now">–</span>'}</td>
