@@ -599,7 +599,7 @@
         const rows = state.holdings.slice().reverse().map(h => {
             const v = valueOf(h, quotes), today = dayMove(h, quotes);
             return `<tr>
-                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div>${h.by === 'ai' && plans[h.id] && plans[h.id].auto
+                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
                     ? `<details class="pp-plan" data-id="${esc(h.id)}"${openPlans.has(h.id) ? ' open' : ''}><summary>🤖 Autopilot: its plan for this${plans[h.id].patient ? ' · patient share (trial)' : ''}${plans[h.id].closed ? ' · market closed' : ''}</summary><div>${esc(planLine(h, plans[h.id]))}</div></details>`
                     : `<div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div>`}</td>
                 <td data-label="Bought" style="${cell}">${esc(when(h.boughtAt))}</td>
