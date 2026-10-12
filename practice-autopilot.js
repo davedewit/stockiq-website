@@ -257,6 +257,7 @@
         return Object.assign({}, r, { top: data.rules.top, trail: data.rules.trail }, data.rules.level || { stop: data.rules.stop, take: data.rules.take });
     }
     // what an empty "your own limit" field falls back to, shown in grey inside it
+    const autoWord = (n) => n ? 'Automatic: ' + n : '';       // what an empty box shows: the level's own value, named as such
     function hint(level, key) { const r = autoRules(level), n = r ? Math.abs(r[key]) : NaN; return isFinite(n) ? String(n) : ''; }
     // ... and with the user's own loss limit and gain mark, as they stand on screen: these come before everything else
     // What the number of holdings means, in words: how big each is, what a larger or smaller number does, and any catch
@@ -763,8 +764,8 @@
                 <div class="ap-card">
                     <div class="ap-fields">
                         <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" ${data.money ? `max="${data.money.reach}"` : ''} step="500" value="${d.budgetUsd}"></div></div>
-                        ${'holdings' in data.settings ? `<div><label class="ap-label" for="ap-holdings">Number of holdings<span id="ap-tag-holdings" class="ap-auto ${d.holdings > 0 ? 'own' : ''}">${d.holdings > 0 ? 'set by you' : 'automatic'}</span></label><div class="ap-input"><input id="ap-holdings" type="number" min="${(o.holdings || {}).min || 2}" max="${(o.holdings || {}).max || 50}" step="1" placeholder="${(o.risk[String(d.risk)] || {}).positions || ''}" value="${d.holdings > 0 ? d.holdings : ''}" title="How many equal holdings the budget is spread over. Empty: the risk level's own number"> holdings</div></div>` : ''}
-                        <div><label class="ap-label" for="ap-period">Build up to it over${tag('periodDays')}</label><div class="ap-input"><input id="ap-period" type="number" min="1" max="90" step="1" ${lvl ? `placeholder="${lvl.periodDays}"` : ''} value="${isAuto(d, 'periodDays') ? '' : d.periodDays}"> days</div></div>
+                        ${'holdings' in data.settings ? `<div><label class="ap-label" for="ap-holdings">Number of holdings<span id="ap-tag-holdings" class="ap-auto ${d.holdings > 0 ? 'own' : ''}">${d.holdings > 0 ? 'set by you' : 'automatic'}</span></label><div class="ap-input"><input id="ap-holdings" type="number" min="${(o.holdings || {}).min || 2}" max="${(o.holdings || {}).max || 50}" step="1" placeholder="${autoWord((o.risk[String(d.risk)] || {}).positions)}" value="${d.holdings > 0 ? d.holdings : ''}" title="How many equal holdings the budget is spread over. Empty: the risk level's own number"> holdings</div></div>` : ''}
+                        <div><label class="ap-label" for="ap-period">Build up to it over${tag('periodDays')}</label><div class="ap-input"><input id="ap-period" type="number" min="1" max="90" step="1" ${lvl ? `placeholder="${autoWord(lvl.periodDays)}"` : ''} value="${isAuto(d, 'periodDays') ? '' : d.periodDays}"> days</div></div>
                         <div><label class="ap-label" for="ap-every">Checks in${tag('everyHours')}</label><div class="ap-input">${select('ap-every', 'everyHours', o.everyHours, d.everyHours, everyText)}</div></div>
                         <div><label class="ap-label" for="ap-hold">Keeps a holding at most${tag('maxHoldDays')}</label><div class="ap-input">${select('ap-hold', 'maxHoldDays', o.holdDays, d.maxHoldDays, holdText)}</div></div>
                     </div>
@@ -841,12 +842,12 @@
         set('ap-switch-text', el => { el.textContent = draft.enabled ? 'On' : 'Off'; });
         set('ap-risk-text', el => { el.textContent = riskText(draft.risk); });
         set('ap-trail-text', el => { el.textContent = TRAILS[trailOf(draft)].help; });
-        set('ap-holdings', el => { el.placeholder = String((data.options.risk[String(draft.risk)] || {}).positions || ''); });
+        set('ap-holdings', el => { el.placeholder = autoWord((data.options.risk[String(draft.risk)] || {}).positions); });
         set('ap-holdings-hint', el => { el.textContent = holdingsHint(draft); });
         set('ap-tag-holdings', el => { el.textContent = draft.holdings > 0 ? 'set by you' : 'automatic'; if (el.classList) el.classList.toggle('own', draft.holdings > 0); });
         const lvl = paceOf(draft.risk);
         if (lvl) {
-            set('ap-period', el => { el.placeholder = String(lvl.periodDays); });
+            set('ap-period', el => { el.placeholder = autoWord(lvl.periodDays); });
             [['ap-every', 'everyHours', everyText], ['ap-hold', 'maxHoldDays', holdText]].forEach(([id, key, label]) => set(id, el => { const first = el.options && el.options[0]; if (first && first.value === 'auto') first.textContent = 'Automatic: ' + label(lvl[key]); }));
             PACE_FIELDS.forEach(key => set('ap-tag-' + key, el => { el.textContent = isAuto(draft, key) ? 'automatic' : 'set by you'; if (el.classList) el.classList.toggle('own', !isAuto(draft, key)); }));
         }
