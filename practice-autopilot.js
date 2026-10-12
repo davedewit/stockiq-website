@@ -259,11 +259,30 @@
     // what an empty "your own limit" field falls back to, shown in grey inside it
     function hint(level, key) { const r = autoRules(level), n = r ? Math.abs(r[key]) : NaN; return isFinite(n) ? String(n) : ''; }
     // ... and with the user's own loss limit and gain mark, as they stand on screen: these come before everything else
+    // What the number of holdings means, in words: how big each is, what a larger or smaller number does, and any catch
+    function holdingsHint(d) {
+        const level = (data.options.risk[String(d.risk)] || {}).positions || 0, n = positionsOf(d), bound = data.options.holdings || { min: 2, max: 50 };
+        if (!n) return '';
+        const size = d.budgetUsd / n, each = `${n} holdings of about ${usd0(size)} each`;
+        const what = d.holdings > 0 ? `Set by you: ${each} (the ${autoRules(d.risk) ? autoRules(d.risk).name : ''} level by itself would use ${level}).` : `Left to the risk level: ${each}. Type a number (${bound.min} to ${bound.max}) to choose your own.`;
+        const more = d.holdings > level ? ` With more holdings each is smaller and the account moves more like the market as a whole; it buys up to ${buysPerCheck(n)} at a check-in and looks at the top ${Math.max((autoRules(d.risk) || {}).top || 0, Math.min(n, 30))} of each screener to fill them.`
+            : d.holdings > 0 && d.holdings < level ? ' With fewer, larger holdings the account swings more: one holding counts for more, up or down.' : ' Fewer, larger holdings swing more; more, smaller ones move more like the market as a whole.';
+        const small = size < 25 ? ` Each would be under the $25 smallest buy: it would buy nothing. Use fewer holdings or a larger budget.` : '';
+        return what + more + small + ' Empty the box to leave it to the risk level again.'.repeat(d.holdings > 0 ? 1 : 0);
+    }
     function levelRules(level) {
         const r = autoRules(level), d = draft || data.settings;
         if (!r) return r;
-        return Object.assign({}, r, d.stopPct > 0 ? { stop: -d.stopPct } : {}, d.takePct > 0 ? { take: d.takePct } : {});
+        // the user's own number of holdings: with more of them than the level looks at, it buys further down each ranking (rules_for in the function)
+        const own = d.holdings > 0 ? { positions: d.holdings, top: Math.max(r.top, Math.min(d.holdings, 30)) } : {};
+        return Object.assign({}, r, own, d.stopPct > 0 ? { stop: -d.stopPct } : {}, d.takePct > 0 ? { take: d.takePct } : {});
     }
+    // How many equal holdings the budget is spread over: the user's own number, or the risk level's. holdings_of() in the
+    // stockiq-ai-trader Lambda does the same sum, and buys_per_check() the one below: keep them in step.
+    // a level's row of the table with the user's own number of holdings in it, for the texts that describe what will happen
+    const withHoldings = (r, d) => r && d && d.holdings > 0 ? Object.assign({}, r, { positions: d.holdings }) : r;
+    function positionsOf(d) { return d && d.holdings > 0 ? d.holdings : ((data.options.risk[String(d.risk)] || {}).positions || 0); }
+    const buysPerCheck = (positions) => Math.max(3, Math.ceil(positions / 5));
     // The pace a level sets when the three pace fields are left to it ("Automatic"): days to build up, hours between check-ins,
     // days a holding is kept. PACE in the stockiq-ai-trader Lambda, sent as options.pace.
     function paceOf(level) { return (data.options.pace || {})[String(level)] || null; }
@@ -283,7 +302,7 @@
     // How much of the budget is in use, check-in by check-in, when every check-in finds enough to buy and nothing is sold
     // early. The same sums as the stockiq-ai-trader Lambda: allowance() (the budget is released in equal steps over the
     // chosen days, rounded up to whole holdings), the time rule in review_sells() (5 minutes' grace) and, in run_user(),
-    // at most 3 buys a check-in, no buy under $25 and the coin share. Keep the two in step.
+    // at most 3 buys a check-in (a fifth of the holdings when the user asked for many), no buy under $25 and the coin share. Keep the two in step.
     function buildUp(d, r, limit) {
         const size = d.budgetUsd / r.positions, every = d.everyHours, hold = d.maxHoldDays * 24 - 5 / 60;
         const last = Math.ceil(d.periodDays * 24 / every) + r.positions + 2;    // the budget fully released, then time to settle
@@ -293,7 +312,7 @@
             let invested = lots.reduce((s, l) => s + l.usd, 0);
             const pace = d.budgetUsd * Math.min(1, n * every / (d.periodDays * 24));
             const cap = Math.min(d.budgetUsd, Math.ceil(pace / size - 1e-9) * size);
-            const buys = Math.min(3, Math.floor((cap - invested + 0.005) / size));
+            const buys = Math.min(buysPerCheck(r.positions), Math.floor((cap - invested + 0.005) / size));
             for (let i = 0; i < buys; i++) {
                 const usd = Math.min(size, limit - invested);
                 if (usd < 25) break;
@@ -306,7 +325,7 @@
     }
     // What the chosen settings mean in practice: every sentence is built from what is selected right now
     function planText(d) {
-        const r = data.options.risk[String(d.risk)];
+        const r = withHoldings(data.options.risk[String(d.risk)], d);
         if (!r || !(d.budgetUsd > 0) || !(d.periodDays > 0) || !(d.everyHours > 0) || !(d.maxHoldDays > 0)) return '';
         const size = d.budgetUsd / r.positions, start = `It checks in ${everyText(d.everyHours)}.`;
         const up = buildUp(d, r, d.budgetUsd);            // with only coin screeners ticked the whole budget may go into coins (coin_share in the Lambda)
@@ -359,7 +378,7 @@
         const s = data.settings, last = data.state && data.state.lastRun;
         if (!s.enabled) return 'Off. Nothing is bought or sold automatically.';
         if (!s.screeners.length) return 'On, but no screener is chosen yet. Tick at least one below and it will start at the next check-in.';
-        const r = data.options.risk[String(s.risk)] || {};
+        const r = withHoldings(data.options.risk[String(s.risk)] || {}, s);
         const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(s.budgetUsd)} budget is invested.` : '';
         const next = data.nextCheck && data.nextCheck.at
             ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${data.nextCheck.markets.join(' and ')} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
@@ -455,7 +474,7 @@
         return split;
     }
     function marketSlots(d) {
-        const all = data.options.groups || [], positions = (data.options.risk[String(d.risk)] || {}).positions || 0, split = marketSplit(d);
+        const all = data.options.groups || [], positions = positionsOf(d), split = marketSplit(d);
         const exact = {}, slots = {}; let sum = 0, used = 0;
         Object.keys(split).forEach(g => { exact[g] = split[g] * positions; slots[g] = Math.floor(exact[g] + 1e-9); sum += exact[g]; used += slots[g]; });
         const spare = Math.min(positions, Math.floor(sum + 0.5 + 1e-9)) - used;
@@ -478,7 +497,7 @@
     // The split at a glance: a bar with one coloured part per market, as wide as its share of the budget
     function splitBar(d) {
         if (!sharesOn()) return '';
-        const positions = (data.options.risk[String(d.risk)] || {}).positions || 0, slots = marketSlots(d), groups = Object.keys(slots).filter(g => slots[g] > 0);
+        const positions = positionsOf(d), slots = marketSlots(d), groups = Object.keys(slots).filter(g => slots[g] > 0);
         if (!positions) return '';
         if (!groups.length) return '<span class="idle" style="flex: 1;">Tick a screener and its market gets a share of the budget</span>';
         const used = groups.reduce((a, g) => a + slots[g], 0), pctOf = (n) => Math.round(n / positions * 100);
@@ -487,7 +506,7 @@
     }
     function shareRow(d, group, index) {
         if (!sharesOn()) return '';
-        const r = data.options.risk[String(d.risk)] || {}, positions = r.positions || 0, size = d.budgetUsd / (positions || 1);
+        const r = data.options.risk[String(d.risk)] || {}, positions = positionsOf(d), size = d.budgetUsd / (positions || 1);
         const ticked = isTicked(d, group);
         if (!positions) return '';
         // nothing ticked in this market: say so, where its share would be (an empty space looked like something missing)
@@ -499,7 +518,7 @@
     // In words, under the screeners: where the budget goes, and what is left over or left out
     function splitText(d) {
         if (!sharesOn()) return '';
-        const r = data.options.risk[String(d.risk)] || {}, positions = r.positions || 0, size = d.budgetUsd / (positions || 1), slots = marketSlots(d), groups = Object.keys(slots);
+        const r = data.options.risk[String(d.risk)] || {}, positions = positionsOf(d), size = d.budgetUsd / (positions || 1), slots = marketSlots(d), groups = Object.keys(slots);
         if (!groups.length || !positions) return '';
         const mine = (g) => typeof (d.shares || {})[g] === 'number';
         const used = groups.reduce((a, g) => a + slots[g], 0), spare = positions - used, none = groups.filter(g => !slots[g]);
@@ -744,11 +763,13 @@
                 <div class="ap-card">
                     <div class="ap-fields">
                         <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" ${data.money ? `max="${data.money.reach}"` : ''} step="500" value="${d.budgetUsd}"></div></div>
+                        ${'holdings' in data.settings ? `<div><label class="ap-label" for="ap-holdings">Number of holdings<span id="ap-tag-holdings" class="ap-auto ${d.holdings > 0 ? 'own' : ''}">${d.holdings > 0 ? 'set by you' : 'automatic'}</span></label><div class="ap-input"><input id="ap-holdings" type="number" min="${(o.holdings || {}).min || 2}" max="${(o.holdings || {}).max || 50}" step="1" placeholder="${(o.risk[String(d.risk)] || {}).positions || ''}" value="${d.holdings > 0 ? d.holdings : ''}" title="How many equal holdings the budget is spread over. Empty: the risk level's own number"> holdings</div></div>` : ''}
                         <div><label class="ap-label" for="ap-period">Build up to it over${tag('periodDays')}</label><div class="ap-input"><input id="ap-period" type="number" min="1" max="90" step="1" ${lvl ? `placeholder="${lvl.periodDays}"` : ''} value="${isAuto(d, 'periodDays') ? '' : d.periodDays}"> days</div></div>
                         <div><label class="ap-label" for="ap-every">Checks in${tag('everyHours')}</label><div class="ap-input">${select('ap-every', 'everyHours', o.everyHours, d.everyHours, everyText)}</div></div>
                         <div><label class="ap-label" for="ap-hold">Keeps a holding at most${tag('maxHoldDays')}</label><div class="ap-input">${select('ap-hold', 'maxHoldDays', o.holdDays, d.maxHoldDays, holdText)}</div></div>
                     </div>
                     <div id="ap-budget-hint" class="ap-help">${budgetHint(d)}</div>
+                    ${'holdings' in data.settings ? `<div id="ap-holdings-hint" class="ap-help">${holdingsHint(d)}</div>` : ''}
                     ${lvl ? `<div class="ap-help">The last three follow the risk level while they are left on automatic (an empty box, or "Automatic" in a menu): move the slider and they move with it. Set one yourself and it stays where you put it.${(d.auto || []).length < 3 ? ' <a href="#" data-ap="autopace">Let the risk level set all three</a>' : ''}</div>` : ''}
                     <div id="ap-plan" class="ap-help">${esc(planText(d))}</div>
                     <div id="ap-pace" class="ap-help">${esc(paceText(d))}</div>
@@ -794,6 +815,10 @@
             aiSell: may('ap-aisell', 'aiSell'), selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
             stopPct: ownLimit('ap-stop', 'stopPct'), takePct: ownLimit('ap-take', 'takePct')
         };
+        if ('holdings' in data.settings) {                 // the user's own number of holdings; an empty box leaves it to the level
+            const box = byId('ap-holdings'), n = box ? parseInt(box.value, 10) : NaN, bound = data.options.holdings || { min: 2, max: 50 };
+            draft.holdings = !box ? (data.settings.holdings || null) : isFinite(n) && n > 0 ? Math.min(bound.max, Math.max(bound.min, n)) : null;
+        }
         if ('auto' in data.settings) draft.auto = PACE_FIELDS.filter(k => left.includes(k));
         if ('shares' in data.settings) {                   // a market's share: what its menu says, or automatic when it has no menu on the page
             const sh = {}, known = data.options.groups || [];
@@ -816,6 +841,9 @@
         set('ap-switch-text', el => { el.textContent = draft.enabled ? 'On' : 'Off'; });
         set('ap-risk-text', el => { el.textContent = riskText(draft.risk); });
         set('ap-trail-text', el => { el.textContent = TRAILS[trailOf(draft)].help; });
+        set('ap-holdings', el => { el.placeholder = String((data.options.risk[String(draft.risk)] || {}).positions || ''); });
+        set('ap-holdings-hint', el => { el.textContent = holdingsHint(draft); });
+        set('ap-tag-holdings', el => { el.textContent = draft.holdings > 0 ? 'set by you' : 'automatic'; if (el.classList) el.classList.toggle('own', draft.holdings > 0); });
         const lvl = paceOf(draft.risk);
         if (lvl) {
             set('ap-period', el => { el.placeholder = String(lvl.periodDays); });
@@ -850,7 +878,7 @@
     // Is the user in the middle of typing or dragging in the panel? Then the panel is updated in place, not redrawn.
     function editing() {
         const el = document.activeElement;
-        return !!el && typeof el.id === 'string' && ['ap-budget', 'ap-period', 'ap-risk', 'ap-stop', 'ap-take'].includes(el.id);
+        return !!el && typeof el.id === 'string' && ['ap-budget', 'ap-period', 'ap-holdings', 'ap-risk', 'ap-stop', 'ap-take'].includes(el.id);
     }
     function queueSave(delay) {
         if (saveTimer) clearTimeout(saveTimer);
@@ -1030,7 +1058,7 @@
     function summary() {
         if (!data) return '';
         if (!data.allowed) return data.locked === 'plan' ? 'AI AUTOPILOT (Beta): not available to this account, which is not on a paid plan. It is included in every paid plan; the plans are under the tabs.' : '';
-        const s = data.settings, o = data.options, r = (o.risk || {})[String(s.risk)] || {}, lines = [], cut = (t, n) => String(t || '').slice(0, n);
+        const s = data.settings, o = data.options, r = withHoldings((o.risk || {})[String(s.risk)] || {}, s), lines = [], cut = (t, n) => String(t || '').slice(0, n);
         const auto = (k) => Array.isArray(s.auto) && s.auto.includes(k) ? ' (automatic from the risk level)' : ' (set by the user)';
         lines.push(`AI AUTOPILOT (Beta, fake money): switched ${s.enabled ? 'ON' : 'OFF'}. Risk level ${r.name || s.risk} (up to ${r.positions} holdings; loss limit ${data.rules ? data.rules.stop : r.stop}%, gain mark +${data.rules ? data.rules.take : r.take}%). Budget ${usd0(s.budgetUsd)}; built up over ${s.periodDays} day${s.periodDays === 1 ? '' : 's'}${auto('periodDays')}; checks in ${everyText(s.everyHours)}${auto('everyHours')}; keeps a holding at most ${holdText(s.maxHoldDays)}${auto('maxHoldDays')}. Trailing stop: ${(TRAILS[trailOf(s)] || {}).name || 'default'}.`);
         lines.push('Screeners ticked: ' + (s.screeners.map(k => (o.screeners[k] || {}).name || k).join(', ') || 'none') + '.' + (sharesOn() ? ' ' + cut(splitText(s).split(' On automatic')[0], 320) : ''));
