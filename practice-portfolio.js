@@ -480,11 +480,16 @@
         quotes[symbol] = q; if (rateQuote) quotes[fx.symbol] = rateQuote; if (spy) quotes[BENCHMARK] = spy;
         return { q, fx: fxRate(fx, rateQuote ? rateQuote.price : 0), spy: spy ? spy.price : null };
     }
-    async function refreshQuotes() {
+    // The symbols whose prices the page needed last time, kept in the browser: on the next visit their prices are asked for at
+    // once, together with the portfolio, instead of only after it has arrived (one wait in place of two).
+    const symbolsKey = () => 'stockiqPracticeSymbols_' + userId();
+    function knownSymbols() { try { const k = JSON.parse(localStorage.getItem(symbolsKey()) || '[]'); return Array.isArray(k) ? k.filter(x => typeof x === 'string').slice(0, 80) : []; } catch (e) { return []; } }
+    async function refreshQuotes(have) {
         if (!state) return;
         const wanted = new Set([BENCHMARK]);
         state.holdings.forEach(h => { wanted.add(h.symbol); const fx = fxFor(h.currency); if (fx.symbol) wanted.add(fx.symbol); });
-        const list = [...wanted];
+        try { localStorage.setItem(symbolsKey(), JSON.stringify([...wanted])); } catch (e) {}
+        const list = [...wanted].filter(sym => !(have && have.has(sym)));          // those just fetched ahead are not asked for twice
         const got = await Promise.all(list.map(fetchQuote));
         list.forEach((s, i) => { if (got[i]) quotes[s] = got[i]; });
         pricesAt = Date.now();
@@ -492,15 +497,19 @@
 
     async function load() {
         if (!userId()) { loaded = true; render(); return; }
-        if (!loaded) render();                             // "Loading…" until the portfolio and its prices are in
+        if (!loaded) render();                             // the spinner until the portfolio and its prices are in
+        // on the first load, the prices of what it held last time are asked for while the portfolio itself is on its way
+        const ahead = loaded ? null : Promise.all(knownSymbols().map(sym => fetchQuote(sym).then(q => [sym, q]).catch(() => [sym, null])));
         try {
             const r = await api('get');
             state = r.portfolio || newState(new Date().toISOString());
             version = r.version || 0; loadError = null;
         } catch (e) { loadError = e.message; }
+        const have = new Set();
+        if (ahead) (await ahead).forEach(([sym, q]) => { if (q) { quotes[sym] = q; have.add(sym); } });
         // Nothing is shown before the latest prices are in: holdings valued at what was paid looked, for a moment, like a
         // different account value. If the prices are slow, it is shown after 4 seconds anyway and again when they arrive.
-        const prices = state ? refreshQuotes() : Promise.resolve();
+        const prices = state ? refreshQuotes(have) : Promise.resolve();
         await Promise.race([prices, new Promise(done => setTimeout(done, 4000))]);
         loaded = true; redraw();
         await prices; redraw();
@@ -579,7 +588,7 @@
         if (soldBox && typeof soldBox.open === 'boolean') soldOpen = soldBox.open;
         if (el && el.querySelectorAll) el.querySelectorAll('details.pp-plan').forEach(d => { const id = d.getAttribute('data-id'); if (d.open) openPlans.add(id); else openPlans.delete(id); });
         if (!userId()) { el.innerHTML = '<p style="color: var(--text-secondary);">Sign in to use the practice portfolio.</p>'; return; }
-        if (!loaded) { el.innerHTML = '<p style="color: var(--text-secondary);">Loading…</p>'; return; }
+        if (!loaded) { el.innerHTML = '<div class="pp-wait" role="status" aria-label="Loading" style="padding: 26px 0 18px;"><div class="spinner"></div></div>'; return; }     // the site's own spinner (styles.css), as a screener shows while it runs
         if (!state) { el.innerHTML = `<p style="color: #ef4444;">${esc(loadError || 'The practice portfolio could not be loaded.')}</p><button data-pp="reload" class="pp-btn">Try again</button>`; return; }
 
         const s = summarize(state, quotes);

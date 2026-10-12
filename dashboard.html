@@ -1351,7 +1351,7 @@
         <div class="history-section" id="practice-portfolio-section">
             <!-- pp-tools: practice-portfolio.js puts "Refresh prices" and "Reset fake money" here, level with the heading -->
             <div class="pp-headrow"><h2>💵 Practice Portfolio</h2><div id="pp-tools"></div></div>
-            <div id="practice-portfolio"><p style="color: var(--text-secondary);">Loading…</p></div>
+            <div id="practice-portfolio"><div class="pp-wait" role="status" aria-label="Loading" style="padding: 26px 0 18px;"><div class="spinner"></div></div></div>
         </div>
         </div>
 
@@ -5031,7 +5031,7 @@ ${analysis.report}
         }
     </style>
     <script src="news.js"></script>
-    <script src="practice-portfolio.js?v=30"></script>
+    <script src="practice-portfolio.js?v=31"></script>
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
     <script src="practice-autopilot.js?v=45"></script>
