@@ -101,11 +101,29 @@
                  pricePct: (q.price / h.buyPrice - 1) * 100 };
     }
 
+    // What a holding has done "today": since its market's previous close (a coin, which trades round the clock: since
+    // 00:00 UTC), or since it was bought when that was later. With its market closed that is its last session, as a
+    // broker shows it. From the daily prices that come with every quote: [end of a session, its close], ..., [now, the
+    // price now]. A share's session ends are worked out from a session of six and a half hours, so a point less than
+    // five hours before the latest price is the session still running (or just over), not the one before.
+    function dayMove(h, quotes) {
+        const v = valueOf(h, quotes), q = quotes[h.symbol], s = q && q.series;
+        if (!v.priced || !s || s.length < 2) return null;
+        const last = s[s.length - 1][0], always = /-USD$|=X$/.test(String(h.symbol || ''));
+        let base = null;
+        for (let i = s.length - 2; i >= 0; i--) if (always || s[i][0] <= last - 5 * 3600000) { base = s[i]; break; }
+        if (!base || !(base[1] > 0)) return null;
+        if ((Date.parse(h.boughtAt) || 0) > base[0]) return { usd: v.gainUsd, pct: v.changePct, since: 'bought' };   // bought after that close: all of it is today's
+        const pct = (q.price / base[1] - 1) * 100;
+        return { usd: v.valueUsd - v.valueUsd / (1 + pct / 100), pct, since: 'close' };
+    }
+
     function summarize(state, quotes) {
         const spy = quotes[BENCHMARK] ? quotes[BENCHMARK].price : null;
-        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0, level = 0;
+        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0, level = 0, dayUsd = 0, dayOf = 0, dayCount = 0;
         state.holdings.forEach(h => {
-            const v = valueOf(h, quotes);
+            const v = valueOf(h, quotes), d = dayMove(h, quotes);
+            if (d) { dayUsd += d.usd; dayOf += v.valueUsd - d.usd; dayCount++; }
             holdingsValue += v.valueUsd; cost += h.costUsd;
             if (!v.priced) unpriced++;
             if (spy > 0 && h.spyAtBuy > 0) {
@@ -117,6 +135,8 @@
         const accountValue = state.cash + holdingsValue;
         return {
             cash: state.cash, holdingsValue, cost, accountValue, unpriced, compared, ahead, level,
+            // today, for what is held now: the sum of each holding's own day (dayMove); null when no holding has one
+            dayUsd: dayCount ? dayUsd : null, dayPct: dayCount && dayOf > 0 ? dayUsd / dayOf * 100 : null, dayCount,
             gainUsd: accountValue - state.startingCash, gainPct: (accountValue / state.startingCash - 1) * 100,
             openGainUsd: holdingsValue - cost, openGainPct: cost > 0 ? (holdingsValue / cost - 1) * 100 : null,
             // the same dollars put into the S&P 500 fund on the same days
@@ -306,7 +326,7 @@
         return Math.floor(left / 3600000) + 'h ' + Math.floor((left % 3600000) / 60000) + 'm';
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, valueSeries, axisTicks, chartSvg, usOpensIn };
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -550,14 +570,15 @@
         const left = cell.replace('text-align: right', 'text-align: left');
 
         const rows = state.holdings.slice().reverse().map(h => {
-            const v = valueOf(h, quotes);
+            const v = valueOf(h, quotes), today = dayMove(h, quotes);
             return `<tr>
                 <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}${h.note ? ' · ' + esc(h.note) : ''}</div><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div></td>
                 <td data-label="Bought" style="${cell}">${esc(when(h.boughtAt))}</td>
                 <td data-label="Price then" style="${cell}">${money(h.buyPrice, h.currency)}</td>
                 <td data-label="Price now" style="${cell}">${v.priced ? money(v.price, h.currency) : '<span title="No price available right now">–</span>'}</td>
                 <td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(v.valueUsd)}</td>
-                <td data-label="Change" style="${cell}">${v.priced ? pctHtml(v.changePct, v.gainUsd) : '<span style="color: var(--text-secondary);">no price</span>'}</td>
+                <td data-label="Today" style="${cell}">${today ? pctHtml(today.pct, today.usd) : '<span style="color: var(--text-secondary);">–</span>'}</td>
+                <td data-label="Since bought" style="${cell}">${v.priced ? pctHtml(v.changePct, v.gainUsd) : '<span style="color: var(--text-secondary);">no price</span>'}</td>
                 <td class="pp-act" style="${cell}"><button data-pp="sell" data-id="${esc(h.id)}" class="pp-btn${busy === 'sell:' + h.id ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'sell:' + h.id ? 'Selling…' : 'Sell'}</button></td>
             </tr>`;
         }).join('');
@@ -574,9 +595,9 @@
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
         el.innerHTML = `
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
-                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
+                ${card('Account value', usd(s.accountValue), `${s.dayUsd === null ? '' : `<span class="pp-today">Today ${movedHtml(s.dayUsd, s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null)}</span><br>`}${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
                 ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
-                ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `${movedHtml(s.openGainUsd, s.openGainPct)} on ${usd(s.cost)} put in`)}
+                ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `${s.dayUsd === null ? '' : `Today ${movedHtml(s.dayUsd, s.dayPct)}<br>`}${movedHtml(s.openGainUsd, s.openGainPct)} since bought, on ${usd(s.cost)} put in`)}
                 ${card('For comparison: S&amp;P 500 fund', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? `the same money in an S&amp;P 500 index fund instead: <span id="pp-us-opens">${esc(marketWait())}</span>, so there is nothing to compare yet` : 'the same money in an S&amp;P 500 index fund instead' + versusFund(s))}
             </div>
             ${splitLine}
@@ -593,11 +614,11 @@
                 <button data-pp="buy" class="pp-btn big${busy === 'buy' ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'buy' ? 'Buying…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
-            ${state.holdings.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${state.holdings.length})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Change')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
+            ${state.holdings.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${state.holdings.length})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
             ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" class="pp-btn ghost${busy === 'clearsold' ? ' busy' : ''}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>${busy === 'clearsold' ? 'Clearing…' : 'Clear sold list'}</button></div></details>` : ''}
             ${beside ? '' : `<div id="pp-tools" style="margin-top: 12px;">${toolsHtml()}</div>`}
             <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
-                <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. General information only, not financial advice.</span>
+                <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. “Today” is what is held now, each holding since its market’s previous close (a coin: since 00:00 UTC) or since it was bought if that was later; while its market is closed it is the last session. A sale made today is not in it. General information only, not financial advice.</span>
             </div>`;
         if (beside) beside.innerHTML = toolsHtml();
     }
@@ -828,7 +849,7 @@
         if (!state || !loaded) return '';
         const s = summarize(state, quotes), mine = state.holdings.filter(h => h.by !== 'ai'), its = state.holdings.filter(h => h.by === 'ai');
         const one = (h) => { const v = valueOf(h, quotes); return `${h.label || h.symbol} ${usd(v.valueUsd)} (${v.priced ? moved(v.gainUsd) : 'no price now'})`; };
-        return ['PRACTICE PORTFOLIO (fake money): account value ' + usd(s.accountValue) + ', ' + moved(s.gainUsd) + ' since the start of ' + usd(STARTING_CASH) + '; practice cash left ' + usd(state.cash) + '.',
+        return ['PRACTICE PORTFOLIO (fake money): ' + (s.dayUsd === null ? '' : 'today (what it holds now, each holding since its market\'s previous close) ' + moved(s.dayUsd) + '; ') + 'account value ' + usd(s.accountValue) + ', ' + moved(s.gainUsd) + ' since the start of ' + usd(STARTING_CASH) + '; practice cash left ' + usd(state.cash) + '.',
             'Bought by the user (' + mine.length + '): ' + (mine.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Bought by the autopilot and still held (' + its.length + '): ' + (its.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Sold so far: ' + state.closed.length + '.'].join('\n');
