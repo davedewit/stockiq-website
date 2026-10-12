@@ -186,7 +186,113 @@
             + ' The AI model also reviews it at every check-in and may sell it earlier.' + shut;
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT };
+    // ---------------------------------------------------------------- the account over time (no page, no network)
+    // The daily prices that come with a quote (the price source answers with a month of them) as [time in ms, price] at each
+    // session's close, ending with the latest price. A market that trades every day (coins, exchange rates) closes a day
+    // after its bar starts, a stock exchange about six and a half hours after. The bar of a session still running, or one
+    // sent a second time after the close, is left out: the latest price stands for it.
+    function seriesOf(result, symbol) {
+        const ts = (result && result.timestamp) || [], meta = (result && result.meta) || {};
+        const close = ((((result || {}).indicators || {}).quote || [])[0] || {}).close || [];
+        const always = /-USD$|=X$/.test(String(symbol || '')), last = (meta.regularMarketTime || 0) * 1000, out = [];
+        for (let i = 0; i < ts.length; i++) {
+            if (!(close[i] > 0)) continue;
+            const end = Math.min(ts[i] * 1000 + (always ? 86400000 : 23400000), i + 1 < ts.length ? ts[i + 1] * 1000 : Infinity);
+            if (last && end >= last) break;
+            out.push([end, close[i]]);
+        }
+        if (last && meta.regularMarketPrice > 0) out.push([last, meta.regularMarketPrice]);
+        return out;
+    }
+    // A value at time t from known points [time, value], along straight lines between them; null before the first
+    function valueAt(knots, t) {
+        if (!knots.length || t < knots[0][0]) return null;
+        let lo = 0, hi = knots.length - 1;
+        if (t >= knots[hi][0]) return knots[hi][1];
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (knots[mid][0] <= t) lo = mid; else hi = mid; }
+        return knots[lo][1] + (knots[hi][1] - knots[lo][1]) * (t - knots[lo][0]) / ((knots[hi][0] - knots[lo][0]) || 1);
+    }
+    // The account at every moment from `from` to `now`, worked out from what is in it. A holding still held is valued at
+    // its daily prices and at its latest price now. One that was sold is a straight line from what was put in to what came
+    // back: exact at both ends, a guess in between. Results of sales no longer in the list (the list was cleared, or is
+    // over its limit) have no dates left: they are counted from the beginning, and `undated` says how much that is.
+    // Each point: t, value (the account), all (its change since the start), ai (the autopilot's part), own (the user's).
+    function valueSeries(state, quotes, now, autoRealized, from) {
+        const ms = (x) => typeof x === 'number' ? x : Date.parse(x);
+        const start = ms(state.createdAt) || now, first = Math.min(now, Math.max(start, from || start)), lots = [];
+        const rates = (currency) => { const fx = fxFor(currency), q = fx.symbol && quotes[fx.symbol]; return !fx.symbol ? null : ((q && q.series) || []).map(([t, p]) => [t, fxRate(fx, p)]).filter(k => k[1] > 0); };
+        const paid = (h) => h.qty > 0 && h.buyPrice > 0 && h.buyFx > 0 ? h.qty * h.buyPrice * h.buyFx : h.costUsd;      // its worth the moment after buying: what was put in less the cost of buying
+        state.holdings.forEach(h => {
+            const bought = ms(h.boughtAt), q = quotes[h.symbol], fx = rates(h.currency), knots = [[bought, paid(h)]];
+            ((q && q.series) || []).forEach(([t, p]) => {
+                if (t <= bought || t >= now) return;
+                const rate = fx === null ? 1 : (valueAt(fx, t) || h.buyFx);
+                if (rate > 0) knots.push([t, h.qty * p * rate]);
+            });
+            knots.push([Math.max(now, bought + 1), valueOf(h, quotes).valueUsd]);
+            lots.push({ ai: h.by === 'ai', cost: h.costUsd, from: bought, knots });
+        });
+        state.closed.forEach(h => {
+            const bought = ms(h.boughtAt);
+            lots.push({ ai: h.by === 'ai', cost: h.costUsd, from: bought, knots: [[bought, paid(h)], [Math.max(ms(h.soldAt), bought + 1), h.proceedsUsd]] });
+        });
+        const gain = (lot, t) => t < lot.from ? 0 : valueAt(lot.knots, t) - lot.cost;
+        const split = splitGain(state, quotes, autoRealized);
+        const undated = split.total - lots.reduce((sum, l) => sum + gain(l, now), 0);
+        const undatedAi = split.auto - lots.reduce((sum, l) => sum + (l.ai ? gain(l, now) : 0), 0);
+        const times = new Set([first, now]);
+        lots.forEach(l => l.knots.forEach(k => { if (k[0] > first && k[0] < now) times.add(k[0]); }));
+        for (let i = 1; i < 120; i++) times.add(Math.round(first + (now - first) * i / 120));
+        const points = [...times].sort((a, b) => a - b).map(t => {
+            let all = undated, ai = undatedAi;
+            lots.forEach(l => { const g = gain(l, t); all += g; if (l.ai) ai += g; });
+            return { t, value: state.startingCash + all, all, ai, own: all - ai };
+        });
+        return { start, from: first, now, points, undated, undatedAi, lots: lots.length, anyAi: split.any };
+    }
+    // Round numbers for an axis that covers lo..hi in about `count` steps
+    function axisTicks(lo, hi, count) {
+        const span = (hi - lo) || 1, raw = span / Math.max(1, count), mag = Math.pow(10, Math.floor(Math.log10(raw))), unit = raw / mag;
+        const step = (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10) * mag, out = [];
+        for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(Math.round(v / step) * step);
+        return { step, ticks: out };
+    }
+    // The graph as an SVG picture. key: 'value' (the account, against the amount it started with), 'own' or 'ai' (that part's
+    // gain or loss, against zero). Returns the picture and where each point sits, for the pointer to read values off.
+    function chartSvg(series, key, width, height) {
+        const pts = series.points, base = key === 'value' ? pts.length ? pts[0].value - pts[0].all : 0 : 0;
+        const W = Math.max(260, Math.round(width || 720)), H = Math.round(height || 220), small = W < 480;
+        const m = { l: small ? 54 : 70, r: 14, t: 12, b: 24 }, w = W - m.l - m.r, h = H - m.t - m.b;
+        const vals = pts.map(p => p[key]).concat([base]);
+        let lo = Math.min(...vals), hi = Math.max(...vals);
+        const pad = Math.max((hi - lo) * 0.12, Math.abs(base) * 0.0002, 1); lo -= pad; hi += pad;
+        const t0 = series.from, t1 = Math.max(series.now, t0 + 1);
+        const x = (t) => m.l + w * (t - t0) / (t1 - t0), y = (v) => m.t + h * (1 - (v - lo) / (hi - lo));
+        const cents = hi - lo < 20;
+        const label = (v) => key === 'value' ? '$' + v.toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 })
+            : (Math.abs(v) < 0.005 ? '$0' : (v > 0 ? '+$' : '-$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 }));
+        const days = (t1 - t0) / 86400000;
+        const stamp = (t) => { const d = new Date(t); return days <= 3 ? d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+        let out = `<svg id="pp-chart-svg" class="pp-chart-svg" role="img" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="${esc(key === 'value' ? 'Account value over time' : key === 'ai' ? 'The autopilot’s result over time' : 'The result of your own buys over time')}: from ${esc(label(pts[0][key]))} to ${esc(label(pts[pts.length - 1][key]))}">`;
+        axisTicks(lo, hi, small ? 3 : 4).ticks.forEach(v => {
+            out += `<line class="pp-grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="pp-axis" x="${m.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(label(v))}</text>`;
+        });
+        const n = small ? 3 : 5;
+        for (let i = 0; i <= n; i++) {
+            const t = t0 + (t1 - t0) * i / n;
+            out += `<text class="pp-axis" x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === n ? 'end' : 'middle'}">${esc(stamp(t))}</text>`;
+        }
+        // where it started: the line everything is measured against
+        out += `<line class="pp-base" x1="${m.l}" x2="${W - m.r}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
+        const placed = pts.map(p => ({ t: p.t, v: p[key], all: p.all, x: +x(p.t).toFixed(1), y: +y(p[key]).toFixed(1) }));
+        out += `<path class="pp-line" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.y).join('')}"/>`;
+        const end = placed[placed.length - 1];
+        out += `<line id="pp-cross" class="pp-cross" x1="${end.x}" x2="${end.x}" y1="${m.t}" y2="${m.t + h}" style="display:none"/>`;
+        out += `<circle id="pp-dot" class="pp-dot" cx="${end.x}" cy="${end.y}" r="4"/></svg>`;
+        return { svg: out, placed, base, width: W };
+    }
+
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, valueSeries, axisTicks, chartSvg };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -194,6 +300,33 @@
     // On a phone a table of seven columns cannot be read: each holding becomes a card, every figure on its own labelled line.
     // (The cells carry inline styles, hence the !important.)
     const PP_CSS = `
+        #practice-portfolio { --pp-line: #2563eb; }
+        [data-theme="dark"] #practice-portfolio { --pp-line: #3b82f6; }
+        #practice-portfolio .pp-chart { border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px 8px; margin-bottom: 14px; background: var(--bg-primary); }
+        #practice-portfolio .pp-chart-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+        #practice-portfolio .pp-chart-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+        #practice-portfolio .pp-chart-read { font-size: 0.9rem; color: var(--text-primary); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+        #practice-portfolio .pp-chart-read .pp-chart-when { color: var(--text-secondary); margin-right: 8px; }
+        #practice-portfolio .pp-chart-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+        #practice-portfolio .pp-chart-tabs button { background: none; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 999px; padding: 3px 11px; font-size: 0.78rem; cursor: pointer; }
+        #practice-portfolio .pp-chart-tabs button[aria-pressed="true"] { color: var(--text-primary); border-color: var(--text-secondary); font-weight: 600; }
+        #practice-portfolio .pp-chart-svg { display: block; width: 100%; height: auto; touch-action: pan-y; cursor: crosshair; }
+        #practice-portfolio .pp-grid { stroke: var(--border-color); stroke-width: 1; }
+        #practice-portfolio .pp-base { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.7; }
+        #practice-portfolio .pp-axis { fill: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+        #practice-portfolio .pp-line { fill: none; stroke: var(--pp-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+        #practice-portfolio .pp-cross { stroke: var(--text-secondary); stroke-width: 1; }
+        #practice-portfolio .pp-dot { fill: var(--pp-line); stroke: var(--bg-primary); stroke-width: 2; }
+        #practice-portfolio .pp-chart-note { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+        #practice-portfolio .pp-chart details { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; }
+        #practice-portfolio .pp-chart table { border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+        #practice-portfolio .pp-chart td, #practice-portfolio .pp-chart th { padding: 2px 14px 2px 0; text-align: right; font-weight: normal; }
+        #practice-portfolio .pp-chart td:first-child, #practice-portfolio .pp-chart th:first-child { text-align: left; }
+        @media (max-width: 640px) {
+            #practice-portfolio .pp-chart { padding: 10px 10px 6px; }
+            #practice-portfolio .pp-chart .pp-fig-part { display: none; }
+            #practice-portfolio .pp-chart td, #practice-portfolio .pp-chart th { padding-right: 10px; white-space: nowrap; }
+        }
         #practice-portfolio { font-variant-numeric: tabular-nums; }
         #practice-portfolio .pp-card { flex: 1; min-width: 150px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; border-top: 3px solid transparent; }
         #practice-portfolio .pp-card.up { border-top-color: #16a34a; } #practice-portfolio .pp-card.down { border-top-color: #ef4444; }
@@ -261,9 +394,10 @@
     async function fetchQuote(symbol) {
         try {
             const res = await fetch(PRICE_API + encodeURIComponent(symbol));
-            const meta = (await res.json())?.chart?.result?.[0]?.meta;
+            const result = (await res.json())?.chart?.result?.[0], meta = result && result.meta;
             if (!meta || !(meta.regularMarketPrice > 0)) return null;
-            return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0 };
+            // series: the month of daily prices that comes with every quote, for the graph of the account over time
+            return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol) };
         } catch (e) { return null; }
     }
     // A quote plus what is needed to turn it into dollars and compare it with the market
@@ -409,6 +543,7 @@
                 ${card('For comparison', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? 'the same money in an S&amp;P 500 index fund instead: the US stock market has not traded since you bought (it is closed at weekends), so there is nothing to compare yet' : 'the same money in an S&amp;P 500 index fund instead')}
             </div>
             ${splitLine}
+            <div id="pp-chart">${chartHtml()}</div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 6px;">
                 <div class="pp-find" style="position: relative; flex: 2; min-width: 200px;">
                     <input id="pp-symbol" type="text" autocomplete="off" placeholder="Search for tickers or companies" aria-label="Stock code or company name" style="width: 100%; box-sizing: border-box; padding: 10px 32px 10px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px;">
@@ -433,6 +568,64 @@
     }
 
     function say(text, bad) { notice = text ? { text, bad: !!bad } : null; }
+    // ---------------------------------------------------------------- the graph of the account over time
+    const CHART_RANGES = { all: ['All', 0], month: ['1 month', 30 * 86400000], week: ['1 week', 7 * 86400000] };
+    let chartKey = 'value', chartRange = 'all';      // which line (the account, the user's own buys, the autopilot's) and how far back
+    let chartNow = null;                             // where each point sits in the picture on show: the pointer reads values off it
+    try {
+        const k = localStorage.getItem('stockiqPracticeChartKey'), r = localStorage.getItem('stockiqPracticeChartRange');
+        if (['value', 'own', 'ai'].includes(k)) chartKey = k;
+        if (CHART_RANGES[r]) chartRange = r;
+    } catch (e) { /* a private window: the choice is simply not remembered */ }
+    // The line above the picture: a moment, the figure then, and the change
+    function chartRead(point) {
+        const moment = `<span class="pp-chart-when">${esc(new Date(point.t).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`;
+        return chartKey === 'value' ? `${moment}<strong>${usd(point.v)}</strong> &nbsp;${movedHtml(point.all, state ? point.all / state.startingCash * 100 : null)} since the start` : `${moment}${movedHtml(point.v)}`;
+    }
+    function chartHtml() {
+        if (!state || !(state.holdings.length || state.closed.length)) return '';
+        const now = Date.now(), age = now - (Date.parse(state.createdAt) || now);
+        const ranges = Object.keys(CHART_RANGES).filter(r => r === 'all' || age > CHART_RANGES[r][1] * 1.15);
+        if (!ranges.includes(chartRange)) chartRange = 'all';
+        const series = valueSeries(state, quotes, now, autoRealized, chartRange === 'all' ? 0 : now - CHART_RANGES[chartRange][1]);
+        if (!series.anyAi) chartKey = 'value';
+        const el = box(), width = Math.min(1100, Math.max(260, ((el && el.clientWidth) || 750) - 30));
+        const picture = chartSvg(series, chartKey, width, width < 480 ? 180 : 220);
+        chartNow = { placed: picture.placed, width: picture.width };
+        const tab = (kind, id, text, on) => `<button type="button" data-pp="chart-${kind}" data-id="${id}" aria-pressed="${on}">${text}</button>`;
+        const kinds = series.anyAi ? [['value', 'Account'], ['own', 'Your own buys'], ['ai', '🤖 AI autopilot']] : [];
+        const title = chartKey === 'value' ? 'Account value over time' : chartKey === 'ai' ? 'The autopilot’s result over time' : 'Your own buys: result over time';
+        // the figures behind the picture, a line a day (the last moment of each day)
+        const perDay = {};
+        series.points.forEach(point => { perDay[new Date(point.t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })] = point; });
+        const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td>${movedHtml(point.all)}</td>${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
+        const undated = Math.abs(series.undated) > 0.5 ? ` The result of sold holdings that are no longer in the list (${moved(series.undated)}) has no dates left, so it is counted from the start.` : '';
+        return `<div class="pp-chart">
+            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.length > 1 ? ranges.map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('') : ''}</span></div>
+            <div class="pp-chart-read" id="pp-chart-read">${chartRead(picture.placed[picture.placed.length - 1])}</div>
+            ${picture.svg}
+            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${undated}</div>
+            <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th>Since the start</th>${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
+        </div>`;
+    }
+    function drawChart() { const slot = document.getElementById('pp-chart'); if (slot && state && loaded) slot.innerHTML = chartHtml(); }
+    // The pointer over the picture: a line at that moment, and its figures above
+    function chartShow(point, crossed) {
+        const cross = document.getElementById('pp-cross'), dot = document.getElementById('pp-dot'), read = document.getElementById('pp-chart-read');
+        if (cross) { cross.setAttribute('x1', point.x); cross.setAttribute('x2', point.x); cross.style.display = crossed ? '' : 'none'; }
+        if (dot) { dot.setAttribute('cx', point.x); dot.setAttribute('cy', point.y); }
+        if (read) read.innerHTML = chartRead(point);
+    }
+    function chartPoint(e) {
+        const svg = e.target && e.target.closest && e.target.closest('#pp-chart-svg');
+        if (!svg || !chartNow) return;
+        const rect = svg.getBoundingClientRect(), touch = e.touches && e.touches[0];
+        const at = ((touch ? touch.clientX : e.clientX) - rect.left) * chartNow.width / (rect.width || chartNow.width);
+        let best = chartNow.placed[0];
+        chartNow.placed.forEach(point => { if (Math.abs(point.x - at) < Math.abs(best.x - at)) best = point; });
+        chartShow(best, true);
+    }
+
     async function run(task) {
         if (working) return;
         // keep what is typed while the section is redrawn
@@ -446,11 +639,29 @@
         if (!ok) { restore(); showClear(); }
     }
 
+    document.addEventListener('mousemove', chartPoint);
+    document.addEventListener('touchstart', chartPoint, { passive: true });
+    document.addEventListener('touchmove', chartPoint, { passive: true });
+    document.addEventListener('mouseout', (e) => {
+        const from = e.target && e.target.closest && e.target.closest('#pp-chart-svg'), to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#pp-chart-svg');
+        if (from && !to && chartNow) chartShow(chartNow.placed[chartNow.placed.length - 1], false);
+    });
+    // The picture is drawn to the width it has: draw it again when that changes (a tab opened, a window resized, a phone turned)
+    let chartTimer = null, chartWidth = 0;
+    const chartFit = () => { const el = box(), w = el ? el.clientWidth : 0; if (w && Math.abs(w - chartWidth) > 8) { chartWidth = w; clearTimeout(chartTimer); chartTimer = setTimeout(drawChart, 120); } };
+    if (typeof ResizeObserver !== 'undefined' && box()) new ResizeObserver(chartFit).observe(box()); else if (window.addEventListener) window.addEventListener('resize', chartFit);
+
     document.addEventListener('click', (e) => {
         const t = e.target.closest && e.target.closest('[data-pp]');
         if (!t) { const sug = document.getElementById('pp-suggest'); if (sug && !e.target.closest('#pp-suggest, #pp-symbol')) sug.style.display = 'none'; return; }
         const action = t.getAttribute('data-pp');
         if (t.tagName === 'A') e.preventDefault();
+        if (action === 'chart-key' || action === 'chart-range') {
+            if (action === 'chart-key') chartKey = t.getAttribute('data-id'); else chartRange = t.getAttribute('data-id');
+            try { localStorage.setItem(action === 'chart-key' ? 'stockiqPracticeChartKey' : 'stockiqPracticeChartRange', t.getAttribute('data-id')); } catch (err) { /* not remembered */ }
+            drawChart();
+            return;
+        }
         if (action === 'pick') {
             const picked = t.getAttribute('data-symbol');
             document.getElementById('pp-symbol').value = picked;
