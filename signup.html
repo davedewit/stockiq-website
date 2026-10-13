@@ -294,6 +294,10 @@
             
             if (cachedPaidStatus === 'paid' && banner) {
                 banner.style.display = 'none';
+                if (window.innerWidth > 768) {   // no strip: the bar at the top and the page under it (a phone never has the strip)
+                    document.documentElement.style.setProperty('--nav-top', '0');
+                    document.documentElement.style.setProperty('--body-padding', '64px');
+                }
             } else if (userId === 'anonymous' && banner) {
                 banner.innerHTML = 'Free 3-day trial: <strong style="color: #22c55e;">15 analyses</strong>, no credit card needed';
             }

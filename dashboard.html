@@ -82,7 +82,9 @@
         if (cachedPaidStatus === 'paid') {
             if (banner) banner.classList.add('hidden');
             document.documentElement.style.setProperty('--nav-top', '0');
-            document.documentElement.style.setProperty('--body-padding', '105px');
+            // no strip: on a desktop the page starts under the 64px bar (it was 105px, which left the strip's room empty
+            // above "Your Dashboard"); a phone never has the strip and its layout counts on the 105px
+            document.documentElement.style.setProperty('--body-padding', window.innerWidth > 768 ? '64px' : '105px');
             document.documentElement.style.setProperty('--sticky-top', '64px');
             document.documentElement.style.setProperty('--mobile-menu-top', '64px');
             document.documentElement.style.setProperty('--mobile-menu-height', 'calc(100vh - 64px)');
@@ -1260,7 +1262,7 @@
         </div>
 
         <!-- Auto-Delete Setting -->
-        <div class="history-section" style="scroll-margin-top: 120px; margin-bottom: 20px;">
+        <div class="history-section" style="scroll-margin-top: calc(var(--body-padding, 105px) + 15px); margin-bottom: 20px;">
             <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; margin-top: 0;">
                 <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;">Automatically delete analyses older than:</p>
                 <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
@@ -1293,7 +1295,7 @@
         </div>
 
         <!-- The plan sections stay below every tab: other pages link to dashboard.html#upgrade and code scrolls here -->
-        <div class="history-section" id="upgrade" style="scroll-margin-top: 120px;">
+        <div class="history-section" id="upgrade" style="scroll-margin-top: calc(var(--body-padding, 105px) + 15px);">
             <h2>💎 Upgrade Your Plan</h2>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; align-items: stretch;">
 <div onclick="subscribeToPlan('starter')" style="background: var(--card-bg); border: 2px solid var(--border-color); border-radius: 12px; padding: 25px; text-align: center; display: flex; flex-direction: column; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">

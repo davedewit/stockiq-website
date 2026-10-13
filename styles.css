@@ -420,6 +420,14 @@ body.menu-open {
     display: none !important;
 }
 
+/* Stock pages: the page leaves 105px for the header whether the strip across the top shows or not, so with the strip
+   (41px, then the 64px bar) the title sat right under the bar, and without it 41px lower. Their own script sets
+   --nav-top to the strip's height or to 0: the content moves down by that much, so the title starts the same distance
+   under the header either way. #live-ticker is only on stock pages. */
+main:has(> div > #live-ticker) {
+    margin-top: var(--nav-top, 0px) !important;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .promo-banner {
