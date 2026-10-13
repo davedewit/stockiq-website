@@ -214,8 +214,8 @@
                     <div class="dropdown-menu" id="screeners-dropdown">
                         <a href="analysis.html?option=3">🇺🇸 US Markets</a>
                         <a href="analysis.html?option=4">🇪🇺 Europe Markets</a>
-                        <a href="analysis.html?option=5">🌏 Asia Markets</a>
-                        <a href="analysis.html?option=6">🌏 Other Markets</a>
+                        <a href="analysis.html?option=5">🌏 Asia-Pacific Markets</a>
+                        <a href="analysis.html?option=6">🌎 Americas Markets</a>
                     </div>
                 </div>
                 <div class="nav-item dropdown" onclick="showDropdown('crypto-dropdown', event)">
@@ -291,8 +291,8 @@
                 <div class="mobile-section-title">Screeners</div>
                 <a href="analysis.html?option=3">🇺🇸 US Markets</a>
                 <a href="analysis.html?option=4">🇪🇺 Europe Markets</a>
-                <a href="analysis.html?option=5">🌏 Asia Markets</a>
-                <a href="analysis.html?option=6">🌏 Other Markets</a>
+                <a href="analysis.html?option=5">🌏 Asia-Pacific Markets</a>
+                <a href="analysis.html?option=6">🌎 Americas Markets</a>
             </div>
             <div class="mobile-section">
                 <div class="mobile-section-title">Crypto</div>
@@ -336,11 +336,11 @@
                     </button>
                     <button class="menu-btn" onclick="selectOption(5)">
                         <span class="option-number">5.</span>
-                        <span class="option-text">Asia Market Screener</span>
+                        <span class="option-text">Asia-Pacific Market Screener</span>
                     </button>
                     <button class="menu-btn" onclick="selectOption(6)">
                         <span class="option-number">6.</span>
-                        <span class="option-text">Other Markets</span>
+                        <span class="option-text">Americas Market Screener</span>
                     </button>
                     <button class="menu-btn" onclick="selectOption(7)">
                         <span class="option-number">7.</span>
@@ -400,7 +400,7 @@
 
             <!-- Option 3: US Stock Screener -->
             <div id="option-3" class="option-section" style="display: none;">
-                <h2>🇺🇸 US STOCK SCREENER</h2>
+                <h2>🇺🇸 US MARKETS</h2>
                 <div class="screener-options">
                     <button class="screener-btn" onclick="runAnalysis(3, '100', event)">📊 S&P 100 (LargeCap) (101 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(3, '2', event)">📈 S&P 400+600 (Mid+SmallCap) (995 stocks)</button>
@@ -417,38 +417,44 @@
             <div id="option-4" class="option-section" style="display: none;">
                 <h2>🇪🇺 EUROPE MARKETS</h2>
                 <div class="screener-options">
-                    <button class="screener-btn" onclick="runAnalysis(4, 'ftse100', event)">🇬🇧 UK (FTSE 100)</button>
+                    <button class="screener-btn" onclick="runAnalysis(4, 'ftse100', event)">🇬🇧 UK (FTSE 100) (100 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'dax40', event)">🇩🇪 Germany (DAX 40) (40 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'cac40', event)">🇫🇷 France (CAC 40) (40 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'smi', event)">🇨🇭 Switzerland (SMI) (20 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'aex', event)">🇳🇱 Netherlands (AEX) (30 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'ftsemib', event)">🇮🇹 Italy (FTSE MIB) (40 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'ibex35', event)">🇪🇸 Spain (IBEX 35) (35 stocks)</button>
+                    <button class="screener-btn coming-soon" onclick="showComingSoonPopup()">🇪🇺 Euro Stoxx 50 - Coming Soon</button>
+                    <button class="screener-btn coming-soon" onclick="showComingSoonPopup()">🇸🇪 Sweden (OMX 30) - Coming Soon</button>
                 </div>
             </div>
 
-            <!-- Option 5: Asia Stock Screener -->
+            <!-- Option 5: Asia-Pacific Markets (Australia, Japan, Hong Kong, India, South Korea, Singapore) -->
             <div id="option-5" class="option-section" style="display: none;">
-                <h2>🌏 ASIA STOCK SCREENER</h2>
+                <h2>🌏 ASIA-PACIFIC MARKETS</h2>
                 <div class="screener-options">
-                    <button class="screener-btn" onclick="runAnalysis(5, '50', event)">📊 ASX 50 (49 stocks)</button>
-                    <button class="screener-btn" onclick="runAnalysis(5, '100', event)">📈 ASX 100 (99 stocks)</button>
-                    <button class="screener-btn" onclick="runAnalysis(5, '200', event)">🎯 ASX 200 (195 stocks)</button>
-                    <button class="screener-btn" onclick="runAnalysis(5, '300', event)">🚀 ASX 300 (294 stocks)</button>
+                    <button class="screener-btn" onclick="runAnalysis(5, '50', event)">🇦🇺 Australia (ASX 50) (49 stocks)</button>
+                    <button class="screener-btn" onclick="runAnalysis(5, '100', event)">🇦🇺 Australia (ASX 100) (99 stocks)</button>
+                    <button class="screener-btn" onclick="runAnalysis(5, '200', event)">🇦🇺 Australia (ASX 200) (195 stocks)</button>
+                    <button class="screener-btn" onclick="runAnalysis(5, '300', event)">🇦🇺 Australia (ASX 300) (294 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'nikkei225', event)">🇯🇵 Japan (Nikkei 225) (225 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'sensex', event)">🇮🇳 India (BSE Sensex) (30 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'kospi200', event)">🇰🇷 South Korea (KOSPI 200) (200 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'hangseng', event)">🇭🇰 Hong Kong (Hang Seng) (95 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'sti', event)">🇸🇬 Singapore (STI) (30 stocks)</button>
+                    <button class="screener-btn coming-soon" onclick="showComingSoonPopup()">🇨🇳 China (CSI 300) - Coming Soon</button>
+                    <button class="screener-btn coming-soon" onclick="showComingSoonPopup()">🇹🇼 Taiwan (TWSE 50) - Coming Soon</button>
+                    <button class="screener-btn coming-soon" onclick="showComingSoonPopup()">🇳🇿 New Zealand (NZX 50) - Coming Soon</button>
                 </div>
             </div>
 
-            <!-- Option 6: Other Markets -->
+            <!-- Option 6: Americas Markets (Canada, Brazil; the US has its own section) -->
             <div id="option-6" class="option-section" style="display: none;">
-                <h2>🌍 OTHER MARKETS</h2>
+                <h2>🌎 AMERICAS MARKETS</h2>
                 <div class="screener-options">
                     <button class="screener-btn" onclick="runAnalysis(5, 'tsx60', event)">🇨🇦 Canada (TSX 60) (60 stocks)</button>
                     <button class="screener-btn" onclick="runAnalysis(5, 'bovespa', event)">🇧🇷 Brazil (Bovespa) (76 stocks)</button>
+                    <button class="screener-btn coming-soon" onclick="showComingSoonPopup()">🇲🇽 Mexico (IPC) - Coming Soon</button>
                 </div>
             </div>
 
