@@ -939,5 +939,31 @@ const SHARE_SCREENERS = {
             'https://4unidbxbqql5kceirx6ikgr2wm0yzosn.lambda-url.us-east-1.on.aws/',
             'https://hpyyslneo3dq3z3vtoobwpydwu0eplnw.lambda-url.us-east-1.on.aws/'
         ]
+    },
+    '5-ftsemib': {
+        name: 'Italy FTSE MIB', size: 40, use: 4, csv: 'Italy_FTSE_MIB_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇮🇹 ITALY FTSE MIB', stocks: 'Italy FTSE MIB stocks', exchange: 'Borsa Italiana (Milan)', currency: 'EUR', done: 'Italy FTSE MIB',
+                  type: 'option_5ftsemib_screener', title: 'Italy FTSE MIB Screener', symbol: 'ITALY_SCREENER',
+                  names: {'A2A.MI': 'A2A SpA', 'AMP.MI': 'Amplifon', 'AVIO.MI': 'Avio', 'AZM.MI': 'Azimut', 'BMED.MI': 'Banca Mediolanum', 'BMPS.MI': 'Monte dei Paschi', 'BAMI.MI': 'Banco BPM', 'BPE.MI': 'BPER Banca', 'BC.MI': 'Brunello Cucinelli', 'BZU.MI': 'Buzzi', 'CPR.MI': 'Campari', 'DIA.MI': 'DiaSorin', 'ENEL.MI': 'Enel', 'ENI.MI': 'Eni', 'RACE.MI': 'Ferrari', 'FCT.MI': 'Fincantieri', 'FBK.MI': 'FinecoBank', 'G.MI': 'Generali', 'HER.MI': 'Hera', 'ISP.MI': 'Intesa Sanpaolo', 'INW.MI': 'Inwit', 'IG.MI': 'Italgas', 'IVG.MI': 'Iveco Group', 'LDO.MI': 'Leonardo', 'LTMC.MI': 'Lottomatica', 'MB.MI': 'Mediobanca', 'MONC.MI': 'Moncler', 'NEXI.MI': 'Nexi', 'PST.MI': 'Poste Italiane', 'PRY.MI': 'Prysmian', 'REC.MI': 'Recordati', 'SPM.MI': 'Saipem', 'SRG.MI': 'Snam', 'STLAM.MI': 'Stellantis', 'STMMI.MI': 'STMicroelectronics', 'TIT.MI': 'Telecom Italia', 'TEN.MI': 'Tenaris', 'TRN.MI': 'Terna', 'UCG.MI': 'UniCredit', 'UNI.MI': 'Unipol'} },
+        list: ['A2A.MI','AMP.MI','AVIO.MI','AZM.MI','BMED.MI','BMPS.MI','BAMI.MI','BPE.MI','BC.MI','BZU.MI','CPR.MI','DIA.MI','ENEL.MI','ENI.MI','RACE.MI','FCT.MI','FBK.MI','G.MI','HER.MI','ISP.MI','INW.MI','IG.MI','IVG.MI','LDO.MI','LTMC.MI','MB.MI','MONC.MI','NEXI.MI','PST.MI','PRY.MI','REC.MI','SPM.MI','SRG.MI','STLAM.MI','STMMI.MI','TIT.MI','TEN.MI','TRN.MI','UCG.MI','UNI.MI'],
+        workers: [
+            'https://7wlokuq33vou6ylaxcq3tgnydy0vudza.lambda-url.us-east-1.on.aws/',
+            'https://2uw5x4jj7ev6djqkqyl6nszzb40nptdx.lambda-url.us-east-1.on.aws/',
+            'https://bb5exnaj5lfkcx5q45sphdnhea0ugclw.lambda-url.us-east-1.on.aws/',
+            'https://rpqfpjfwamqymvco5ml2vus3pi0ytgrh.lambda-url.us-east-1.on.aws/'
+        ]
+    },
+    '5-ibex35': {
+        name: 'Spain IBEX 35', size: 35, use: 4, csv: 'Spain_IBEX35_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇪🇸 SPAIN IBEX 35', stocks: 'Spain IBEX 35 stocks', exchange: 'Bolsa de Madrid', currency: 'EUR', done: 'Spain IBEX 35',
+                  type: 'option_5ibex35_screener', title: 'Spain IBEX 35 Screener', symbol: 'SPAIN_SCREENER',
+                  names: {'ANA.MC': 'Acciona', 'ANE.MC': 'Acciona Energia', 'ACX.MC': 'Acerinox', 'ACS.MC': 'ACS Group', 'AENA.MC': 'Aena', 'AMS.MC': 'Amadeus IT', 'MTS.MC': 'ArcelorMittal', 'BBVA.MC': 'Banco BBVA', 'SAB.MC': 'Banco Sabadell', 'SAN.MC': 'Banco Santander', 'BKT.MC': 'Bankinter', 'CABK.MC': 'CaixaBank', 'CLNX.MC': 'Cellnex Telecom', 'COL.MC': 'Colonial', 'ENG.MC': 'Enagas', 'ELE.MC': 'Endesa', 'FER.MC': 'Ferrovial', 'FDR.MC': 'Fluidra', 'GRF.MC': 'Grifols', 'IBE.MC': 'Iberdrola', 'ITX.MC': 'Inditex', 'IDR.MC': 'Indra', 'IAG.MC': 'IAG Airlines', 'LOG.MC': 'Logista', 'MAP.MC': 'Mapfre', 'MRL.MC': 'Merlin Properties', 'NTGY.MC': 'Naturgy', 'PUIG.MC': 'Puig Brands', 'RED.MC': 'Redeia', 'REP.MC': 'Repsol', 'ROVI.MC': 'Rovi', 'SCYR.MC': 'Sacyr', 'SLR.MC': 'Solaria', 'TEF.MC': 'Telefonica', 'UNI.MC': 'Unicaja Banco'} },
+        list: ['ANA.MC','ANE.MC','ACX.MC','ACS.MC','AENA.MC','AMS.MC','MTS.MC','BBVA.MC','SAB.MC','SAN.MC','BKT.MC','CABK.MC','CLNX.MC','COL.MC','ENG.MC','ELE.MC','FER.MC','FDR.MC','GRF.MC','IBE.MC','ITX.MC','IDR.MC','IAG.MC','LOG.MC','MAP.MC','MRL.MC','NTGY.MC','PUIG.MC','RED.MC','REP.MC','ROVI.MC','SCYR.MC','SLR.MC','TEF.MC','UNI.MC'],
+        workers: [
+            'https://mpfgcyebtjyqkjlc6fvew4e5ye0ecjtd.lambda-url.us-east-1.on.aws/',
+            'https://7lzrzp7haa7fbnfcxnumc75ybe0gwnvz.lambda-url.us-east-1.on.aws/',
+            'https://qho4zg6v3fotbj5czmylxsr4ru0pxxpb.lambda-url.us-east-1.on.aws/',
+            'https://7q2pei47vfanbmma7dzq765kle0sbtwi.lambda-url.us-east-1.on.aws/'
+        ]
     }
 };
