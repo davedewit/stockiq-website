@@ -238,3 +238,30 @@ document.addEventListener('visibilitychange', function() {
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
+
+// VISITOR_BAR_START (check-tools/pending-banners-undo/deploy.sh takes everything from here to VISITOR_BAR_END out again)
+// The visitor's usage count ("1 free today", "3/5 today", "Unlimited") is shown as a chip inside the header bar by
+// visitor-bar.js. The pages still work the count out and write it into their own floating badge (#trial-status-display);
+// this hides that badge before it is ever drawn, and the script reads it. The round "Start 3-Day Free Trial" and
+// "Upgrade Plan" buttons, which the pages put in different corners, all sit bottom left.
+// THIS BLOCK IS THE WHOLE SWITCH: without it every page shows its own badge and buttons exactly as it did before.
+(function () {
+    var here = (document.currentScript && document.currentScript.src) || '';
+    var beside = /theme\.js/.test(here) ? here.replace(/theme\.js.*$/, '') : '/';
+    function go() {
+        try {
+            if (window.visitorBar || document.getElementById('vb-old') || !document.querySelector('.top-nav .nav-container')) return;
+            var old = document.createElement('style');
+            old.id = 'vb-old';
+            old.textContent = '#trial-status-display { display: none !important; } ' +
+                '#sticky-register-btn a, #sticky-upgrade-btn a { left: 20px !important; right: auto !important; bottom: 20px !important; padding: 12px 20px !important; font-size: 0.9rem !important; }';
+            document.head.appendChild(old);
+            var script = document.createElement('script');
+            script.src = beside + 'visitor-bar.js?h=' + Math.floor(Date.now() / 36e5); script.async = true;
+            script.onerror = function () { old.remove(); };        // the script did not arrive: the page's own badge shows again
+            document.head.appendChild(script);
+        } catch (e) { /* the page works without it */ }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+// VISITOR_BAR_END
