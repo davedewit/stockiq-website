@@ -189,6 +189,7 @@
     `;
 
     let data = null, draft = null, working = '', notice = null, showAll = false;
+    let presetUndo = null;                                  // what the fields held before a quick set-up was pressed, for its Undo
     let skew = 0;                                         // the server's clock minus this computer's, in ms: countdowns use the server's
     let saveTimer = null, saving = false, saveError = null, savedOnce = false, breakdownOpen = false;
     // The activity list: everything, or only buys and sells. A way of looking at the list, not a setting of the autopilot:
@@ -724,7 +725,7 @@
             <div class="ap-actions"><a id="ap-upgrade" class="ap-btn primary" href="#upgrade" style="text-decoration: none; color: #fff;">See the plans</a></div>
             <div class="ap-section"><h4>What it does</h4>
                 <ul style="margin: 4px 0 0 18px; padding: 0; line-height: 1.6;">
-                    <li>Buys from the screeners you choose (US, Australian, UK and Japanese shares, and coins), spreading the budget over the markets as you set it.</li>
+                    <li>Buys from the screeners you choose (shares in the US, Europe, Asia-Pacific and the Americas, and coins), spreading the budget over the markets as you set it.</li>
                     <li>Sells by rules you can see: a loss limit, a gain mark, a stop that follows a rising holding, and a longest holding time. An AI model also reviews each holding at every check-in.</li>
                     <li>Shows a countdown to its next check-in, what it plans to do, and every buy and sale with the reason.</li>
                     <li>Keeps a record of its results, compares each 20 finished trades with the 20 before, and tests changes to its own rules, keeping one only if it did clearly better.</li>
@@ -775,7 +776,7 @@
                     <button id="ap-sellall" data-ap="sellall" class="ap-btn${working === 'sellall' ? ' busy' : ''}" ${working || !holds ? 'disabled' : ''} title="${holds ? 'Sells every holding the autopilot bought, now, at the latest prices. Holdings you bought yourself are not touched' : 'It holds nothing right now'}">${working === 'sellall' ? 'Selling…' : 'Sell everything it holds' + (holds ? ' (' + holds + ')' : '')}</button>
                     <span id="ap-saved" class="ap-saved ${state.bad ? 'bad' : ''}">${esc(state.text)}</span>
                 </div>
-                <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) : ''}</div>
+                <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) + (notice.undo && presetUndo ? ' <a href="#" data-ap="undopreset" style="font-weight: 700; white-space: nowrap;">Undo: put my settings back</a>' : '') : ''}</div>
 
                 <div class="ap-views" role="tablist" aria-label="Autopilot">
                     <button type="button" id="ap-view-activity" class="ap-view ${part === 'activity' ? 'now' : ''}" data-ap-part="activity" role="tab">📋 Activity</button>
@@ -794,7 +795,7 @@
                 </div>
 
                 <div id="ap-pane-settings" class="ap-pane" style="${part === 'settings' ? '' : 'display: none;'}">
-                <div class="ap-presets"><span>Quick set-ups:</span>${PRESETS.filter(p => p.set.screeners.every(k => o.screeners[k])).map(p => `<button type="button" class="ap-preset" data-ap-preset="${p.key}" title="${esc(p.title)}">${p.name}</button>`).join('')}<span>They fill in the fields below (not the budget or the on/off switch); change anything afterwards.</span></div>
+                <div class="ap-presets"><span>Quick set-ups:</span>${PRESETS.filter(p => p.set.screeners.every(k => o.screeners[k])).map(p => `<button type="button" class="ap-preset" data-ap-preset="${p.key}" title="${esc(p.title)}">${p.name}</button>`).join('')}<span>Each one replaces the screeners ticked and the pace below (not the budget or the on/off switch). An Undo link appears when you press one.</span></div>
 
                 <div class="ap-card">
                     <span class="ap-label">Risk level</span>
@@ -991,7 +992,7 @@
         if (working) return;
         await flush();                                    // anything just changed is saved first
         if (saveError || isDirty()) { render(); return; }
-        working = kind; notice = null; render();
+        working = kind; notice = null; presetUndo = null; render();
         try { await task(); } catch (e) { notice = { text: e.message, bad: true }; }
         working = ''; render();
     }
@@ -1014,17 +1015,28 @@
         if (preset && data && byId('ap-risk')) {
             const p = PRESETS.find(x => x.key === preset.getAttribute('data-ap-preset'));
             if (!p) return;
+            const holdBox = byId('ap-hold');                // a quick set-up replaces the screeners ticked and the pace: keep what was there
+            if (!presetUndo) presetUndo = { risk: byId('ap-risk').value, period: byId('ap-period').value, every: byId('ap-every').value, hold: holdBox ? holdBox.value : null,
+                screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')) };
             byId('ap-risk').value = String(p.set.risk); byId('ap-period').value = String(p.set.periodDays); byId('ap-every').value = String(p.set.everyHours);
             const hold = byId('ap-hold'), want = (data.options.holdDays || []).find(v => Math.abs(v - p.set.maxHoldDays) < 1e-6);
             if (hold && want !== undefined) hold.value = String(want);
             Array.from(document.querySelectorAll('[data-ap-screener]')).forEach(c => { c.checked = p.set.screeners.includes(c.getAttribute('data-ap-screener')); });
-            saveError = null; notice = { text: `"${p.name.replace(/^\S+\s/, '')}" filled in: ${p.title.charAt(0).toLowerCase() + p.title.slice(1)}. Change anything you like; it is saved as you go.` };
+            saveError = null; notice = { text: `"${p.name.replace(/^\S+\s/, '')}" filled in: ${p.title.charAt(0).toLowerCase() + p.title.slice(1)}. It replaced the screeners that were ticked and the pace.`, undo: true };
             queueSave(150); return;
         }
         const t = e.target.closest && e.target.closest('[data-ap]');
         if (!t || !data) return;
         if (t.tagName === 'A') e.preventDefault();
         const action = t.getAttribute('data-ap');
+        if (action === 'undopreset' && presetUndo && byId('ap-risk')) {     // put back what a quick set-up replaced
+            const u = presetUndo, holdBox = byId('ap-hold'); presetUndo = null;
+            byId('ap-risk').value = u.risk; byId('ap-period').value = u.period; byId('ap-every').value = u.every;
+            if (holdBox && u.hold !== null) holdBox.value = u.hold;
+            Array.from(document.querySelectorAll('[data-ap-screener]')).forEach(c => { c.checked = u.screeners.includes(c.getAttribute('data-ap-screener')); });
+            saveError = null; notice = { text: 'Put back: the screeners and the pace are as they were before the quick set-up.' };
+            queueSave(150); return;
+        }
         if (action === 'more') { readDraft(); showAll = true; render(); }
         else if (action === 'refresh') {                    // show that the press was taken, and say when it is done
             t.classList.add('busy'); t.textContent = 'Refreshing…';
