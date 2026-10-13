@@ -3219,8 +3219,8 @@ Analysis Date: ${new Date().toLocaleString()}
         const topCount = Math.min(10, sortedResults.length);
         output += `🟢 TOP ${topCount} BY SCORE:\n`;
         sortedResults.slice(0, topCount).forEach((stock, i) => {
-            const symbol = (stock.symbol || 'N/A').padEnd(8);
-            const name = (r.names || {})[stock.symbol] || stock.symbol;
+            const symbol = reportText((stock.symbol || 'N/A').padEnd(8));        // a symbol can hold an "&" (M&M.NS), and the report is HTML
+            const name = (r.names || {})[stock.symbol] || reportText(stock.symbol);
             const price = `${screenerMoney(stock, stock.current_price || stock.price, r.currency)}`.padStart(10);
             const scoreVal = stock.total_score || stock.score || 0;
             const score = scoreVal >= 0 ? `+${scoreVal.toFixed(1)}` : `${scoreVal.toFixed(1)}`;
@@ -3235,7 +3235,7 @@ Analysis Date: ${new Date().toLocaleString()}
         sortedResults.slice(0, 3).forEach((stock, i) => {
             const priceVal = stock.price || 0;
             const scoreVal = stock.total_score || stock.score || 0;
-            output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, priceVal, r.currency)} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
+            output += `${i+1}. ${reportText(stock.symbol)}: ${screenerMoney(stock, priceVal, r.currency)} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
             if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                 output += '   📊 Score Breakdown:\n';
                 stock.score_breakdown.forEach(breakdown => {
