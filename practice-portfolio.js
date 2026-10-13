@@ -723,7 +723,7 @@
                 ${card('Account value', usd(s.accountValue), `${s.dayUsd === null ? '' : `<span class="pp-today">Today ${movedHtml(s.dayUsd, s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null)}</span><br>`}${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
                 ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
                 ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `${s.dayUsd === null ? '' : `Today ${movedHtml(s.dayUsd, s.dayPct)}<br>`}${movedHtml(s.openGainUsd, s.openGainPct)} since bought, on ${usd(s.cost)} put in`)}
-                ${card('For comparison: S&amp;P 500 fund', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? `the same money in an S&amp;P 500 index fund instead: <span id="pp-us-opens">${esc(marketWait())}</span>, so there is nothing to compare yet` : 'the same money in an S&amp;P 500 index fund instead' + versusFund(s))}
+                ${card('For comparison: S&amp;P 500 fund', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? `the same money in an S&amp;P 500 index fund instead: <span id="pp-us-opens">${esc(marketWait())}</span>, so there is nothing to compare yet` : 'the money in what is still held, in an S&amp;P 500 index fund instead' + versusFund(s))}
             </div>
             ${splitLine}
             </details>
@@ -755,7 +755,9 @@
     function versusFund(s) {
         if (s.openGainPct === null || s.marketPct === null) return '';
         const d = s.openGainPct - s.marketPct;
-        return `, over the same days.<br>Your holdings: ${pctHtml(s.openGainPct)}, so they are ${Math.abs(d) < 0.005 ? 'level with the fund' : `<strong>${d > 0 ? 'ahead of' : 'behind'} the fund by ${Math.abs(d).toFixed(2)}%</strong>`}`;
+        // This card counts only what is still held; the graph and the line under the three figures compare the whole account
+        // (what was sold too) with the fund since the start. The two can point opposite ways, so the card says which it is.
+        return `, over the same days.<br>Your holdings: ${pctHtml(s.openGainPct)}, so they are ${Math.abs(d) < 0.005 ? 'level with the fund' : `<strong>${d > 0 ? 'ahead of' : 'behind'} the fund by ${Math.abs(d).toFixed(2)}%</strong>`}.<br>Only what is still held is counted here, not what was sold: the graph compares the whole account.`;
     }
     // Why the "For comparison" card has nothing to show yet, with when that changes. The dashboard's sidebar counts down to
     // the US opening: its own figure is used when it is on the page, so the card and the sidebar can never disagree.
