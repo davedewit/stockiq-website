@@ -187,7 +187,8 @@ alert('Theme reset to automatic scheduling');
 <!-- AUTOPILOT_BELL_START: the AI autopilot's practice buys and sells in the notification bell, for signed-in visitors only --><script>(function(){try{var u=localStorage.getItem('userId');if(u&&u!=='anonymous'&&!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script><!-- AUTOPILOT_BELL_END -->
 <script src="auth.js?v=20260102"></script>
 <script>
-function toggleMobileSidebar() {
+// Moves the page's two panels into the phone sidebar (mobile-sidebar.js calls it before the sidebar shows)
+function fillMobileSidebar() {
 const overlay = document.getElementById('mobile-sidebar-overlay');
 const modal = document.getElementById('mobile-sidebar-modal');
 const content = document.getElementById('mobile-sidebar-content');
@@ -357,20 +358,10 @@ div.onclick = () => window.location.href = `analysis.html?symbol=${ticker}&optio
 }
 }, 0);
 
-overlay.style.display = 'block';
-modal.style.display = 'block';
-requestAnimationFrame(() => {
-overlay.style.opacity = '1';
-requestAnimationFrame(() => {
-modal.style.right = '0';
-});
-});
-document.body.style.overflow = 'hidden';
-document.body.style.position = 'fixed';
-document.body.style.width = '100%';
 }
 
-function closeMobileSidebar() {
+// Moves the panels back to the page (mobile-sidebar.js calls it once the sidebar is hidden)
+function emptyMobileSidebar() {
 const overlay = document.getElementById('mobile-sidebar-overlay');
 const modal = document.getElementById('mobile-sidebar-modal');
 const content = document.getElementById('mobile-sidebar-content');
@@ -386,16 +377,26 @@ if (newsPanel && newsPanel.parentElement === content) {
 document.body.insertBefore(newsPanel, modal);
 newsPanel.style.cssText = 'position: absolute; right: 20px; top: var(--news-panel-top, 220px); width: 330px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 99; pointer-events: auto;';
 }
+}
 
+// Showing, hiding and dragging the sidebar is mobile-sidebar.js's job: it replaces the two functions below, which only
+// serve a page on which that script did not load. Neither may give the body position: fixed: that was the old way
+// of stopping the page scrolling behind the sidebar, and it threw the page to the top.
+function toggleMobileSidebar() {
+const overlay = document.getElementById('mobile-sidebar-overlay');
+const modal = document.getElementById('mobile-sidebar-modal');
+fillMobileSidebar();
+overlay.style.display = 'block';
+modal.style.display = 'block';
+requestAnimationFrame(() => { overlay.style.opacity = '1'; modal.style.right = '0'; });
+}
+
+function closeMobileSidebar() {
+const overlay = document.getElementById('mobile-sidebar-overlay');
+const modal = document.getElementById('mobile-sidebar-modal');
 overlay.style.opacity = '0';
 modal.style.right = '-100%';
-setTimeout(() => {
-overlay.style.display = 'none';
-modal.style.display = 'none';
-}, 300);
-document.body.style.overflow = '';
-document.body.style.position = '';
-document.body.style.width = '';
+setTimeout(() => { overlay.style.display = 'none'; modal.style.display = 'none'; emptyMobileSidebar(); }, 300);
 }
 </script>
 <script>
@@ -427,6 +428,7 @@ handleSwipe();
 });
 
 function handleSwipe() {
+if (window.mobileSidebar && window.mobileSidebar.busy()) return; // a finger dragging the sidebar: mobile-sidebar.js has that touch
 if (window.innerWidth <= 768 && !isScrolling) {
 const menu = document.getElementById('mobile-menu');
 const overlay = document.getElementById('mobile-menu-overlay');
@@ -443,7 +445,7 @@ if (isSidebarOpen && touchStartX < 50) {
 return; // Ignore swipe from left edge to prevent back navigation
 }
 if (isSidebarOpen) {
-closeMobileSidebar();
+if (!window.mobileSidebar) closeMobileSidebar();
 } else if (!isMenuOpen && !isSidebarOpen && menu && overlay && hamburger) {
 const nav = document.querySelector('.top-nav');
 if (nav) nav.style.transform = 'translateY(0)';
@@ -461,7 +463,7 @@ overlay.classList.remove('show');
 hamburger.classList.remove('active');
 document.body.classList.remove('menu-open');
 } else if (!isMenuOpen && !isSidebarOpen) {
-toggleMobileSidebar();
+if (!window.mobileSidebar) toggleMobileSidebar();
 }
 }
 }
@@ -1420,6 +1422,7 @@ document.body.classList.add('no-cta-button');
 </div>
 <div id="mobile-sidebar-content" style="padding: 15px;"></div>
 </div>
+<script src="mobile-sidebar.js?v=1"></script>
 
 <style>
 @media (max-width: 768px) {
