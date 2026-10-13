@@ -2881,6 +2881,12 @@ ${analysis.report}
                 'Japan Nikkei 225 Analysis': 'analysis.html?option=5&subOption=nikkei225&autorun=true',
                 'Germany DAX 40 Screener': 'analysis.html?option=5&subOption=dax40&autorun=true',
                 'Germany DAX 40 Analysis': 'analysis.html?option=5&subOption=dax40&autorun=true',
+                'France CAC 40 Screener': 'analysis.html?option=5&subOption=cac40&autorun=true',
+                'France CAC 40 Analysis': 'analysis.html?option=5&subOption=cac40&autorun=true',
+                'Netherlands AEX Screener': 'analysis.html?option=5&subOption=aex&autorun=true',
+                'Netherlands AEX Analysis': 'analysis.html?option=5&subOption=aex&autorun=true',
+                'Canada TSX 60 Screener': 'analysis.html?option=5&subOption=tsx60&autorun=true',
+                'Canada TSX 60 Analysis': 'analysis.html?option=5&subOption=tsx60&autorun=true',
                 'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
             };
             
@@ -3024,6 +3030,9 @@ ${analysis.report}
             if (companyName.includes('CoinSpot') || companyName.includes('Crypto Universe')) return 'crypto';
             if (companyName.includes('Japan Nikkei') || symbol === 'JAPAN_SCREENER') return 'japan_screener';
             if (companyName.includes('Germany DAX') || symbol === 'GERMANY_SCREENER') return 'germany_screener';
+            if (companyName.includes('France CAC') || symbol === 'FRANCE_SCREENER') return 'france_screener';
+            if (companyName.includes('Netherlands AEX') || symbol === 'NETHERLANDS_SCREENER') return 'netherlands_screener';
+            if (companyName.includes('Canada TSX') || symbol === 'CANADA_SCREENER') return 'canada_screener';
             if (companyName.includes('ASX')) return 'asx_screener';
             if (companyName.includes('UK FTSE') || symbol === 'UK_FTSE_100') {
                 return 'uk_screener';
@@ -3051,7 +3060,10 @@ ${analysis.report}
                 'ASX 200 Screener': '200',
                 'ASX 300 Screener': '300',
                 'Japan Nikkei 225 Screener': 'nikkei225',
-                'Germany DAX 40 Screener': 'dax40'
+                'Germany DAX 40 Screener': 'dax40',
+                'France CAC 40 Screener': 'cac40',
+                'Netherlands AEX Screener': 'aex',
+                'Canada TSX 60 Screener': 'tsx60'
             };
             return mappings[companyName] || '3';
         }
@@ -3135,6 +3147,15 @@ ${analysis.report}
                 } else if (analysisType === 'germany_screener') {
                     endpoint = coordinatorUrl;
                     payload = { option: '5', subOption: 'dax40', userId };
+                } else if (analysisType === 'france_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'cac40', userId };
+                } else if (analysisType === 'netherlands_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'aex', userId };
+                } else if (analysisType === 'canada_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'tsx60', userId };
                 } else if (analysisType === 'us_screener' || analysisType === 'asx_screener' || analysisType === 'uk_screener') {
                     // Use coordinator for US/ASX/UK screeners
                     endpoint = coordinatorUrl;
@@ -3556,7 +3577,7 @@ ${analysis.report}
             [/Russell 1000/i, '^RUI', 'Russell 1000 index'], [/Russell 2000/i, '^RUT', 'Russell 2000 index'],
             [/ASX 300/i, '^AXKO', 'S&P/ASX 300 index'], [/ASX 200/i, '^AXJO', 'S&P/ASX 200 index'],
             [/ASX 100/i, '^ATOI', 'S&P/ASX 100 index'], [/ASX 50/i, '^AFLI', 'S&P/ASX 50 index'],
-            [/FTSE 100/i, '^FTSE', 'FTSE 100 index'], [/Nikkei/i, '^N225', 'Nikkei 225 index'], [/DAX/i, '^GDAXI', 'DAX 40 index'],
+            [/FTSE 100/i, '^FTSE', 'FTSE 100 index'], [/Nikkei/i, '^N225', 'Nikkei 225 index'], [/DAX/i, '^GDAXI', 'DAX 40 index'], [/CAC 40/i, '^FCHI', 'CAC 40 index'], [/AEX/i, '^AEX', 'AEX index'], [/TSX/i, '^GSPTSE', 'S&P/TSX Composite index'],
             [/Crypto|CoinSpot/i, 'BTC-USD', 'Bitcoin']
         ];
         function top10Benchmark(companyName) {

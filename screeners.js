@@ -899,5 +899,45 @@ const SHARE_SCREENERS = {
             'https://62wb7xeqi3um77fqqf6jwh3ohm0jaqbx.lambda-url.us-east-1.on.aws/',
             'https://6fyvmljmwsqkbwab57tpo4fjz40tpuou.lambda-url.us-east-1.on.aws/'
         ]
+    },
+    '5-cac40': {
+        name: 'France CAC 40', size: 40, use: 4, csv: 'France_CAC40_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇫🇷 FRANCE CAC 40', stocks: 'France CAC stocks', exchange: 'Euronext Paris', currency: 'EUR', done: 'France CAC 40',
+                  type: 'option_5cac40_screener', title: 'France CAC 40 Screener', symbol: 'FRANCE_SCREENER',
+                  names: {'AC.PA': 'Accor', 'AI.PA': 'Air Liquide', 'AIR.PA': 'Airbus', 'MT.AS': 'ArcelorMittal', 'CS.PA': 'Axa', 'BNP.PA': 'BNP Paribas', 'EN.PA': 'Bouygues', 'BVI.PA': 'Bureau Veritas', 'CAP.PA': 'Capgemini', 'CA.PA': 'Carrefour', 'ACA.PA': 'Credit Agricole', 'BN.PA': 'Danone', 'DSY.PA': 'Dassault Systemes', 'FGR.PA': 'Eiffage', 'ENGI.PA': 'Engie', 'EL.PA': 'EssilorLuxottica', 'ERF.PA': 'Eurofins Scientific', 'ENX.PA': 'Euronext', 'RMS.PA': 'Hermes', 'KER.PA': 'Kering', 'OR.PA': 'L Oreal', 'LR.PA': 'Legrand', 'MC.PA': 'LVMH SA', 'ML.PA': 'Michelin', 'ORA.PA': 'Orange', 'RI.PA': 'Pernod Ricard', 'PUB.PA': 'Publicis', 'RNO.PA': 'Renault', 'SAF.PA': 'Safran', 'SGO.PA': 'Saint-Gobain', 'SAN.PA': 'Sanofi', 'SU.PA': 'Schneider Electric', 'GLE.PA': 'Societe Generale', 'STLAP.PA': 'Stellantis', 'STMPA.PA': 'STMicroelectronics', 'HO.PA': 'Thales', 'TTE.PA': 'TotalEnergies', 'URW.PA': 'Unibail-Rodamco', 'VIE.PA': 'Veolia', 'DG.PA': 'Vinci'} },
+        list: ['AC.PA','AI.PA','AIR.PA','MT.AS','CS.PA','BNP.PA','EN.PA','BVI.PA','CAP.PA','CA.PA','ACA.PA','BN.PA','DSY.PA','FGR.PA','ENGI.PA','EL.PA','ERF.PA','ENX.PA','RMS.PA','KER.PA','OR.PA','LR.PA','MC.PA','ML.PA','ORA.PA','RI.PA','PUB.PA','RNO.PA','SAF.PA','SGO.PA','SAN.PA','SU.PA','GLE.PA','STLAP.PA','STMPA.PA','HO.PA','TTE.PA','URW.PA','VIE.PA','DG.PA'],
+        workers: [
+            'https://75by6fyjbeu3ennmcokcykw5tm0nwbgx.lambda-url.us-east-1.on.aws/',
+            'https://q4szag4sg3xptqxcnwbsqxhi6a0rioes.lambda-url.us-east-1.on.aws/',
+            'https://7w6phjxzibvswgg6wyda5lbarm0vddgw.lambda-url.us-east-1.on.aws/',
+            'https://maayzcphxrjdz7hs5m6tefdb3e0rexcx.lambda-url.us-east-1.on.aws/'
+        ]
+    },
+    '5-aex': {
+        name: 'Netherlands AEX', size: 30, use: 3, csv: 'Netherlands_AEX_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇳🇱 NETHERLANDS AEX', stocks: 'Netherlands AEX stocks', exchange: 'Euronext Amsterdam', currency: 'EUR', done: 'Netherlands AEX',
+                  type: 'option_5aex_screener', title: 'Netherlands AEX Screener', symbol: 'NETHERLANDS_SCREENER',
+                  names: {'AALB.AS': 'Aalberts', 'ABN.AS': 'ABN AMRO Bank', 'ADYEN.AS': 'Adyen', 'AGN.AS': 'Aegon', 'AD.AS': 'Ahold Delhaize', 'AKZA.AS': 'Akzo Nobel', 'MT.AS': 'ArcelorMittal', 'ASM.AS': 'ASM International', 'ASML.AS': 'ASML NV', 'ASRNL.AS': 'ASR Nederland', 'BESI.AS': 'Besi', 'CVC.AS': 'CVC Capital Partners', 'DSFIR.AS': 'DSM-Firmenich', 'EXO.AS': 'Exor', 'HEIA.AS': 'Heineken', 'IMCD.AS': 'IMCD NV', 'INGA.AS': 'ING NV', 'INPST.AS': 'InPost', 'KPN.AS': 'KPN NV', 'MICC.AS': 'Magnum Ice Cream', 'NN.AS': 'NN Group', 'PHIA.AS': 'Philips', 'PRX.AS': 'Prosus', 'REN.AS': 'RELX NV', 'SBMO.AS': 'SBM Offshore', 'SHELL.AS': 'Shell', 'UNA.AS': 'Unilever', 'UMG.AS': 'Universal Music', 'WDP.BR': 'WDP NV', 'WKL.AS': 'Wolters Kluwer'} },
+        list: ['AALB.AS','ABN.AS','ADYEN.AS','AGN.AS','AD.AS','AKZA.AS','MT.AS','ASM.AS','ASML.AS','ASRNL.AS','BESI.AS','CVC.AS','DSFIR.AS','EXO.AS','HEIA.AS','IMCD.AS','INGA.AS','INPST.AS','KPN.AS','MICC.AS','NN.AS','PHIA.AS','PRX.AS','REN.AS','SBMO.AS','SHELL.AS','UNA.AS','UMG.AS','WDP.BR','WKL.AS'],
+        workers: [
+            'https://4fda6emoqgthczgk47tw24qw3q0szxva.lambda-url.us-east-1.on.aws/',
+            'https://qcpmd5e6eecs43olfo25oubo7e0kjeiw.lambda-url.us-east-1.on.aws/',
+            'https://rvfmhcueltlgbgjsxsgqoeul2e0iwaqo.lambda-url.us-east-1.on.aws/'
+        ]
+    },
+    '5-tsx60': {
+        name: 'Canada TSX 60', size: 60, use: 6, csv: 'Canada_TSX60_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇨🇦 CANADA TSX 60', stocks: 'Canada TSX stocks', exchange: 'Toronto Stock Exchange', currency: 'CAD', done: 'Canada TSX 60',
+                  type: 'option_5tsx60_screener', title: 'Canada TSX 60 Screener', symbol: 'CANADA_SCREENER',
+                  names: {'AEM.TO': 'Agnico Eagle Mines', 'ATD.TO': 'Couche-Tard', 'BMO.TO': 'Bank of Montreal', 'BNS.TO': 'Bank of Nova Scotia', 'ABX.TO': 'Barrick Mining', 'BCE.TO': 'BCE Inc', 'BAM.TO': 'Brookfield Asset Mgmt', 'BN.TO': 'Brookfield Corp', 'BIP-UN.TO': 'Brookfield Infra', 'CAE.TO': 'CAE Inc', 'CCO.TO': 'Cameco', 'CM.TO': 'CIBC Bank', 'CNR.TO': 'CN Railway', 'CNQ.TO': 'Cdn Natural Resources', 'CP.TO': 'CP Kansas City', 'CTC-A.TO': 'Canadian Tire', 'CCL-B.TO': 'CCL Industries', 'CLS.TO': 'Celestica', 'CVE.TO': 'Cenovus Energy', 'GIB-A.TO': 'CGI Inc', 'CSU.TO': 'Constellation Software', 'DOL.TO': 'Dollarama', 'EMA.TO': 'Emera', 'ENB.TO': 'Enbridge', 'FFH.TO': 'Fairfax Financial', 'FM.TO': 'First Quantum', 'FSV.TO': 'FirstService', 'FTS.TO': 'Fortis', 'FNV.TO': 'Franco-Nevada', 'WN.TO': 'George Weston', 'GIL.TO': 'Gildan Activewear', 'H.TO': 'Hydro One', 'IMO.TO': 'Imperial Oil', 'IFC.TO': 'Intact Financial', 'K.TO': 'Kinross Gold', 'L.TO': 'Loblaw Companies', 'MG.TO': 'Magna International', 'MFC.TO': 'Manulife Financial', 'MRU.TO': 'Metro', 'NA.TO': 'National Bank', 'NTR.TO': 'Nutrien', 'OTEX.TO': 'Open Text', 'PPL.TO': 'Pembina Pipeline', 'POW.TO': 'Power Corp of Canada', 'QSR.TO': 'Restaurant Brands', 'RCI-B.TO': 'Rogers Communications', 'RY.TO': 'Royal Bank of Canada', 'SAP.TO': 'Saputo', 'SHOP.TO': 'Shopify', 'SLF.TO': 'Sun Life Financial', 'SU.TO': 'Suncor Energy', 'TRP.TO': 'TC Energy', 'TECK-B.TO': 'Teck Resources', 'T.TO': 'Telus', 'TRI.TO': 'Thomson Reuters', 'TD.TO': 'Toronto-Dominion Bank', 'TOU.TO': 'Tourmaline Oil', 'WCN.TO': 'Waste Connections', 'WPM.TO': 'Wheaton Precious', 'WSP.TO': 'WSP Global'} },
+        list: ['AEM.TO','ATD.TO','BMO.TO','BNS.TO','ABX.TO','BCE.TO','BAM.TO','BN.TO','BIP-UN.TO','CAE.TO','CCO.TO','CM.TO','CNR.TO','CNQ.TO','CP.TO','CTC-A.TO','CCL-B.TO','CLS.TO','CVE.TO','GIB-A.TO','CSU.TO','DOL.TO','EMA.TO','ENB.TO','FFH.TO','FM.TO','FSV.TO','FTS.TO','FNV.TO','WN.TO','GIL.TO','H.TO','IMO.TO','IFC.TO','K.TO','L.TO','MG.TO','MFC.TO','MRU.TO','NA.TO','NTR.TO','OTEX.TO','PPL.TO','POW.TO','QSR.TO','RCI-B.TO','RY.TO','SAP.TO','SHOP.TO','SLF.TO','SU.TO','TRP.TO','TECK-B.TO','T.TO','TRI.TO','TD.TO','TOU.TO','WCN.TO','WPM.TO','WSP.TO'],
+        workers: [
+            'https://kwoatkpdwkizzvyupa6ya4ncnq0ewjqx.lambda-url.us-east-1.on.aws/',
+            'https://4bc4bchvbveiujswoour3eiw7e0tjbnf.lambda-url.us-east-1.on.aws/',
+            'https://qzkk2ciube7sty7kxduj2dxztq0jjeys.lambda-url.us-east-1.on.aws/',
+            'https://tisqaqyvep4vfqvwzdvtse4xay0lrasw.lambda-url.us-east-1.on.aws/',
+            'https://4unidbxbqql5kceirx6ikgr2wm0yzosn.lambda-url.us-east-1.on.aws/',
+            'https://hpyyslneo3dq3z3vtoobwpydwu0eplnw.lambda-url.us-east-1.on.aws/'
+        ]
     }
 };
