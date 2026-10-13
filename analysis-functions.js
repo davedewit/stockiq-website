@@ -532,6 +532,11 @@ function getRerunUrl(item, timestamp) {
         'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
     };
     
+    // screeners that carry their own name in screeners.js (the Germany DAX 40 and later markets)
+    if (typeof SHARE_SCREENERS !== 'undefined') Object.keys(SHARE_SCREENERS).forEach(key => {
+        const r = SHARE_SCREENERS[key].report, at = key.indexOf('-');
+        if (r) screenerMappings[r.title] = `analysis.html?option=${key.slice(0, at)}&subOption=${key.slice(at + 1)}&autorun=true`;
+    });
     if (screenerMappings[companyName]) {
         return `${screenerMappings[companyName]}&refresh=true&t=${timestamp}`;
     }
@@ -736,6 +741,12 @@ async function shareScreener(key) {
     return typeof SHARE_SCREENERS !== 'undefined' && SHARE_SCREENERS[key] ? SHARE_SCREENERS[key] : null;
 }
 
+// The `report` of a screener that carries its own (screeners.js; the Germany DAX 40 and later markets), or null
+function marketReport(option, subOption) {
+    const def = typeof SHARE_SCREENERS !== 'undefined' ? SHARE_SCREENERS[option + '-' + subOption] : null;
+    return def && def.report ? def.report : null;
+}
+
 // Every share screener is run by this one routine; a screener is an entry in SHARE_SCREENERS (screeners.js): its list,
 // its workers, its name. (Until 13 Oct 2026 runAnalysis held 14 copies of it, one a screener.)
 async function runShareScreener(def, subOption) {
@@ -770,7 +781,7 @@ async function runShareScreener(def, subOption) {
     const apiData = { success: true, results: allResults, stocks_analyzed: allResults.length, universe_size: def.size, processing_time: totalTime };
     const csvData = generateExcelExport(allResults, def.csv);
     const result = def.format === 'us' ? formatOption3Result(apiData, subOption) : def.format === 'asx' ? formatASXResult(apiData, subOption)
-        : def.format === 'nikkei' ? formatNikkeiResult(apiData) : formatFTSEResult(apiData);
+        : def.format === 'nikkei' ? formatNikkeiResult(apiData) : def.format === 'market' ? formatMarketResult(apiData, def.report, def.list.length) : formatFTSEResult(apiData);
     result.csvData = csvData;
     return result;
 }
@@ -1505,6 +1516,9 @@ async function saveAnalysisToHistory(result, subOption, option) {
             } else if (subOption === 'nikkei225') {
                 symbols = ['JAPAN_SCREENER'];
                 uniqueSymbolsCount = 210;
+            } else if (marketReport(5, subOption)) {
+                symbols = [marketReport(5, subOption).symbol];
+                uniqueSymbolsCount = SHARE_SCREENERS['5-' + subOption].list.length;
             } else {
                 symbols = ['ASIA_MARKETS'];
                 uniqueSymbolsCount = 100;
@@ -1569,7 +1583,7 @@ async function saveAnalysisToHistory(result, subOption, option) {
                 '300': 'ASX 300 Screener',
                 'nikkei225': 'Japan Nikkei 225 Screener'
             };
-            companyName = subNames[subOption] || 'ASX Stock Screener';
+            companyName = subNames[subOption] || (marketReport(5, subOption) || {}).title || 'ASX Stock Screener';
         } else if (option === 6) {
             if (false) {
                 companyName = 'Other Markets Screener';
@@ -3188,14 +3202,15 @@ const NIKKEI_COMPANY_NAMES = {
     '3401.T': 'Teijin',
     '3402.T': 'Toray Industries'
 };
-function formatNikkeiResult(apiData) {
-    const universeSize = 225;  // real list size (refreshed 10 Oct 2026)
+// The report of a share screener that has no formatter of its own: the words that differ between markets come from `r`
+// (the Nikkei's below; any later market's from its entry in screeners.js: `report`).
+function formatMarketResult(apiData, r, universeSize) {
     let output = `
 ============================================================
-🇯🇵 JAPAN NIKKEI 225 RESULTS (REAL-TIME DATA)
+${r.heading} RESULTS (REAL-TIME DATA)
 ============================================================
-Screening Universe: ${universeSize} Japan Nikkei stocks
-Market Type: Tokyo Stock Exchange
+Screening Universe: ${universeSize} ${r.stocks}
+Market Type: ${r.exchange}
 Universe Size: ${universeSize}
 Analysis Date: ${new Date().toLocaleString()}
 `;
@@ -3205,8 +3220,8 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `🟢 TOP ${topCount} BY SCORE:\n`;
         sortedResults.slice(0, topCount).forEach((stock, i) => {
             const symbol = (stock.symbol || 'N/A').padEnd(8);
-            const name = NIKKEI_COMPANY_NAMES[stock.symbol] || stock.symbol;
-            const price = `${screenerMoney(stock, stock.current_price || stock.price, 'JPY')}`.padStart(10);
+            const name = (r.names || {})[stock.symbol] || stock.symbol;
+            const price = `${screenerMoney(stock, stock.current_price || stock.price, r.currency)}`.padStart(10);
             const scoreVal = stock.total_score || stock.score || 0;
             const score = scoreVal >= 0 ? `+${scoreVal.toFixed(1)}` : `${scoreVal.toFixed(1)}`;
             const rsi = (stock.rsi || 0).toFixed(1).padStart(5);
@@ -3220,7 +3235,7 @@ Analysis Date: ${new Date().toLocaleString()}
         sortedResults.slice(0, 3).forEach((stock, i) => {
             const priceVal = stock.price || 0;
             const scoreVal = stock.total_score || stock.score || 0;
-            output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, priceVal, 'JPY')} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
+            output += `${i+1}. ${stock.symbol}: ${screenerMoney(stock, priceVal, r.currency)} | ${signalLabel(stock.recommendation)} | Score: ${scoreVal >= 0 ? '+' : ''}${scoreVal.toFixed(1)}\n`;
             if (stock.score_breakdown && stock.score_breakdown.length > 0) {
                 output += '   📊 Score Breakdown:\n';
                 stock.score_breakdown.forEach(breakdown => {
@@ -3228,8 +3243,8 @@ Analysis Date: ${new Date().toLocaleString()}
                 });
             }
             output += `   📈 Technical: RSI ${(stock.rsi || 50).toFixed(1)} | MACD ${stock.macd_signal || 'NEUTRAL'}\n`;
-            output += `   💰 Levels: Support ${screenerMoney(stock, stock.support, 'JPY')} | Resistance ${screenerMoney(stock, stock.resistance, 'JPY')}\n`;
-            output += `   📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, 'JPY')} | Upper ${screenerMoney(stock, stock.take_profit, 'JPY')}\n`;
+            output += `   💰 Levels: Support ${screenerMoney(stock, stock.support, r.currency)} | Resistance ${screenerMoney(stock, stock.resistance, r.currency)}\n`;
+            output += `   📏 Reference levels: Lower ${screenerMoney(stock, stock.stop_loss, r.currency)} | Upper ${screenerMoney(stock, stock.take_profit, r.currency)}\n`;
             output += `   📊 Horizon: ${horizonLabel(stock.strategy_type)} | Confidence: ${(stock.confidence || 0).toFixed(0)}%\n\n`;
         });
         const positiveStocks = sortedResults.filter(s => (s.total_score || s.score || 0) > 0).length;
@@ -3244,9 +3259,14 @@ Analysis Date: ${new Date().toLocaleString()}
     } else {
         output += 'No results available\n';
     }
-    output += `\n\u2705 Real-time Japan Nikkei 225 complete!`;
+    output += `\n\u2705 Real-time ${r.done} complete!`;
     const htmlOutput = `<pre style="white-space: pre-wrap; font-family: monospace;">${output}</pre>`;
-    return { type: 'option_5nikkei225_screener', data: htmlOutput };
+    return { type: r.type, data: htmlOutput };
+}
+
+function formatNikkeiResult(apiData) {
+    return formatMarketResult(apiData, { heading: '🇯🇵 JAPAN NIKKEI 225', stocks: 'Japan Nikkei stocks', exchange: 'Tokyo Stock Exchange', currency: 'JPY',
+        done: 'Japan Nikkei 225', type: 'option_5nikkei225_screener', names: NIKKEI_COMPANY_NAMES }, 225);        // 225: the real list size (refreshed 10 Oct 2026)
 }
 
 // Coming Soon popup function

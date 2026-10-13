@@ -2879,6 +2879,8 @@ ${analysis.report}
                 'UK FTSE 100 Analysis': 'analysis.html?option=4&subOption=ftse100&autorun=true',
                 'Japan Nikkei 225 Screener': 'analysis.html?option=5&subOption=nikkei225&autorun=true',
                 'Japan Nikkei 225 Analysis': 'analysis.html?option=5&subOption=nikkei225&autorun=true',
+                'Germany DAX 40 Screener': 'analysis.html?option=5&subOption=dax40&autorun=true',
+                'Germany DAX 40 Analysis': 'analysis.html?option=5&subOption=dax40&autorun=true',
                 'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
             };
             
@@ -3021,6 +3023,7 @@ ${analysis.report}
             if (companyName.includes('Coin Analysis')) return 'crypto_single';
             if (companyName.includes('CoinSpot') || companyName.includes('Crypto Universe')) return 'crypto';
             if (companyName.includes('Japan Nikkei') || symbol === 'JAPAN_SCREENER') return 'japan_screener';
+            if (companyName.includes('Germany DAX') || symbol === 'GERMANY_SCREENER') return 'germany_screener';
             if (companyName.includes('ASX')) return 'asx_screener';
             if (companyName.includes('UK FTSE') || symbol === 'UK_FTSE_100') {
                 return 'uk_screener';
@@ -3047,7 +3050,8 @@ ${analysis.report}
                 'ASX 100 Screener': '100',
                 'ASX 200 Screener': '200',
                 'ASX 300 Screener': '300',
-                'Japan Nikkei 225 Screener': 'nikkei225'
+                'Japan Nikkei 225 Screener': 'nikkei225',
+                'Germany DAX 40 Screener': 'dax40'
             };
             return mappings[companyName] || '3';
         }
@@ -3128,6 +3132,9 @@ ${analysis.report}
                     // Japan Nikkei now handled by coordinator
                     endpoint = coordinatorUrl;
                     payload = { option: '5', subOption: 'nikkei225', userId };
+                } else if (analysisType === 'germany_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'dax40', userId };
                 } else if (analysisType === 'us_screener' || analysisType === 'asx_screener' || analysisType === 'uk_screener') {
                     // Use coordinator for US/ASX/UK screeners
                     endpoint = coordinatorUrl;
@@ -3549,7 +3556,7 @@ ${analysis.report}
             [/Russell 1000/i, '^RUI', 'Russell 1000 index'], [/Russell 2000/i, '^RUT', 'Russell 2000 index'],
             [/ASX 300/i, '^AXKO', 'S&P/ASX 300 index'], [/ASX 200/i, '^AXJO', 'S&P/ASX 200 index'],
             [/ASX 100/i, '^ATOI', 'S&P/ASX 100 index'], [/ASX 50/i, '^AFLI', 'S&P/ASX 50 index'],
-            [/FTSE 100/i, '^FTSE', 'FTSE 100 index'], [/Nikkei/i, '^N225', 'Nikkei 225 index'],
+            [/FTSE 100/i, '^FTSE', 'FTSE 100 index'], [/Nikkei/i, '^N225', 'Nikkei 225 index'], [/DAX/i, '^GDAXI', 'DAX 40 index'],
             [/Crypto|CoinSpot/i, 'BTC-USD', 'Bitcoin']
         ];
         function top10Benchmark(companyName) {

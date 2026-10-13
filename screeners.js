@@ -11,7 +11,11 @@
 //   size       the round number the reports print as the size of the list (not the real count: the reports use their own)
 //   csv        the name of the CSV file
 //   format     which formatter writes the report: 'us' formatOption3Result, 'asx' formatASXResult, 'nikkei'
-//              formatNikkeiResult, 'ftse' formatFTSEResult
+//              formatNikkeiResult, 'ftse' formatFTSEResult, 'market' formatMarketResult with the entry's own `report`
+//   report     (format 'market' only) the words of its report, its name and symbol in the dashboard's history, and
+//              short company names (22 characters at most) for its top 10. A new market needs nothing but this.
+//              A NAME MUST NOT BE ONE WORD IN CAPITALS ("SAP", "BMW"): the dashboard's Top 10 tracker reads a line
+//              "2. SAP.DE  SAP  €195.14" as a coin called SAP. Write "SAP SE", "BMW AG".
 //   merge      which answers are counted: 'strict' / 'guarded' need the worker to say success, 'loose' only needs results
 //              ('strict' also stops the run if a worker answers with nothing at all, as the page always did)
 //   timeText   true = the run's time is handed to the formatter as text with one decimal ("3.2"), false = as a number
@@ -881,5 +885,19 @@ const SHARE_SCREENERS = {
                 'https://rxobsfprrrlv2x2ta5eim7q5oa0azgpk.lambda-url.us-east-1.on.aws/',
                 'https://pbfu2jxvnkle2zzzmm7czrdgum0xnhkm.lambda-url.us-east-1.on.aws/'
             ]
+    },
+    '5-dax40': {
+        name: 'Germany DAX 40', size: 40, use: 4, csv: 'Germany_DAX40_Screener', format: 'market', merge: 'guarded', timeText: false,
+        // what its report says (formatMarketResult), its name in the dashboard's history and the short company names for its top 10
+        report: { heading: '🇩🇪 GERMANY DAX 40', stocks: 'Germany DAX stocks', exchange: 'Frankfurt Stock Exchange (Xetra)', currency: 'EUR', done: 'Germany DAX 40',
+                  type: 'option_5dax40_screener', title: 'Germany DAX 40 Screener', symbol: 'GERMANY_SCREENER',
+                  names: {'ADS.DE': 'Adidas', 'AIR.DE': 'Airbus', 'ALV.DE': 'Allianz', 'BAS.DE': 'BASF SE', 'BAYN.DE': 'Bayer', 'BEI.DE': 'Beiersdorf', 'BMW.DE': 'BMW AG', 'BNR.DE': 'Brenntag', 'CBK.DE': 'Commerzbank', 'CON.DE': 'Continental', 'DTG.DE': 'Daimler Truck', 'DBK.DE': 'Deutsche Bank', 'DB1.DE': 'Deutsche Boerse', 'DTE.DE': 'Deutsche Telekom', 'DHL.DE': 'DHL Group', 'EOAN.DE': 'E.ON SE', 'FRE.DE': 'Fresenius', 'FME.DE': 'Fresenius Medical Care', 'G1A.DE': 'GEA Group', 'HNR1.DE': 'Hannover Re', 'HEI.DE': 'Heidelberg Materials', 'HEN3.DE': 'Henkel', 'HOT.DE': 'Hochtief', 'IFX.DE': 'Infineon', 'MBG.DE': 'Mercedes-Benz', 'MRK.DE': 'Merck', 'MTX.DE': 'MTU Aero Engines', 'MUV2.DE': 'Munich Re', 'QIA.DE': 'Qiagen', 'RHM.DE': 'Rheinmetall', 'RWE.DE': 'RWE AG', 'SAP.DE': 'SAP SE', 'G24.DE': 'Scout24', 'SIE.DE': 'Siemens', 'ENR.DE': 'Siemens Energy', 'SHL.DE': 'Siemens Healthineers', 'SY1.DE': 'Symrise', 'VOW3.DE': 'Volkswagen', 'VNA.DE': 'Vonovia', 'ZAL.DE': 'Zalando'} },
+        list: ['ADS.DE','AIR.DE','ALV.DE','BAS.DE','BAYN.DE','BEI.DE','BMW.DE','BNR.DE','CBK.DE','CON.DE','DTG.DE','DBK.DE','DB1.DE','DTE.DE','DHL.DE','EOAN.DE','FRE.DE','FME.DE','G1A.DE','HNR1.DE','HEI.DE','HEN3.DE','HOT.DE','IFX.DE','MBG.DE','MRK.DE','MTX.DE','MUV2.DE','QIA.DE','RHM.DE','RWE.DE','SAP.DE','G24.DE','SIE.DE','ENR.DE','SHL.DE','SY1.DE','VOW3.DE','VNA.DE','ZAL.DE'],
+        workers: [
+            'https://nyw66g4kowbsakabp7brhfrrsu0ffieg.lambda-url.us-east-1.on.aws/',
+            'https://r2gxumyvvr3bggssanmqwdosbi0vqlhh.lambda-url.us-east-1.on.aws/',
+            'https://62wb7xeqi3um77fqqf6jwh3ohm0jaqbx.lambda-url.us-east-1.on.aws/',
+            'https://6fyvmljmwsqkbwab57tpo4fjz40tpuou.lambda-url.us-east-1.on.aws/'
+        ]
     }
 };
