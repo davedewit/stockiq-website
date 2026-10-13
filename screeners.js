@@ -965,5 +965,36 @@ const SHARE_SCREENERS = {
             'https://qho4zg6v3fotbj5czmylxsr4ru0pxxpb.lambda-url.us-east-1.on.aws/',
             'https://7q2pei47vfanbmma7dzq765kle0sbtwi.lambda-url.us-east-1.on.aws/'
         ]
+    },
+    '5-hangseng': {
+        name: 'Hong Kong Hang Seng', size: 95, use: 10, csv: 'Hong_Kong_Hang_Seng_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇭🇰 HONG KONG HANG SENG', stocks: 'Hong Kong Hang Seng stocks', exchange: 'Hong Kong Stock Exchange', currency: 'HKD', done: 'Hong Kong Hang Seng',
+                  type: 'option_5hangseng_screener', title: 'Hong Kong Hang Seng Screener', symbol: 'HONGKONG_SCREENER',
+                  names: {'0005.HK': 'HSBC Holdings', '0939.HK': 'China Constr. Bank', '1299.HK': 'AIA Group', '1398.HK': 'ICBC Ltd', '0388.HK': 'HK Exchanges', '3988.HK': 'Bank of China', '2318.HK': 'Ping An Insurance', '2628.HK': 'China Life Insurance', '3968.HK': 'China Merchants Bank', '2388.HK': 'BOC Hong Kong', '9988.HK': 'Alibaba Group', '3690.HK': 'Meituan', '1211.HK': 'BYD Company', '0669.HK': 'Techtronic Industries', '9618.HK': 'JD.com', '9888.HK': 'Baidu', '9961.HK': 'Trip.com Group', '0175.HK': 'Geely Automobile', '1024.HK': 'Kuaishou Technology', '9992.HK': 'Pop Mart', '2020.HK': 'ANTA Sports', '9633.HK': 'Nongfu Spring', '0027.HK': 'Galaxy Entertainment', '0288.HK': 'WH Group', '2015.HK': 'Li Auto', '0066.HK': 'MTR Corporation', '0300.HK': 'Midea Group', '2319.HK': 'China Mengniu Dairy', '6690.HK': 'Haier Smart Home', '9901.HK': 'New Oriental Education', '1928.HK': 'Sands China', '0291.HK': 'China Resources Beer', '2313.HK': 'Shenzhou International', '2331.HK': 'Li Ning', '0322.HK': 'Tingyi Holding', '1929.HK': 'Chow Tai Fook', '6862.HK': 'Haidilao', '6181.HK': 'Laopu Gold', '1044.HK': 'Hengan International', '1876.HK': 'Budweiser Brewing', '0700.HK': 'Tencent', '1810.HK': 'Xiaomi', '9999.HK': 'NetEase', '0981.HK': 'SMIC Semiconductor', '0992.HK': 'Lenovo Group', '1347.HK': 'Hua Hong Semiconductor', '2382.HK': 'Sunny Optical', '0285.HK': 'BYD Electronic', '0883.HK': 'CNOOC Ltd', '0857.HK': 'PetroChina', '2899.HK': 'Zijin Mining', '0001.HK': 'CK Hutchison', '1088.HK': 'China Shenhua Energy', '3750.HK': 'Contemporary Amperex', '0386.HK': 'Sinopec Corp', '1378.HK': 'China Hongqiao', '0267.HK': 'CITIC Ltd', '1519.HK': 'J and T Global Express', '2057.HK': 'ZTO Express', '2338.HK': 'Weichai Power', '3993.HK': 'CMOC Group', '2600.HK': 'Aluminum Corp of China', '2618.HK': 'JD Logistics', '0316.HK': 'Orient Overseas', '0868.HK': 'Xinyi Glass', '0968.HK': 'Xinyi Solar', '0941.HK': 'China Mobile', '0002.HK': 'CLP Holdings', '0006.HK': 'Power Assets', '0003.HK': 'HK and China Gas', '0728.HK': 'China Telecom', '1038.HK': 'CK Infrastructure', '2688.HK': 'ENN Energy', '0836.HK': 'China Resources Power', '0762.HK': 'China Unicom', '6160.HK': 'BeOne Medicines', '2269.HK': 'WuXi Biologics', '1801.HK': 'Innovent Biologics', '2359.HK': 'WuXi AppTec', '1093.HK': 'CSPC Pharmaceutical', '3692.HK': 'Hansoh Pharmaceutical', '1177.HK': 'Sino Biopharmaceutical', '6618.HK': 'JD Health', '1099.HK': 'Sinopharm Group', '0241.HK': 'Alibaba Health', '0016.HK': 'Sun Hung Kai Prop.', '1109.HK': 'China Resources Land', '0823.HK': 'Link Reit', '1113.HK': 'CK Asset', '1997.HK': 'Wharf Real Estate', '0688.HK': 'China Overseas Land', '0012.HK': 'Henderson Land', '1209.HK': 'CR Mixc Lifestyle', '0960.HK': 'Longfor Group', '0101.HK': 'Hang Lung Properties'} },
+        list: ['0005.HK','0939.HK','1299.HK','1398.HK','0388.HK','3988.HK','2318.HK','2628.HK','3968.HK','2388.HK','9988.HK','3690.HK','1211.HK','0669.HK','9618.HK','9888.HK','9961.HK','0175.HK','1024.HK','9992.HK','2020.HK','9633.HK','0027.HK','0288.HK','2015.HK','0066.HK','0300.HK','2319.HK','6690.HK','9901.HK','1928.HK','0291.HK','2313.HK','2331.HK','0322.HK','1929.HK','6862.HK','6181.HK','1044.HK','1876.HK','0700.HK','1810.HK','9999.HK','0981.HK','0992.HK','1347.HK','2382.HK','0285.HK','0883.HK','0857.HK','2899.HK','0001.HK','1088.HK','3750.HK','0386.HK','1378.HK','0267.HK','1519.HK','2057.HK','2338.HK','3993.HK','2600.HK','2618.HK','0316.HK','0868.HK','0968.HK','0941.HK','0002.HK','0006.HK','0003.HK','0728.HK','1038.HK','2688.HK','0836.HK','0762.HK','6160.HK','2269.HK','1801.HK','2359.HK','1093.HK','3692.HK','1177.HK','6618.HK','1099.HK','0241.HK','0016.HK','1109.HK','0823.HK','1113.HK','1997.HK','0688.HK','0012.HK','1209.HK','0960.HK','0101.HK'],
+        workers: [
+            'https://723bbkfjf5hqvhwljgittagkza0ltfws.lambda-url.us-east-1.on.aws/',
+            'https://5hajsxwq7t76trirmwx7bfddcy0adllc.lambda-url.us-east-1.on.aws/',
+            'https://3zm7woh6pdpivjt5s54aeeazpe0twhxj.lambda-url.us-east-1.on.aws/',
+            'https://ik4joy2v7m6xkyn36b7l6zxbri0pdcpp.lambda-url.us-east-1.on.aws/',
+            'https://eshjv5t6mlb4qbpihs5fdrpanq0wgdpx.lambda-url.us-east-1.on.aws/',
+            'https://hplg3l6ovol7ynieovufl46dbu0gsukt.lambda-url.us-east-1.on.aws/',
+            'https://v6ei73dr4onca2faemp6o4wpiq0ajozp.lambda-url.us-east-1.on.aws/',
+            'https://ryjrlixwx2projrz6b5upt364u0nzpdn.lambda-url.us-east-1.on.aws/',
+            'https://xd6m337t4y57adabx4vhnu24ca0xnvkx.lambda-url.us-east-1.on.aws/',
+            'https://v6apg755iqkioecq223tdalfpq0lpree.lambda-url.us-east-1.on.aws/'
+        ]
+    },
+    '5-sti': {
+        name: 'Singapore STI', size: 30, use: 3, csv: 'Singapore_STI_Screener', format: 'market', merge: 'guarded', timeText: false,
+        report: { heading: '🇸🇬 SINGAPORE STI', stocks: 'Singapore STI stocks', exchange: 'Singapore Exchange', currency: 'SGD', done: 'Singapore STI',
+                  type: 'option_5sti_screener', title: 'Singapore STI Screener', symbol: 'SINGAPORE_SCREENER',
+                  names: {'A17U.SI': 'CapitaLand Ascendas', 'C38U.SI': 'CapitaLand Integrated', '9CI.SI': 'CapitaLand Investment', 'C09.SI': 'City Developments', 'D05.SI': 'DBS Group', 'D01.SI': 'DFI Retail Group', 'J69U.SI': 'Frasers Centrepoint', 'BUOU.SI': 'Frasers Logistics', 'G13.SI': 'Genting Singapore', 'H78.SI': 'Hongkong Land', 'J36.SI': 'Jardine Matheson', 'BN4.SI': 'Keppel Ltd', 'AJBU.SI': 'Keppel DC Reit', 'ME8U.SI': 'Mapletree Industrial', 'M44U.SI': 'Mapletree Logistics', 'N2IU.SI': 'Mapletree Pan Asia', 'O39.SI': 'OCBC Bank', 'S58.SI': 'SATS Ltd', '5E2.SI': 'Seatrium', 'U96.SI': 'Sembcorp Industries', 'C6L.SI': 'Singapore Airlines', 'S68.SI': 'Singapore Exchange', 'Z74.SI': 'Singtel', 'S63.SI': 'ST Engineering', 'Y92.SI': 'Thai Beverage', 'U11.SI': 'United Overseas Bank', 'U14.SI': 'UOL Group', 'V03.SI': 'Venture Corporation', 'F34.SI': 'Wilmar International', 'BS6.SI': 'Yangzijiang Shipbldg.'} },
+        list: ['A17U.SI','C38U.SI','9CI.SI','C09.SI','D05.SI','D01.SI','J69U.SI','BUOU.SI','G13.SI','H78.SI','J36.SI','BN4.SI','AJBU.SI','ME8U.SI','M44U.SI','N2IU.SI','O39.SI','S58.SI','5E2.SI','U96.SI','C6L.SI','S68.SI','Z74.SI','S63.SI','Y92.SI','U11.SI','U14.SI','V03.SI','F34.SI','BS6.SI'],
+        workers: [
+            'https://n4htemmu2fi4aysqdl7rwqmpju0nibtz.lambda-url.us-east-1.on.aws/',
+            'https://fexjjml7pdytbj7fl7prbno5fa0azrao.lambda-url.us-east-1.on.aws/',
+            'https://5ueaypamz64ayeqmcra7wjfxmu0pvcen.lambda-url.us-east-1.on.aws/'
+        ]
     }
 };
