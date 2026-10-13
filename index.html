@@ -399,76 +399,7 @@ modal.style.right = '-100%';
 setTimeout(() => { overlay.style.display = 'none'; modal.style.display = 'none'; emptyMobileSidebar(); }, 300);
 }
 </script>
-<script>
-// Touch swipe functionality
-let touchStartX = 0;
-let touchEndX = 0;
-let touchStartY = 0;
-let touchEndY = 0;
-let isScrolling = false;
-
-document.addEventListener('touchstart', function(e) {
-touchStartX = e.changedTouches[0].screenX;
-touchStartY = e.changedTouches[0].screenY;
-isScrolling = false;
-});
-
-document.addEventListener('touchmove', function(e) {
-const currentY = e.changedTouches[0].screenY;
-const yDiff = Math.abs(currentY - touchStartY);
-if (yDiff > 30) {
-isScrolling = true;
-}
-});
-
-document.addEventListener('touchend', function(e) {
-touchEndX = e.changedTouches[0].screenX;
-touchEndY = e.changedTouches[0].screenY;
-handleSwipe();
-});
-
-function handleSwipe() {
-if (window.mobileSidebar && window.mobileSidebar.busy()) return; // a finger dragging the sidebar: mobile-sidebar.js has that touch
-if (window.innerWidth <= 768 && !isScrolling) {
-const menu = document.getElementById('mobile-menu');
-const overlay = document.getElementById('mobile-menu-overlay');
-const hamburger = document.querySelector('.hamburger-btn');
-const isMenuOpen = menu && menu.classList.contains('open');
-
-const sidebarModal = document.getElementById('mobile-sidebar-modal');
-const sidebarOverlay = document.getElementById('mobile-sidebar-overlay');
-const isSidebarOpen = sidebarModal && sidebarModal.style.display === 'block';
-
-if (touchEndX > touchStartX + 40) { // Swipe right
-// Prevent browser back gesture when sidebar is open and swipe starts from left edge
-if (isSidebarOpen && touchStartX < 50) {
-return; // Ignore swipe from left edge to prevent back navigation
-}
-if (isSidebarOpen) {
-if (!window.mobileSidebar) closeMobileSidebar();
-} else if (!isMenuOpen && !isSidebarOpen && menu && overlay && hamburger) {
-const nav = document.querySelector('.top-nav');
-if (nav) nav.style.transform = 'translateY(0)';
-const menuContent = document.querySelector('.mobile-menu-content');
-if (menuContent) menuContent.scrollTop = 0;
-menu.classList.add('open');
-overlay.classList.add('show');
-hamburger.classList.add('active');
-document.body.classList.add('menu-open');
-}
-} else if (touchEndX < touchStartX - 40) { // Swipe left
-if (isMenuOpen && menu && overlay && hamburger) {
-menu.classList.remove('open');
-overlay.classList.remove('show');
-hamburger.classList.remove('active');
-document.body.classList.remove('menu-open');
-} else if (!isMenuOpen && !isSidebarOpen) {
-if (!window.mobileSidebar) toggleMobileSidebar();
-}
-}
-}
-}
-</script>
+<!-- Swipes on a phone (the menu from the left, the market-data sidebar from the right) are handled by mobile-sidebar.js -->
 <script>
 // Hide LIMITED TIME banner immediately for logged-in users to prevent flicker
 (function() {
@@ -1422,7 +1353,7 @@ document.body.classList.add('no-cta-button');
 </div>
 <div id="mobile-sidebar-content" style="padding: 15px;"></div>
 </div>
-<script src="mobile-sidebar.js?v=1"></script>
+<script src="mobile-sidebar.js?v=2"></script>
 
 <style>
 @media (max-width: 768px) {

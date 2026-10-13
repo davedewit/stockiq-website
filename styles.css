@@ -258,6 +258,7 @@ html {
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
+    touch-action: none;
 }
 
 .mobile-menu-overlay.show {
@@ -277,6 +278,7 @@ html {
     z-index: 1002;
     transition: left 0.3s ease;
     box-shadow: 5px 0 25px var(--shadow);
+    overscroll-behavior: contain;
 }
 
 @media (max-width: 768px) {
@@ -291,11 +293,14 @@ html {
     left: 0;
 }
 
+/* The page behind the open menu (or a pop-up that uses this class) only stops scrolling. It must never be given
+   position: fixed or a fixed height: either throws the page to the top. The !important lines also undo the
+   position: fixed, top and height that older page code still writes on the body when the menu opens. */
 body.menu-open {
     overflow: hidden !important;
-    position: fixed !important;
-    width: 100% !important;
-    height: 100vh !important;
+    position: relative !important;
+    top: auto !important;
+    height: auto !important;
 }
 
 .mobile-menu-header {
@@ -335,6 +340,7 @@ body.menu-open {
     padding: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    overscroll-behavior: contain;
     max-height: calc(100vh - 80px);
     max-height: calc(100dvh - 80px);
 }

@@ -87,13 +87,9 @@
         })();
     </script>
     <script src="auth.js?v=20250115"></script>
+    <script src="mobile-sidebar.js?v=2"></script>
     <script>
-        // Touch swipe functionality
-        let touchStartX = 0;
-        let touchEndX = 0;
-        let touchStartY = 0;
-        let touchEndY = 0;
-        let isScrolling = false;
+        // Swipes on a phone (the menu from the left) are handled by mobile-sidebar.js
         let lastScrollY = 0;
         let isScrollingDown = false;
         
@@ -122,56 +118,6 @@
             }, 150);
         });
         
-        document.addEventListener('touchstart', function(e) {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
-            isScrolling = false;
-        });
-        
-        document.addEventListener('touchmove', function(e) {
-            const currentY = e.changedTouches[0].screenY;
-            const yDiff = Math.abs(currentY - touchStartY);
-            if (yDiff > 30) {
-                isScrolling = true;
-            }
-        });
-        
-        document.addEventListener('touchend', function(e) {
-            touchEndX = e.changedTouches[0].screenX;
-            touchEndY = e.changedTouches[0].screenY;
-            handleSwipe();
-        });
-        
-        
-        function handleSwipe() {
-            if (window.innerWidth <= 768 && !isScrolling) { // Only on mobile and not scrolling
-                const menu = document.getElementById('mobile-menu');
-                const overlay = document.getElementById('mobile-menu-overlay');
-                const hamburger = document.querySelector('.hamburger-btn');
-                const isMenuOpen = menu && menu.classList.contains('open');
-                
-                if (touchEndX > touchStartX + 40) { // Swipe right
-                    // Don't open menu if user is scrolling down
-                    if (!isMenuOpen && !isScrollingDown && menu && overlay && hamburger) {
-                        const nav = document.querySelector('.top-nav');
-                        if (nav) nav.style.transform = 'translateY(0)';
-                        const menuContent = document.querySelector('.mobile-menu-content');
-                        if (menuContent) menuContent.scrollTop = 0;
-                        menu.classList.add('open');
-                        overlay.classList.add('show');
-                        hamburger.classList.add('active');
-                        document.body.classList.add('menu-open');
-                    }
-                } else if (touchEndX < touchStartX - 50) { // Swipe left
-                    if (isMenuOpen && menu && overlay && hamburger) {
-                        menu.classList.remove('open');
-                        overlay.classList.remove('show');
-                        hamburger.classList.remove('active');
-                        document.body.classList.remove('menu-open');
-                    }
-                }
-            }
-        }
         
 
         
