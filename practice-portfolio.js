@@ -80,6 +80,11 @@
     }
 
     // What the sold list adds up to, and how many sales did better than the S&P 500 fund over the same days
+    // Whose holdings a list shows: 'own' the ones bought by hand, 'ai' the autopilot's, anything else all of them
+    function partOf(list, key) {
+        return key === 'own' ? list.filter(h => h.by !== 'ai') : key === 'ai' ? list.filter(h => h.by === 'ai') : list;
+    }
+
     function soldSummary(state) {
         let cost = 0, proceeds = 0, compared = 0, ahead = 0, level = 0;
         state.closed.forEach(h => {
@@ -326,7 +331,7 @@
         return Math.floor(left / 3600000) + 'h ' + Math.floor((left % 3600000) / 60000) + 'm';
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn };
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -596,7 +601,15 @@
         const cell = 'padding: 8px 6px; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap;';
         const left = cell.replace('text-align: right', 'text-align: left');
 
-        const rows = state.holdings.slice().reverse().map(h => {
+        // The graph's choice (Account, Your own buys, AI autopilot) is also whose holdings the two lists show
+        if (chartKey !== 'value' && !splitGain(state, quotes, autoRealized).any) chartKey = 'value';
+        const held = partOf(state.holdings, chartKey), soldOnes = partOf(state.closed, chartKey), part = chartKey !== 'value';
+        const count = (shown, all) => part ? `${shown} of ${all}` : String(all);
+        const whose = chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys';
+        const showAll = `<a href="#" data-pp="chart-key" data-id="value" style="color: #007bff; white-space: nowrap;">Show all</a>`;
+        const partLine = part && state.holdings.length ? `<div id="pp-part" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">${held.length ? `Showing <strong style="color: var(--text-primary);">${whose}</strong>: ${held.length} of ${state.holdings.length} holdings.` : `None of the ${state.holdings.length} holdings ${state.holdings.length === 1 ? 'is' : 'are'} ${chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys'}.`} ${showAll}</div>` : '';
+
+        const rows = held.slice().reverse().map(h => {
             const v = valueOf(h, quotes), today = dayMove(h, quotes);
             return `<tr>
                 <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
@@ -612,11 +625,11 @@
             </tr>`;
         }).join('');
 
-        const closed = state.closed.slice().reverse().map(h => {
+        const closed = soldOnes.slice().reverse().map(h => {
             const change = (h.proceedsUsd / h.costUsd - 1) * 100;
             return `<tr><td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td data-label="Held" style="${cell}">${esc(when(h.boughtAt))} → ${esc(when(h.soldAt))}</td><td data-label="Price" style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td data-label="Result" style="${cell}">${pctHtml(change, h.proceedsUsd - h.costUsd)}</td><td class="pp-act" style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
         }).join('');
-        const sold = soldSummary(state);
+        const sold = soldSummary({ closed: soldOnes });
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}: ${movedHtml(sold.gainUsd, sold.gainPct)}.` : '';
         // one total mixes the user's own buys with the autopilot's: say which part is whose
         const split = splitGain(state, quotes, autoRealized);
@@ -661,8 +674,8 @@
                 <button data-pp="buy" class="pp-btn big${busy === 'buy' ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'buy' ? 'Buying…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
-            ${state.holdings.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${state.holdings.length})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>` : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
-            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${state.closed.length})</summary><div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div><div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span><button data-pp="clearsold" class="pp-btn ghost${busy === 'clearsold' ? ' busy' : ''}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>${busy === 'clearsold' ? 'Clearing…' : 'Clear sold list'}</button></div></details>` : ''}
+            ${partLine}${held.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${count(held.length, state.holdings.length)})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>` : state.holdings.length ? '' : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
+            ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${count(soldOnes.length, state.closed.length)})</summary>${soldOnes.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div>` : `<p style="margin: 8px 0 0; font-size: 0.85rem; color: var(--text-secondary);">None of the ${state.closed.length} sold ${state.closed.length === 1 ? 'is' : 'are'} ${whose}. ${showAll}</p>`}<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span>${part ? '' : `<button data-pp="clearsold" class="pp-btn ghost${busy === 'clearsold' ? ' busy' : ''}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>${busy === 'clearsold' ? 'Clearing…' : 'Clear sold list'}</button>`}</div></details>` : ''}
             ${beside ? '' : `<div id="pp-tools" style="margin-top: 12px;">${toolsHtml()}</div>`}
             <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
                 <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. “Today” is what is held now, each holding since its market’s previous close (a coin: since 00:00 UTC) or since it was bought if that was later; while its market is closed it is the last session. A sale made today is not in it. General information only, not financial advice.</span>
@@ -696,12 +709,15 @@
     }
     // ---------------------------------------------------------------- the graph of the account over time
     const CHART_RANGES = { all: ['All', 0], month: ['1 month', 30 * 86400000], week: ['1 week', 7 * 86400000] };
-    let chartKey = 'value', chartRange = 'all';      // which line (the account, the user's own buys, the autopilot's) and how far back
+    // chartKey: which line (the account, the user's own buys, the autopilot's). The same choice says whose holdings the two
+    // lists under the graph show (partOf). It is kept while the page is open (a refresh of prices leaves it) and is not
+    // remembered: a page opened afresh shows the whole account. chartRange (how far back) is remembered in the browser.
+    let chartKey = 'value', chartRange = 'all';
     let chartNow = null;                             // where each point sits in the picture on show: the pointer reads values off it
     try {
-        const k = localStorage.getItem('stockiqPracticeChartKey'), r = localStorage.getItem('stockiqPracticeChartRange');
-        if (['value', 'own', 'ai'].includes(k)) chartKey = k;
+        const r = localStorage.getItem('stockiqPracticeChartRange');
         if (CHART_RANGES[r]) chartRange = r;
+        localStorage.removeItem('stockiqPracticeChartKey');      // remembered until 13 Oct 2026
     } catch (e) { /* a private window: the choice is simply not remembered */ }
     // The line above the picture: a moment, the figure then, and the change
     function chartRead(point) {
@@ -786,8 +802,9 @@
         const action = t.getAttribute('data-pp');
         if (t.tagName === 'A') e.preventDefault();
         if (action === 'chart-key' || action === 'chart-range') {
-            if (action === 'chart-key') chartKey = t.getAttribute('data-id'); else chartRange = t.getAttribute('data-id');
-            try { localStorage.setItem(action === 'chart-key' ? 'stockiqPracticeChartKey' : 'stockiqPracticeChartRange', t.getAttribute('data-id')); } catch (err) { /* not remembered */ }
+            if (action === 'chart-key') { chartKey = t.getAttribute('data-id'); redraw(); return; }      // the lists follow the graph
+            chartRange = t.getAttribute('data-id');
+            try { localStorage.setItem('stockiqPracticeChartRange', chartRange); } catch (err) { /* not remembered */ }
             drawChart();
             return;
         }
