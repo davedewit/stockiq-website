@@ -109,6 +109,28 @@ html {
     transform: translateX(-50%);
 }
 
+/* A narrow desktop window or a tablet (769 to 1150px): the menu takes its place in the row beside the name. Centred on
+   the page, as it is on a wide screen, it ran over the name from about 1100px down. */
+@media (min-width: 769px) and (max-width: 1150px) {
+    .desktop-nav {
+        position: static;
+        transform: none;
+        gap: 6px;
+    }
+    .desktop-nav .nav-item {        /* two classes: the plain .nav-item rule comes later in this file and would win */
+        padding: 10px 12px;
+    }
+}
+@media (min-width: 769px) and (max-width: 900px) {
+    .desktop-nav {
+        gap: 0;
+    }
+    .desktop-nav .nav-item {
+        padding: 8px 7px;
+        font-size: 0.92rem;
+    }
+}
+
 /* Home link specific styling */
 .home-link {
     text-decoration: none !important;
@@ -468,7 +490,7 @@ body.menu-open {
 }
 
 .cta-primary {
-    background: #ef4444;
+    background: #007bff;
     color: white;
     border: none;
     padding: 16px 32px;
@@ -477,13 +499,15 @@ body.menu-open {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    text-decoration: none;
+    display: inline-block;
 }
 
 .cta-primary:hover {
-    background: #dc2626;
+    background: #0069d9;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
 }
 
 .cta-secondary {

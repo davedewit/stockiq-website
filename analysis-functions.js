@@ -436,7 +436,7 @@ function showAnonymousUpgradeModal() {
             <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
             <h2 style="color: var(--text-primary); margin-bottom: 15px; font-size: 1.8rem;">You've Used Your Free Daily Analysis!</h2>
             <p style="color: var(--text-secondary); margin-bottom: 25px; font-size: 1.1rem; line-height: 1.6;">
-                Want <strong style="color: #007bff;">5 Free Reports per day</strong>?<br>
+                Want <strong style="color: #007bff;">15 free analyses</strong>? That is 5 a day for 3 days.<br>
                 Create a free account in 30 seconds.
             </p>
             <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
