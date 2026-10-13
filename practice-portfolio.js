@@ -239,11 +239,52 @@
         while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (knots[mid][0] <= t) lo = mid; else hi = mid; }
         return knots[lo][1] + (knots[hi][1] - knots[lo][1]) * (t - knots[lo][0]) / ((knots[hi][0] - knots[lo][0]) || 1);
     }
+    // How far back the fund's daily prices must reach to cover the account's life. The price source answers with a month
+    // of them unless it is asked for more ('' = its own month).
+    function fundRange(createdAt, now) {
+        const days = (now - (typeof createdAt === 'number' ? createdAt : Date.parse(createdAt))) / 86400000;
+        return !(days > 24) ? '' : days < 80 ? '3mo' : days < 170 ? '6mo' : days < 350 ? '1y' : days < 700 ? '2y' : '5y';
+    }
+    // "What if the whole starting amount had simply gone into an S&P 500 fund the moment the account began, and stayed
+    // there": that holding's worth over time as [time, dollars], built as a holding's is (the fund's daily closes, then its
+    // latest price now). No trading cost is taken off it and no dividends are counted. The fund's price at the start is
+    // the last one known then: the last close at or before the start; or, when the US market was open at that moment and
+    // something was bought later in the same session, the fund's price kept with that buy (the last close would be a
+    // session old). Null when the fund's prices do not reach back to the start: then there is nothing to draw.
+    function fundKnots(state, quotes, now) {
+        const ms = (x) => typeof x === 'number' ? x : Date.parse(x);
+        const q = quotes[BENCHMARK], series = (q && q.series) || [], start = ms(state.createdAt), cash = state.startingCash;
+        if (!q || !(q.price > 0) || !(start > 0) || start > now || !(cash > 0)) return null;
+        let base = null;
+        series.forEach(([t, p]) => { if (t <= start && p > 0) base = p; });
+        if (usOpensIn(start) === null) {
+            let near = null;
+            state.holdings.concat(state.closed).forEach(h => {
+                const t = ms(h.boughtAt);
+                if (h.spyAtBuy > 0 && t >= start && t - start < 23400000 && usOpensIn(t) === null && (!near || t < near[0])) near = [t, h.spyAtBuy];
+            });
+            if (near) base = near[1];
+        }
+        if (!(base > 0)) return null;
+        const knots = [[start, cash]];
+        series.forEach(([t, p]) => { if (t > start && t < now && p > 0) knots.push([t, cash * p / base]); });
+        knots.push([Math.max(now, start + 1), cash * q.price / base]);
+        return knots;
+    }
+    // The account against that fund right now: what the fund would be worth, and how far the account is ahead of it
+    // (gapUsd above zero) or behind it. Null when the fund cannot be worked out.
+    function versusStart(state, quotes, now) {
+        const knots = fundKnots(state, quotes, now);
+        if (!knots) return null;
+        const value = knots[knots.length - 1][1];
+        return { value, gainUsd: value - state.startingCash, gapUsd: summarize(state, quotes).accountValue - value };
+    }
     // The account at every moment from `from` to `now`, worked out from what is in it. A holding still held is valued at
     // its daily prices and at its latest price now. One that was sold is a straight line from what was put in to what came
     // back: exact at both ends, a guess in between. Results of sales no longer in the list (the list was cleared, or is
     // over its limit) have no dates left: they are counted from the beginning, and `undated` says how much that is.
-    // Each point: t, value (the account), all (its change since the start), ai (the autopilot's part), own (the user's).
+    // Each point: t, value (the account), all (its change since the start), ai (the autopilot's part), own (the user's),
+    // fund (the starting amount in an S&P 500 fund since the account began: fundKnots; null when that cannot be worked out).
     function valueSeries(state, quotes, now, autoRealized, from) {
         const ms = (x) => typeof x === 'number' ? x : Date.parse(x);
         const start = ms(state.createdAt) || now, first = Math.min(now, Math.max(start, from || start)), lots = [];
@@ -269,13 +310,15 @@
         const undatedAi = split.auto - lots.reduce((sum, l) => sum + (l.ai ? gain(l, now) : 0), 0);
         const times = new Set([first, now]);
         lots.forEach(l => l.knots.forEach(k => { if (k[0] > first && k[0] < now) times.add(k[0]); }));
+        const fund = fundKnots(state, quotes, now);
+        if (fund) fund.forEach(k => { if (k[0] > first && k[0] < now) times.add(k[0]); });
         for (let i = 1; i < 120; i++) times.add(Math.round(first + (now - first) * i / 120));
         const points = [...times].sort((a, b) => a - b).map(t => {
             let all = undated, ai = undatedAi;
             lots.forEach(l => { const g = gain(l, t); all += g; if (l.ai) ai += g; });
-            return { t, value: state.startingCash + all, all, ai, own: all - ai };
+            return { t, value: state.startingCash + all, all, ai, own: all - ai, fund: fund ? valueAt(fund, t) : null };
         });
-        return { start, from: first, now, points, undated, undatedAi, lots: lots.length, anyAi: split.any };
+        return { start, from: first, now, points, undated, undatedAi, lots: lots.length, anyAi: split.any, fund: !!fund };
     }
     // Round numbers for an axis that covers lo..hi in about `count` steps
     function axisTicks(lo, hi, count) {
@@ -290,7 +333,8 @@
         const pts = series.points, base = key === 'value' ? pts.length ? pts[0].value - pts[0].all : 0 : 0;
         const W = Math.max(260, Math.round(width || 720)), H = Math.round(height || 220), small = W < 480;
         const m = { l: small ? 54 : 70, r: 14, t: 12, b: 24 }, w = W - m.l - m.r, h = H - m.t - m.b;
-        const vals = pts.map(p => p[key]).concat([base]);
+        const both = key === 'value' && !!series.fund && pts.every(p => typeof p.fund === 'number');      // the S&P 500 fund's line beside the account's
+        const vals = pts.map(p => p[key]).concat([base], both ? pts.map(p => p.fund) : []);
         let lo = Math.min(...vals), hi = Math.max(...vals);
         const pad = Math.max((hi - lo) * 0.12, Math.abs(base) * 0.0002, 1); lo -= pad; hi += pad;
         const t0 = series.from, t1 = Math.max(series.now, t0 + 1);
@@ -300,7 +344,7 @@
             : (Math.abs(v) < 0.005 ? '$0' : (v > 0 ? '+$' : '-$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 }));
         const days = (t1 - t0) / 86400000;
         const stamp = (t) => { const d = new Date(t); return days <= 3 ? d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
-        let out = `<svg id="pp-chart-svg" class="pp-chart-svg" role="img" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="${esc(key === 'value' ? 'Account value over time' : key === 'ai' ? 'The autopilot’s result over time' : 'The result of your own buys over time')}: from ${esc(label(pts[0][key]))} to ${esc(label(pts[pts.length - 1][key]))}">`;
+        let out = `<svg id="pp-chart-svg" class="pp-chart-svg" role="img" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="${esc(key === 'value' ? 'Account value over time' : key === 'ai' ? 'The autopilot’s result over time' : 'The result of your own buys over time')}: from ${esc(label(pts[0][key]))} to ${esc(label(pts[pts.length - 1][key]))}${both ? '; the same amount in an S&amp;P 500 fund since the start: ' + esc(label(pts[pts.length - 1].fund)) : ''}">`;
         axisTicks(lo, hi, small ? 3 : 4).ticks.forEach(v => {
             out += `<line class="pp-grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="pp-axis" x="${m.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(label(v))}</text>`;
         });
@@ -311,12 +355,15 @@
         }
         // where it started: the line everything is measured against
         out += `<line class="pp-base" x1="${m.l}" x2="${W - m.r}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
-        const placed = pts.map(p => ({ t: p.t, v: p[key], all: p.all, x: +x(p.t).toFixed(1), y: +y(p[key]).toFixed(1) }));
+        // f, fy: the fund at that moment and where it sits (only on the account's own picture, and only when it could be worked out)
+        const placed = pts.map(p => Object.assign({ t: p.t, v: p[key], all: p.all, x: +x(p.t).toFixed(1), y: +y(p[key]).toFixed(1) }, both ? { f: p.fund, fy: +y(p.fund).toFixed(1) } : {}));
+        if (both) out += `<path class="pp-fund" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.fy).join('')}"/>`;      // under the account's line
         out += `<path class="pp-line" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.y).join('')}"/>`;
         const end = placed[placed.length - 1];
         out += `<line id="pp-cross" class="pp-cross" x1="${end.x}" x2="${end.x}" y1="${m.t}" y2="${m.t + h}" style="display:none"/>`;
+        if (both) out += `<circle id="pp-dot-fund" class="pp-dot-fund" cx="${end.x}" cy="${end.fy}" r="4"/>`;
         out += `<circle id="pp-dot" class="pp-dot" cx="${end.x}" cy="${end.y}" r="4"/></svg>`;
-        return { svg: out, placed, base, width: W };
+        return { svg: out, placed, base, width: W, fund: both };
     }
 
     // How long until the US stock market next opens ("9h 35m"), or null while it is open: 9:30 to 16:00 New York time,
@@ -331,7 +378,7 @@
         return Math.floor(left / 3600000) + 'h ' + Math.floor((left % 3600000) / 60000) + 'm';
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn };
+    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -358,7 +405,7 @@
         #pp-tools .pp-updated { font-size: 0.78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
         #pp-tools .pp-updated.fresh { animation: pp-flash 2.4s ease-out; }
         @media (max-width: 640px) { #pp-tools { justify-content: flex-start; width: 100%; } #pp-tools .pp-updated { flex: 1 1 100%; order: 3; } #pp-tools .pp-btn { flex: 1 1 0; padding: 9px 10px; } }
-        #practice-portfolio { --pp-line: #2563eb; }
+        #practice-portfolio { --pp-line: #2563eb; --pp-fund: #c98500; }      /* the pair was checked against the light and the dark background, also for colour-blind readers */
         [data-theme="dark"] #practice-portfolio { --pp-line: #3b82f6; }
         #practice-portfolio .pp-chart { border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px 8px; margin-bottom: 14px; background: var(--bg-primary); }
         #practice-portfolio .pp-chart-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
@@ -375,6 +422,12 @@
         #practice-portfolio .pp-line { fill: none; stroke: var(--pp-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
         #practice-portfolio .pp-cross { stroke: var(--text-secondary); stroke-width: 1; }
         #practice-portfolio .pp-dot { fill: var(--pp-line); stroke: var(--bg-primary); stroke-width: 2; }
+        #practice-portfolio .pp-fund { fill: none; stroke: var(--pp-fund); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+        #practice-portfolio .pp-dot-fund { fill: var(--pp-fund); stroke: var(--bg-primary); stroke-width: 2; }
+        #practice-portfolio .pp-chart-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; line-height: 1.5; }
+        #practice-portfolio .pp-chart-who { color: var(--text-secondary); }
+        #practice-portfolio .pp-key { display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: var(--pp-line); vertical-align: middle; margin: 0 8px 2px 0; }
+        #practice-portfolio .pp-key.fund { background: var(--pp-fund); }
         #practice-portfolio .pp-chart-note { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
         #practice-portfolio .pp-top { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
         #practice-portfolio .pp-top .pp-card-value { font-size: 1.7rem; }
@@ -399,6 +452,7 @@
             #practice-portfolio .pp-chart { padding: 10px 10px 6px; }
             #practice-portfolio .pp-chart .pp-fig-part { display: none; }
             #practice-portfolio .pp-chart td, #practice-portfolio .pp-chart th { padding-right: 10px; white-space: nowrap; }
+            #practice-portfolio .pp-chart td.pp-fig-vs, #practice-portfolio .pp-chart th.pp-fig-vs { white-space: normal; }
         }
         #practice-portfolio { font-variant-numeric: tabular-nums; }
         #practice-portfolio .pp-card { flex: 1; min-width: 150px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; border-top: 3px solid transparent; }
@@ -466,13 +520,15 @@
         return body;
     }
 
-    async function fetchQuote(symbol) {
+    // range: how far back the daily prices should reach ('3mo', '1y', ...); without it the price source sends a month.
+    // Only the S&P 500 fund is asked for more, and only once the account is older than that month (fundRange).
+    async function fetchQuote(symbol, range) {
         try {
-            const res = await fetch(PRICE_API + encodeURIComponent(symbol));
+            const res = await fetch(PRICE_API + encodeURIComponent(symbol) + (range ? '&range=' + range : ''));
             const result = (await res.json())?.chart?.result?.[0], meta = result && result.meta;
             if (!meta || !(meta.regularMarketPrice > 0)) return null;
             // series: the month of daily prices that comes with every quote, for the graph of the account over time
-            return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol) };
+            return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol), range: range || '' };
         } catch (e) { return null; }
     }
     // A quote plus what is needed to turn it into dollars and compare it with the market
@@ -480,7 +536,7 @@
         const q = await fetchQuote(symbol);
         if (!q) return null;
         const fx = fxFor(q.currency);
-        const [rateQuote, spy] = await Promise.all([fx.symbol ? fetchQuote(fx.symbol) : null, fetchQuote(BENCHMARK)]);
+        const [rateQuote, spy] = await Promise.all([fx.symbol ? fetchQuote(fx.symbol) : null, fetchQuote(BENCHMARK, (quotes[BENCHMARK] || {}).range)]);      // as far back as the graph has it
         if (fx.symbol && !rateQuote) return null;
         quotes[symbol] = q; if (rateQuote) quotes[fx.symbol] = rateQuote; if (spy) quotes[BENCHMARK] = spy;
         return { q, fx: fxRate(fx, rateQuote ? rateQuote.price : 0), spy: spy ? spy.price : null };
@@ -488,14 +544,18 @@
     // The symbols whose prices the page needed last time, kept in the browser: on the next visit their prices are asked for at
     // once, together with the portfolio, instead of only after it has arrived (one wait in place of two).
     const symbolsKey = () => 'stockiqPracticeSymbols_' + userId();
+    const rangeKey = () => 'stockiqPracticeFundRange_' + userId();
+    function knownRange() { try { const r = localStorage.getItem(rangeKey()) || ''; return /^(3mo|6mo|1y|2y|5y)$/.test(r) ? r : ''; } catch (e) { return ''; } }
     function knownSymbols() { try { const k = JSON.parse(localStorage.getItem(symbolsKey()) || '[]'); return Array.isArray(k) ? k.filter(x => typeof x === 'string').slice(0, 80) : []; } catch (e) { return []; } }
     async function refreshQuotes(have) {
         if (!state) return;
         const wanted = new Set([BENCHMARK]);
         state.holdings.forEach(h => { wanted.add(h.symbol); const fx = fxFor(h.currency); if (fx.symbol) wanted.add(fx.symbol); });
-        try { localStorage.setItem(symbolsKey(), JSON.stringify([...wanted])); } catch (e) {}
-        const list = [...wanted].filter(sym => !(have && have.has(sym)));          // those just fetched ahead are not asked for twice
-        const got = await Promise.all(list.map(fetchQuote));
+        const span = fundRange(state.createdAt, Date.now());                         // the fund's prices have to reach back to the account's start
+        try { localStorage.setItem(symbolsKey(), JSON.stringify([...wanted])); localStorage.setItem(rangeKey(), span); } catch (e) {}
+        // those just fetched ahead are not asked for twice (the fund is, if what came does not reach back far enough)
+        const list = [...wanted].filter(sym => !(have && have.has(sym)) || (sym === BENCHMARK && ((quotes[sym] || {}).range || '') !== span));
+        const got = await Promise.all(list.map(sym => fetchQuote(sym, sym === BENCHMARK ? span : '')));
         list.forEach((s, i) => { if (got[i]) quotes[s] = got[i]; });
         pricesAt = Date.now();
     }
@@ -504,7 +564,7 @@
         if (!userId()) { loaded = true; render(); return; }
         if (!loaded) render();                             // the spinner until the portfolio and its prices are in
         // on the first load, the prices of what it held last time are asked for while the portfolio itself is on its way
-        const ahead = loaded ? null : Promise.all(knownSymbols().map(sym => fetchQuote(sym).then(q => [sym, q]).catch(() => [sym, null])));
+        const ahead = loaded ? null : Promise.all(knownSymbols().map(sym => fetchQuote(sym, sym === BENCHMARK ? knownRange() : '').then(q => [sym, q]).catch(() => [sym, null])));
         try {
             const r = await api('get');
             state = r.portfolio || newState(new Date().toISOString());
@@ -641,7 +701,13 @@
         const big = (n) => movedHtml(n, null), share = (p) => (p === null || p === undefined || !isFinite(p)) ? '' : Math.abs(p).toFixed(2) + '%';
         const dayOfAccount = s.dayUsd !== null && s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null;
         const gap = s.openGainPct !== null && s.marketPct !== null ? s.openGainPct - s.marketPct : null;
-        const fund = s.marketPct === null ? '' : s.marketFlat ? ' · S&amp;P 500 fund: no change yet to compare with'
+        // The one line says what the graph says: the whole account against the starting amount left in an S&P 500 fund since
+        // the account began, in dollars. (The breakdown's card is another sum, and says so: only what is still held, against
+        // the same dollars in the fund on the days they were put in.) Without the fund's prices back to the start, that card's
+        // figure stands here as before.
+        const vs = state.holdings.length || state.closed.length ? versusStart(state, quotes, Date.now()) : null, behind = vs ? Math.round(vs.gapUsd * 100) / 100 : 0;
+        const fund = vs ? ` · Against the same ${usd(state.startingCash).replace(/\.00$/, '')} in an S&amp;P 500 fund since the start: <strong>${behind === 0 ? 'level' : (behind > 0 ? 'ahead' : 'behind') + ' by ' + usd(Math.abs(behind))}</strong>`
+            : s.marketPct === null ? '' : s.marketFlat ? ' · S&amp;P 500 fund: no change yet to compare with'
             : ` · Against an S&amp;P 500 fund over the same days: <strong>${gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : (gap > 0 ? 'ahead' : 'behind') + ' by ' + Math.abs(gap).toFixed(2) + '%'}</strong>`;
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
@@ -722,7 +788,16 @@
     // The line above the picture: a moment, the figure then, and the change
     function chartRead(point) {
         const moment = `<span class="pp-chart-when">${esc(new Date(point.t).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`;
-        return chartKey === 'value' ? `${moment}<strong>${usd(point.v)}</strong> &nbsp;${movedHtml(point.all, state ? point.all / state.startingCash * 100 : null)} since the start` : `${moment}${movedHtml(point.v)}`;
+        if (chartKey !== 'value') return `${moment}${movedHtml(point.v)}`;
+        const cash = state ? state.startingCash : STARTING_CASH, share = (n) => n / cash * 100;
+        const account = `<strong>${usd(point.v)}</strong> ${movedHtml(point.all, share(point.all))} since the start`;
+        if (typeof point.f !== 'number') return moment + account;
+        // Two lines, each led by its colour: they are the graph's key as well. Who is ahead is said in words, in dollars.
+        const gap = Math.round((point.v - point.f) * 100) / 100;
+        const verdict = gap === 0 ? 'your account is level with it' : `your account is <strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))}</strong>`;
+        return `<div>${moment}</div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>Your account</span><span>${account}</span></div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key fund" aria-hidden="true"></span>The same ${usd(cash).replace(/\.00$/, '')} in an S&amp;P 500 fund</span><span><strong>${usd(point.f)}</strong> ${movedHtml(point.f - cash, share(point.f - cash))} · ${verdict}</span></div>`;
     }
     function chartHtml() {
         if (!state || !(state.holdings.length || state.closed.length)) return '';
@@ -740,14 +815,15 @@
         // the figures behind the picture, a line a day (the last moment of each day)
         const perDay = {};
         series.points.forEach(point => { perDay[new Date(point.t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })] = point; });
-        const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td>${movedHtml(point.all)}</td>${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
+        const against = (point) => { const gap = Math.round((point.value - point.fund) * 100) / 100; return gap === 0 ? 'level' : `<span style="color: ${tone(gap)}; font-weight: 600;">${gap > 0 ? 'ahead' : 'behind'} by <span style="white-space: nowrap;">${usd(Math.abs(gap))}</span></span>`; };
+        const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td${picture.fund ? ' class="pp-fig-part"' : ''}>${movedHtml(point.all)}</td>${picture.fund ? `<td class="pp-fig-part">${usd(point.fund)}</td><td class="pp-fig-vs">${against(point)}</td>` : ''}${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
         const undated = Math.abs(series.undated) > 0.5 ? ` The result of sold holdings that are no longer in the list (${moved(series.undated)}) has no dates left, so it is counted from the start.` : '';
         return `<div class="pp-chart">
             <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.length > 1 ? ranges.map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('') : ''}</span></div>
             <div class="pp-chart-read" id="pp-chart-read">${chartRead(picture.placed[picture.placed.length - 1])}</div>
             ${picture.svg}
-            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${undated}</div>
-            <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th>Since the start</th>${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
+            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${undated}</div>
+            <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
         </div>`;
     }
     function drawChart() { const slot = document.getElementById('pp-chart'); if (slot && state && loaded) slot.innerHTML = chartHtml(); }
@@ -756,6 +832,8 @@
         const cross = document.getElementById('pp-cross'), dot = document.getElementById('pp-dot'), read = document.getElementById('pp-chart-read');
         if (cross) { cross.setAttribute('x1', point.x); cross.setAttribute('x2', point.x); cross.style.display = crossed ? '' : 'none'; }
         if (dot) { dot.setAttribute('cx', point.x); dot.setAttribute('cy', point.y); }
+        const fundDot = document.getElementById('pp-dot-fund');
+        if (fundDot && typeof point.fy === 'number') { fundDot.setAttribute('cx', point.x); fundDot.setAttribute('cy', point.fy); }
         if (read) read.innerHTML = chartRead(point);
     }
     function chartPoint(e) {
@@ -913,10 +991,12 @@
         if (!state || !loaded) return '';
         const s = summarize(state, quotes), mine = state.holdings.filter(h => h.by !== 'ai'), its = state.holdings.filter(h => h.by === 'ai');
         const one = (h) => { const v = valueOf(h, quotes); return `${h.label || h.symbol} ${usd(v.valueUsd)} (${v.priced ? moved(v.gainUsd) : 'no price now'})`; };
+        const vs = state.holdings.length || state.closed.length ? versusStart(state, quotes, Date.now()) : null;
         return ['PRACTICE PORTFOLIO (fake money): ' + (s.dayUsd === null ? '' : 'today (what it holds now, each holding since its market\'s previous close) ' + moved(s.dayUsd) + '; ') + 'account value ' + usd(s.accountValue) + ', ' + moved(s.gainUsd) + ' since the start of ' + usd(STARTING_CASH) + '; practice cash left ' + usd(state.cash) + '.',
             'Bought by the user (' + mine.length + '): ' + (mine.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Bought by the autopilot and still held (' + its.length + '): ' + (its.slice(0, 12).map(one).join('; ') || 'none') + '.',
-            'Sold so far: ' + state.closed.length + '.'].join('\n');
+            'Sold so far: ' + state.closed.length + '.']
+            .concat(vs ? ['Against an S&P 500 fund (the second line on the graph): the same ' + usd(STARTING_CASH) + ' put into the fund when the account began and left there would be ' + usd(vs.value) + ' now (' + moved(vs.gainUsd) + '); the account is ' + (Math.abs(vs.gapUsd) < 0.005 ? 'level with that' : (vs.gapUsd > 0 ? 'ahead of' : 'behind') + ' that by ' + usd(Math.abs(vs.gapUsd))) + '.'] : []).join('\n');
     }
     window.practicePortfolio = { reload: load, setPlans, summary };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
