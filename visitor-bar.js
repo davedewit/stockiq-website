@@ -2,11 +2,14 @@
 // "Unlimited", "Trial ended"); a click on it says the same in a sentence, with the one thing to do next (start a free
 // trial, see the plans).
 //
-// It replaces how the count is SHOWN, not how it is worked out. The pages still work the count out as they always did
-// (auth.js getStockAnalysisStatus, and the copies in index.html, analysis-functions.js and dashboard.html) and still
-// write it into their floating badge, #trial-status-display. theme.js hides that badge and loads this script, which
-// reads the badge's text whenever it changes and shows it in the header instead. So nothing about trials, limits or
-// plans is decided here, and taking this script away (theme.js without its loader) puts every page back as it was.
+// It is the one place the count is SHOWN; it does not work the count out. That is authManager.getStockAnalysisStatus in
+// auth.js, and auth.js's displayTrialStatus() writes the result into a badge, #trial-status-display, on every page (the
+// analysis page writes the new count there after each use; the dashboard has a displayTrialStatus of its own, because
+// the same answer also fills in its plan section). theme.js hides that badge and loads this script, which reads the
+// badge's text whenever it changes and shows it in the header. So nothing about trials, limits or plans is decided here.
+//
+// It also draws the one round button, bottom left on the home page and the analysis page: "Start 3-Day Free Trial" for an
+// anonymous visitor whose free analysis is used, "Upgrade Plan" for a signed-in one with nothing left.
 //
 // The texts the badge can hold (all of them are read below; an unknown one is shown as it is):
 //   "1/1 Analyses remaining today"                              an anonymous visitor
@@ -22,7 +25,8 @@
     var here = (document.currentScript && document.currentScript.src) || '';
     var SITE = /visitor-bar\.js/.test(here) ? here.replace(/visitor-bar\.js.*$/, '') : '';     // links are built from where this script was loaded
     var PHONE = 768;
-    var chip = null, card = null, state = null, source = null, watching = null, fitted = null;
+    var chip = null, card = null, state = null, source = null, watching = null, fitted = null, before = null;
+    var PILL_PAGES = /(^|\/)(index\.html|analysis\.html)?$/;      // the round button: the home page and the analysis page
 
     // ---------------------------------------------------------------- reading the badge's text
     function read(html) {
@@ -79,7 +83,9 @@
         st.textContent = [
             '#vb-chip { font: inherit; font-size: 0.78rem; font-weight: 600; line-height: 1; white-space: nowrap; cursor: pointer; padding: 6px 10px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: #16a34a; flex: 0 0 auto; -webkit-tap-highlight-color: transparent; }',
             '#vb-chip.vb-bad { color: #ef4444; }',
-            '#vb-chip.vb-tight { padding: 6px 8px; }',                                                              // a crowded bar: the short wording, a little narrower
+            '#vb-chip.vb-tight { padding: 6px 8px; }',
+            '@keyframes vb-pulse { 0% { box-shadow: 0 0 0 0 currentColor; transform: scale(1); } 35% { transform: scale(1.12); } 100% { box-shadow: 0 0 0 9px transparent; transform: scale(1); } }',
+            '#vb-chip[data-pulse]:not(.vb-mid) { animation: vb-pulse 1.1s ease-out; }',                          // the count has just gone down                                                              // a crowded bar: the short wording, a little narrower
             '#vb-chip:hover, #vb-chip[aria-expanded="true"] { background: rgba(128, 128, 128, 0.12); }',
             '#vb-chip:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }',
             '#vb-chip.vb-mid { position: absolute; top: 50%; transform: translate(-50%, -50%); }',                  // a phone: between the menu button and the name
@@ -91,7 +97,9 @@
             '#vb-card a.vb-act { background: #007bff; color: #fff; text-decoration: none; font-weight: 600; padding: 8px 14px; border-radius: 8px; }',
             '#vb-card a.vb-act:hover { background: #0069d9; }',
             '#vb-card a.vb-more { color: #007bff; text-decoration: none; font-weight: 500; }',
-            '#vb-card a.vb-more:hover { text-decoration: underline; }'
+            '#vb-card a.vb-more:hover { text-decoration: underline; }',
+            '#vb-pill { position: fixed; left: 20px; bottom: 20px; z-index: 9990; background: #007bff; color: #fff; padding: 12px 20px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4); }',
+            '#vb-pill:hover { background: #0069d9; }'
         ].join('\n');
         document.head.appendChild(st);
     }
@@ -151,7 +159,28 @@
         chip.style.top = Math.round(r.bottom + 6) + 'px';
     }
 
+    // The one round button. An anonymous visitor keeps it once shown (localStorage showStickyRegister, which auth.js also
+    // sets when the free analysis is used, and the analysis page's pop-up sets on "Maybe Later").
+    function pill() {
+        var want = null, el = document.getElementById('vb-pill');
+        if (state && PILL_PAGES.test(location.pathname)) {
+            if (state.kind === 'anon') {
+                var kept = false;
+                try { if (state.left <= 0) localStorage.setItem('showStickyRegister', 'true'); kept = localStorage.getItem('showStickyRegister') === 'true'; } catch (e) { kept = state.left <= 0; }
+                if (kept) want = ['🚀 Start 3-Day Free Trial', SITE + 'signup.html'];
+            } else if (state.kind === 'expired' || ((state.kind === 'trial' || state.kind === 'paid') && state.left <= 0)) {
+                want = ['🚀 Upgrade Plan', SITE + 'dashboard.html?redirect=upgrade'];
+            }
+        }
+        if (!want) { if (el) el.remove(); return; }
+        style();
+        if (!el) { el = document.createElement('a'); el.id = 'vb-pill'; document.body.appendChild(el); }
+        el.textContent = want[0];
+        el.href = want[1];
+    }
+
     function show() {
+        pill();
         if (!state || state.kind === 'none') { if (chip) chip.style.display = 'none'; closeCard(); return; }
         if (!mount()) return;
         var w = words(state), d = detail(state);
@@ -159,6 +188,11 @@
         chip.setAttribute('aria-label', d.lines.join(' ').replace(/<[^>]*>/g, ''));
         chip.title = w.long;
         fit();
+        if (before !== null && typeof state.left === 'number' && state.left < before) {       // a use was just counted
+            chip.setAttribute('data-pulse', '1');
+            setTimeout(function () { if (chip) chip.removeAttribute('data-pulse'); }, 1200);
+        }
+        before = typeof state.left === 'number' ? state.left : null;
         if (card) openCard();
     }
 
@@ -217,10 +251,10 @@
     }
 
     window.visitorBar = {
-        version: 1,
+        version: 2,
         read: read,
         state: function () { return state ? { kind: state.kind, left: state.left, limit: state.limit, time: state.time, text: chip && chip.style.display !== 'none' ? chip.textContent : '', fitted: fitted } : null; },
-        refresh: function () { state = null; take(); }
+        refresh: function () { var was = before; state = null; take(); before = was; if (!document.getElementById('trial-status-display')) pill(); }
     };
     if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();

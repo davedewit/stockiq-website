@@ -90,33 +90,6 @@
     <script src="mobile-sidebar.js?v=2"></script>
     <script>
         // Swipes on a phone (the menu from the left) are handled by mobile-sidebar.js
-        let lastScrollY = 0;
-        let isScrollingDown = false;
-        
-        // Track scroll direction
-        window.addEventListener('scroll', function() {
-            const currentScrollY = window.scrollY;
-            const scrollingDown = currentScrollY > lastScrollY;
-            isScrollingDown = scrollingDown;
-            
-            // Hide trial display on mobile when scrolling down
-            if (window.innerWidth <= 768) {
-                const trialDisplay = document.getElementById('trial-status-display');
-                if (scrollingDown && currentScrollY > 100) {
-                    if (trialDisplay) trialDisplay.style.opacity = '0';
-                } else {
-                    if (trialDisplay) trialDisplay.style.opacity = '0.7';
-                }
-            }
-            
-            lastScrollY = currentScrollY;
-            
-            // Reset scroll flag after a short delay
-            clearTimeout(window.scrollTimeout);
-            window.scrollTimeout = setTimeout(() => {
-                isScrollingDown = false;
-            }, 150);
-        });
         
         
 

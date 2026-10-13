@@ -353,64 +353,18 @@ async function incrementDailyUsage() {
     return null;
 }
 
-async function updateRemainingToday() {
-    if (jobRunning) {
-        console.log('📊 Skipping updateRemainingToday - job running');
-        return; // Don't update during job execution
-    }
-    if (window.location.pathname.includes('signup.html')) {
-        return; // Don't show on signup page
-    }
-    if (typeof authManager !== 'undefined') {
+// The visitor's count ("3/5 today") is worked out by authManager.getStockAnalysisStatus (auth.js), written into the
+// hidden #trial-status-display that auth.js's displayTrialStatus() makes on every page, and shown from there as the chip
+// in the header bar by visitor-bar.js. This page only has to write the new count after a use has been counted.
+function refreshUsageCount() {
+    if (typeof authManager === 'undefined') return;
+    setTimeout(async () => {
         try {
-            console.log('📊 Getting stock analysis status for display update...');
-            const status = await authManager.getStockAnalysisStatus();
-            console.log('📊 Status received:', status);
-            const trialDisplay = document.getElementById('trial-status-display');
-            if (trialDisplay) {
-                // Get current number
-                const currentText = trialDisplay.innerHTML;
-                const currentMatch = currentText.match(/(\d+)/);
-                const newMatch = status.message.match(/(\d+)/);
-                
-                if (currentMatch && newMatch) {
-                    const currentNum = parseInt(currentMatch[1]);
-                    const newNum = parseInt(newMatch[1]);
-                    
-                    if (currentNum > newNum) {
-                        // Animate countdown with visual effects
-                        trialDisplay.style.backgroundColor = '#ffeb3b';
-                        trialDisplay.style.color = '#000';
-                        trialDisplay.style.transform = 'scale(1.2)';
-                        trialDisplay.style.transition = 'all 0.3s ease';
-                        
-                        let current = currentNum;
-                        const interval = setInterval(() => {
-                            current--;
-                            trialDisplay.innerHTML = status.message.replace(/\d+/, current);
-                            
-                            if (current <= newNum) {
-                                clearInterval(interval);
-                                setTimeout(() => {
-                                    trialDisplay.style.backgroundColor = 'var(--card-bg)';
-                                    trialDisplay.style.color = status.unlocked ? '#22c55e' : '#ef4444';
-                                    trialDisplay.style.transform = 'scale(1)';
-                                }, 800);
-                            }
-                        }, 400);
-                        return;
-                    }
-                }
-                
-                // Default update
-                trialDisplay.innerHTML = status.message;
-                trialDisplay.style.color = status.unlocked ? '#22c55e' : '#ef4444';
-            }
-            console.log('📊 Updated remaining usage display:', status.message);
-        } catch (error) {
-            console.warn('Failed to update remaining usage display:', error);
-        }
-    }
+            const status = await authManager.getStockAnalysisStatus(true);
+            const badge = document.getElementById('trial-status-display');
+            if (badge && status && status.message) badge.innerHTML = status.message;
+        } catch (e) { /* the count is shown again at the next page load */ }
+    }, 500);
 }
 
 function showStockInput() {
@@ -514,77 +468,18 @@ function showAnonymousUpgradeModal() {
     window.addEventListener('scroll', showModalOnScroll);
 }
 
+// The round "Start 3-Day Free Trial" / "Upgrade Plan" button is drawn by visitor-bar.js, from the visitor's count.
+// These two names stay because the pop-up's "Maybe Later" and the access check call them.
 function showStickyRegisterButton() {
     const modal = document.getElementById('anonymous-upgrade-modal');
     if (modal) modal.remove();
     localStorage.setItem('showStickyRegister', 'true');
-    const stickyBtn = document.createElement('div');
-    stickyBtn.id = 'sticky-register-btn';
-    stickyBtn.innerHTML = `
-        <a href="signup.html" style="position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; padding: 16px 28px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(0,123,255,0.4); z-index: 9999; display: flex; align-items: center; gap: 8px; transition: all 0.3s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 16px rgba(0,123,255,0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0,123,255,0.4)'">
-            🚀 Start 3-Day Free Trial
-        </a>
-    `;
-    document.body.appendChild(stickyBtn);
+    if (window.visitorBar) window.visitorBar.refresh();
 }
 
 function showStickyUpgradeButton() {
-    if (document.getElementById('sticky-upgrade-btn')) return;
-    const stickyBtn = document.createElement('div');
-    stickyBtn.id = 'sticky-upgrade-btn';
-    stickyBtn.innerHTML = `
-        <a href="dashboard.html?redirect=upgrade" style="position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; padding: 16px 28px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(0,123,255,0.4); z-index: 9999; display: flex; align-items: center; gap: 8px; transition: all 0.3s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 16px rgba(0,123,255,0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0,123,255,0.4)'">
-            🚀 Upgrade Plan
-        </a>
-    `;
-    document.body.appendChild(stickyBtn);
+    if (window.visitorBar) window.visitorBar.refresh();
 }
-
-// Show sticky button on page load for users who need to upgrade
-setTimeout(async () => {
-    const userId = localStorage.getItem('userId');
-    const showSticky = localStorage.getItem('showStickyRegister');
-    
-    // Check if anonymous user
-    if (!userId || userId === 'anonymous') {
-        let shouldShow = showSticky === 'true';
-        
-        // Also check actual usage status from authManager
-        if (typeof authManager !== 'undefined') {
-            try {
-                const status = await authManager.getStockAnalysisStatus();
-                // If they have 0 remaining, show the button
-                if (status && !status.unlocked) {
-                    shouldShow = true;
-                    localStorage.setItem('showStickyRegister', 'true');
-                }
-            } catch (e) {}
-        }
-        
-        if (shouldShow && !document.getElementById('sticky-register-btn')) {
-            const stickyBtn = document.createElement('div');
-            stickyBtn.id = 'sticky-register-btn';
-            stickyBtn.innerHTML = `
-                <a href="signup.html" style="position: fixed; bottom: 20px; right: 20px; background: #007bff; color: white; padding: 16px 28px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(0,123,255,0.4); z-index: 9999; display: flex; align-items: center; gap: 8px; transition: all 0.3s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 16px rgba(0,123,255,0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0,123,255,0.4)'">
-                    🚀 Start 3-Day Free Trial
-                </a>
-            `;
-            document.body.appendChild(stickyBtn);
-        }
-    } else if (userId && typeof authManager !== 'undefined') {
-        // Check if registered free user has 0 remaining
-        try {
-            const status = await authManager.getStockAnalysisStatus();
-            if (status && !status.unlocked) {
-                showStickyUpgradeButton();
-            } else {
-                // Remove button if they have analyses available
-                const existingBtn = document.getElementById('sticky-upgrade-btn');
-                if (existingBtn) existingBtn.remove();
-            }
-        } catch (e) {}
-    }
-}, 1000);
 
 function formatDate(timestamp) {
     // Ensure timestamp is treated as UTC if no timezone specified
@@ -674,26 +569,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (mobileBell) mobileBell.style.display = 'block';
         updateNotificationBell();
         preloadNotifications();
-    }
-    
-    // Display trial status immediately (hide on signup page)
-    if (typeof authManager !== 'undefined' && !window.location.pathname.includes('signup.html')) {
-        const status = await authManager.getStockAnalysisStatus();
-        let trialDisplay = document.getElementById('trial-status-display');
-        if (!trialDisplay) {
-            trialDisplay = document.createElement('div');
-            trialDisplay.id = 'trial-status-display';
-            document.body.appendChild(trialDisplay);
-        }
-        const isMobile = window.innerWidth <= 768;
-        const userId = localStorage.getItem('userId') || 'anonymous';
-        const cacheKey = `userPaidStatus_${userId}`;
-        const isPaid = localStorage.getItem(cacheKey) === 'paid';
-        const topPos = isMobile ? '70px' : (isPaid ? '60px' : '105px');
-        trialDisplay.innerHTML = status.message;
-        trialDisplay.style.cssText = `position: fixed; top: ${topPos}; right: 20px; background: var(--card-bg); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); opacity: 1;`;
-        trialDisplay.style.color = status.unlocked ? '#22c55e' : '#ef4444';
-        setTimeout(() => { if (trialDisplay) trialDisplay.style.opacity = '0.7'; }, 3000);
     }
     
     // Show promotional banner for non-paying users and adjust spacing
@@ -792,13 +667,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (scrollEnabled && window.innerWidth <= 768) {
             const currentScroll = window.pageYOffset;
             const nav = document.querySelector('.top-nav');
-            const trialDisplay = document.getElementById('trial-status-display');
             if (currentScroll > lastScroll && currentScroll > 100) {
                 nav.style.transform = 'translateY(-100%)';
-                if (trialDisplay) trialDisplay.style.top = '10px';
             } else {
                 nav.style.transform = 'translateY(0)';
-                if (trialDisplay) trialDisplay.style.top = '70px';
             }
             lastScroll = currentScroll;
         }
@@ -963,27 +835,7 @@ async function runAnalysis(option, subOption, event) {
             await incrementDailyUsage();
         }
         
-        // Update display after increment with a small delay
-        if (typeof authManager !== 'undefined') {
-            setTimeout(async () => {
-                const status = await authManager.getStockAnalysisStatus(true);
-                const trialDisplay = document.getElementById('trial-status-display');
-                if (trialDisplay) {
-                    // Brief highlight animation to show change
-                    trialDisplay.style.backgroundColor = '#ffeb3b';
-                    trialDisplay.style.color = '#000';
-                    trialDisplay.style.transform = 'scale(1.1)';
-                    trialDisplay.style.transition = 'all 0.3s ease';
-                    
-                    setTimeout(() => {
-                        trialDisplay.innerHTML = status.message;
-                        trialDisplay.style.backgroundColor = 'var(--card-bg)';
-                        trialDisplay.style.color = status.unlocked ? '#22c55e' : '#ef4444';
-                        trialDisplay.style.transform = 'scale(1)';
-                    }, 1200);
-                }
-            }, 500);
-        }
+        refreshUsageCount();        // the count after this use, for the chip in the header bar
     }
     
     // Check daily usage limits for all options (2-8, 72) for non-authenticated users
@@ -1012,27 +864,7 @@ async function runAnalysis(option, subOption, event) {
                 await incrementDailyUsage();
             }
             
-            // Update display after increment with a small delay
-            if (typeof authManager !== 'undefined') {
-                setTimeout(async () => {
-                    const status = await authManager.getStockAnalysisStatus(true);
-                    const trialDisplay = document.getElementById('trial-status-display');
-                    if (trialDisplay) {
-                        // Brief highlight animation to show change
-                        trialDisplay.style.backgroundColor = '#ffeb3b';
-                        trialDisplay.style.color = '#000';
-                        trialDisplay.style.transform = 'scale(1.1)';
-                        trialDisplay.style.transition = 'all 0.3s ease';
-                        
-                        setTimeout(() => {
-                            trialDisplay.innerHTML = status.message;
-                            trialDisplay.style.backgroundColor = 'var(--card-bg)';
-                            trialDisplay.style.color = status.unlocked ? '#22c55e' : '#ef4444';
-                            trialDisplay.style.transform = 'scale(1)';
-                        }, 1200);
-                    }
-                }, 500);
-            }
+            refreshUsageCount();        // the count after this use, for the chip in the header bar
         } else {
             // For authenticated users (including Facebook/Google), increment usage for premium features
             // Check if user has remaining uses (only for authenticated users)
@@ -1069,27 +901,7 @@ async function runAnalysis(option, subOption, event) {
                 await incrementDailyUsage();
             }
             
-            // Update display after increment with a small delay
-            if (typeof authManager !== 'undefined') {
-                setTimeout(async () => {
-                    const status = await authManager.getStockAnalysisStatus(true);
-                    const trialDisplay = document.getElementById('trial-status-display');
-                    if (trialDisplay) {
-                        // Brief highlight animation to show change
-                        trialDisplay.style.backgroundColor = '#ffeb3b';
-                        trialDisplay.style.color = '#000';
-                        trialDisplay.style.transform = 'scale(1.1)';
-                        trialDisplay.style.transition = 'all 0.3s ease';
-                        
-                        setTimeout(() => {
-                            trialDisplay.innerHTML = status.message;
-                            trialDisplay.style.backgroundColor = 'var(--card-bg)';
-                            trialDisplay.style.color = status.unlocked ? '#22c55e' : '#ef4444';
-                            trialDisplay.style.transform = 'scale(1)';
-                        }, 1200);
-                    }
-                }, 500);
-            }
+            refreshUsageCount();        // the count after this use, for the chip in the header bar
         }
     }
     
