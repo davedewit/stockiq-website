@@ -39,7 +39,7 @@
         #practice-autopilot .ap-input { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); white-space: nowrap; }
         #practice-autopilot .ap-input input, #practice-autopilot .ap-input select { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; }
         #practice-autopilot .ap-group { display: grid; grid-template-columns: 150px 1fr; gap: 6px 12px; align-items: start; padding: 9px 0; border-top: 1px solid var(--border-color); }
-        #practice-autopilot .ap-group.shared { grid-template-columns: 150px minmax(0, 1fr) 370px; gap: 8px 16px; align-items: center; padding: 12px 0; }
+        #practice-autopilot .ap-group.shared { grid-template-columns: 185px minmax(0, 1fr) 370px; gap: 8px 16px; align-items: center; padding: 12px 0; }
         #practice-autopilot .ap-group.shared.off .ap-group-name { opacity: 0.75; }
         #practice-autopilot .ap-group-name .ap-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: baseline; }
         #practice-autopilot .ap-splitbar { display: flex; height: 30px; border-radius: 8px; overflow: hidden; margin: 8px 0 12px; border: 1px solid var(--border-color); background: var(--bg-secondary); }
@@ -47,6 +47,8 @@
         #practice-autopilot .ap-splitbar span.idle { color: var(--text-secondary); background: none; font-weight: 400; }
         #practice-autopilot .ap-group.first { border-top: none; padding-top: 2px; }
         #practice-autopilot .ap-group-name { color: var(--text-secondary); padding-top: 6px; }
+        #practice-autopilot .ap-group-pick { white-space: nowrap; background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; border-bottom: 1px dashed var(--border-color); }
+        #practice-autopilot .ap-group-pick:hover { color: var(--text-primary); border-bottom-color: #3b82f6; }
         #practice-autopilot .ap-chips { display: flex; flex-wrap: wrap; gap: 6px 8px; }
         #practice-autopilot .ap-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--border-color); border-radius: 16px; cursor: pointer; white-space: nowrap; user-select: none; color: var(--text-primary); }
         #practice-autopilot .ap-chip:has(input:checked) { border-color: #007bff; background: rgba(0, 123, 255, 0.12); }
@@ -123,7 +125,7 @@
         #practice-autopilot .ap-share .ap-share-label .ap-auto { margin-left: 0; text-transform: none; letter-spacing: 0; font-size: 0.75rem; }
         #practice-autopilot .ap-share select { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #007bff; border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; font-weight: 500; cursor: pointer; }
         #practice-autopilot .ap-share.none { border: 0; background: none; padding: 0 2px; font-size: 0.8rem; }
-        @media (max-width: 980px) { #practice-autopilot .ap-group.shared { grid-template-columns: 150px minmax(0, 1fr); } #practice-autopilot .ap-group.shared > div:last-child { grid-column: 2; } }
+        @media (max-width: 980px) { #practice-autopilot .ap-group.shared { grid-template-columns: 185px minmax(0, 1fr); } #practice-autopilot .ap-group.shared > div:last-child { grid-column: 2; } }
         #practice-autopilot .ap-only-phone { display: none; }
         #practice-autopilot .ap-bar { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border-color); border-left: 3px solid #f59e0b; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; }
         #practice-autopilot .ap-bar strong { color: var(--text-primary); }
@@ -189,7 +191,7 @@
     `;
 
     let data = null, draft = null, working = '', notice = null, showAll = false;
-    let presetUndo = null;                                  // what the fields held before a quick set-up was pressed, for its Undo
+    let presetUndo = null;                                  // which screeners were ticked before a shortcut or a click on a market's name, for the Undo
     let skew = 0;                                         // the server's clock minus this computer's, in ms: countdowns use the server's
     let saveTimer = null, saving = false, saveError = null, savedOnce = false, breakdownOpen = false;
     // The activity list: everything, or only buys and sells. A way of looking at the list, not a setting of the autopilot:
@@ -212,12 +214,9 @@
             if (tab && tab.classList) tab.classList.toggle('now', n === part);
         });
     }
-    // Quick set-ups: one press fills in the fields (never the budget or the on/off switch); anything can be changed afterwards
-    const PRESETS = [
-        { key: 'coins', name: '⚡ Quick coin trading', title: 'Coins only, checked every 30 minutes, each kept at most 6 hours, the whole budget in use within a day', set: { risk: 4, periodDays: 1, everyHours: 0.5, maxHoldDays: 0.25, screeners: ['7-1'] } },
-        { key: 'shares', name: '🏛 Steady shares', title: 'S&P 100 shares, checked once a day, each kept at most 20 days, the budget built up over 10 days', set: { risk: 3, periodDays: 10, everyHours: 24, maxHoldDays: 20, screeners: ['3-100'] } },
-        { key: 'mix', name: '🔀 Shares and coins', title: 'S&P 100 shares and coins, checked every 6 hours, each kept at most 5 days, the budget built up over 5 days', set: { risk: 3, periodDays: 5, everyHours: 6, maxHoldDays: 5, screeners: ['3-100', '7-1'] } }
-    ];
+    // Shortcuts (13 Oct 2026; they replaced the "quick set-ups", which also changed the pace and the level): they change
+    // only which screeners are ticked. MAIN is one index a country, none of them inside another.
+    const MAIN = ['3-3', '5-ftse100', '5-dax40', '5-cac40', '5-smi', '5-aex', '5-ftsemib', '5-ibex35', '4-200', '5-nikkei225', '5-hangseng', '5-sensex', '5-kospi200', '5-sti', '5-tsx60', '5-bovespa'];
     let loadedAt = null, refreshing = false, openDetails = {};       // openDetails: which "Details" are unfolded, kept across redraws
     const REFRESH_MS = 60000;
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
@@ -776,7 +775,7 @@
                     <button id="ap-sellall" data-ap="sellall" class="ap-btn${working === 'sellall' ? ' busy' : ''}" ${working || !holds ? 'disabled' : ''} title="${holds ? 'Sells every holding the autopilot bought, now, at the latest prices. Holdings you bought yourself are not touched' : 'It holds nothing right now'}">${working === 'sellall' ? 'Selling…' : 'Sell everything it holds' + (holds ? ' (' + holds + ')' : '')}</button>
                     <span id="ap-saved" class="ap-saved ${state.bad ? 'bad' : ''}">${esc(state.text)}</span>
                 </div>
-                <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) + (notice.undo && presetUndo ? ' <a href="#" data-ap="undopreset" style="font-weight: 700; white-space: nowrap;">Undo: put my settings back</a>' : '') : ''}</div>
+                <div id="ap-notice" class="${notice ? 'ap-note ' + (notice.bad ? 'bad' : 'good') : ''}" role="status">${notice ? esc(notice.text) + (notice.undo && presetUndo ? ' <a href="#" data-ap="undopreset" style="font-weight: 700; white-space: nowrap;">Undo</a>' : '') : ''}</div>
 
                 <div class="ap-views" role="tablist" aria-label="Autopilot">
                     <button type="button" id="ap-view-activity" class="ap-view ${part === 'activity' ? 'now' : ''}" data-ap-part="activity" role="tab">📋 Activity</button>
@@ -795,7 +794,7 @@
                 </div>
 
                 <div id="ap-pane-settings" class="ap-pane" style="${part === 'settings' ? '' : 'display: none;'}">
-                <div class="ap-presets"><span>Quick set-ups:</span>${PRESETS.filter(p => p.set.screeners.every(k => o.screeners[k])).map(p => `<button type="button" class="ap-preset" data-ap-preset="${p.key}" title="${esc(p.title)}">${p.name}</button>`).join('')}<span>Each one replaces the screeners ticked and the pace below (not the budget or the on/off switch). An Undo link appears when you press one.</span></div>
+                <div class="ap-help" style="margin-top: 12px;">Every change here saves itself. A change by itself buys or sells nothing: the autopilot acts only at a check-in, and a scheduled check-in waits until the settings have been left alone for 10 minutes.</div>
 
                 <div class="ap-card">
                     <span class="ap-label">Risk level</span>
@@ -829,9 +828,10 @@
                 <div class="ap-card">
                     <span class="ap-label">Screeners it buys from <span id="ap-chosen" class="ap-sub">${chosen} chosen</span></span>
                     ${sharesOn() ? `<div class="ap-help" style="margin-top: 2px;">Tick the screeners it may buy from. Each market you tick gets a share of the budget, shown in the bar and set in the box on its right.</div><div id="ap-splitbar" class="ap-splitbar" aria-label="How the budget is spread over the markets">${splitBar(d)}</div>` : ''}
-                    ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''} ${sharesOn() ? 'shared' + (isTicked(d, group) ? '' : ' off') : ''}"><div class="ap-group-name">${sharesOn() ? `<span class="ap-dot" style="background: ${isTicked(d, group) ? marketColour(group) : 'var(--border-color)'};"></span>` : ''}${esc(group)}</div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div></div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div>`).join('')}
+                    <div class="ap-presets" style="margin-top: 8px;"><span>Shortcuts:</span><button type="button" class="ap-preset" data-ap-pick="main" title="One index a country: ${esc(MAIN.filter(k => o.screeners[k]).map(k => o.screeners[k].name).join(', '))}">🌍 Main index of every country</button><button type="button" class="ap-preset" data-ap-pick="none" title="Untick every screener">Clear all</button><span>or click a market's name to tick or clear all of its screeners. These change only what is ticked, never the pace or the budget.</span></div>
+                    ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''} ${sharesOn() ? 'shared' + (isTicked(d, group) ? '' : ' off') : ''}"><div class="ap-group-name">${sharesOn() ? `<span class="ap-dot" style="background: ${isTicked(d, group) ? marketColour(group) : 'var(--border-color)'};"></span>` : ''}<button type="button" class="ap-group-pick" data-ap-group="${esc(group)}" title="Tick every screener in ${esc(group)}, or clear them when all are ticked">${esc(group)}</button></div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div></div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div>`).join('')}
                     <div id="ap-split" class="ap-help">${esc(splitText(d))}</div>
-                    <div class="ap-help">Each share market is only traded while it is open, also when you press "Check in now"; coins at any time. Bigger lists take a little longer to check.</div>
+                    <div class="ap-help">Each share market is only traded while it is open, also when you press "Check in now"; coins at any time. Bigger lists take a little longer to check. Lists can overlap (the S&amp;P 1500 holds every share of the S&amp;P 500, 400 and 600): that does no harm, a share is never held twice, and it is bought on its best place among the lists ticked.</div>
                 </div>
 
                 <div class="ap-card">
@@ -1011,30 +1011,34 @@
             if (place && place.scrollIntoView) place.scrollIntoView({ block: 'start' });
             return;
         }
-        const preset = e.target.closest && e.target.closest('[data-ap-preset]');
-        if (preset && data && byId('ap-risk')) {
-            const p = PRESETS.find(x => x.key === preset.getAttribute('data-ap-preset'));
-            if (!p) return;
-            const holdBox = byId('ap-hold');                // a quick set-up replaces the screeners ticked and the pace: keep what was there
-            if (!presetUndo) presetUndo = { risk: byId('ap-risk').value, period: byId('ap-period').value, every: byId('ap-every').value, hold: holdBox ? holdBox.value : null,
-                screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')) };
-            byId('ap-risk').value = String(p.set.risk); byId('ap-period').value = String(p.set.periodDays); byId('ap-every').value = String(p.set.everyHours);
-            const hold = byId('ap-hold'), want = (data.options.holdDays || []).find(v => Math.abs(v - p.set.maxHoldDays) < 1e-6);
-            if (hold && want !== undefined) hold.value = String(want);
-            Array.from(document.querySelectorAll('[data-ap-screener]')).forEach(c => { c.checked = p.set.screeners.includes(c.getAttribute('data-ap-screener')); });
-            saveError = null; notice = { text: `"${p.name.replace(/^\S+\s/, '')}" filled in: ${p.title.charAt(0).toLowerCase() + p.title.slice(1)}. It replaced the screeners that were ticked and the pace.`, undo: true };
+        const pick = e.target.closest && (e.target.closest('[data-ap-pick]') || e.target.closest('[data-ap-group]'));
+        if (pick && data && data.options) {                 // a shortcut, or a market's name: they change only what is ticked
+            const boxes = Array.from(document.querySelectorAll('[data-ap-screener]')), key = c => c.getAttribute('data-ap-screener'), names = data.options.screeners || {};
+            const which = pick.getAttribute('data-ap-pick'), group = pick.getAttribute('data-ap-group');
+            if (!presetUndo) presetUndo = { screeners: boxes.filter(c => c.checked).map(key) };
+            let said = '';
+            if (group) {
+                const own = boxes.filter(c => names[key(c)] && names[key(c)].group === group), all = own.length > 0 && own.every(c => c.checked);
+                own.forEach(c => { c.checked = !all; });
+                said = all ? `${group}: cleared.` : `${group}: all ${own.length} ticked.`;
+            } else if (which === 'main') {
+                boxes.forEach(c => { if (names[key(c)] && names[key(c)].kind !== 'crypto') c.checked = MAIN.includes(key(c)); });
+                said = `Ticked the main index of every country (${boxes.filter(c => c.checked && names[key(c)] && names[key(c)].kind !== 'crypto').length} share screeners; the coin screener is as it was).`;
+            } else {
+                boxes.forEach(c => { c.checked = false; });
+                said = 'Every screener is unticked: it buys nothing until one is ticked. What it holds stays until it is sold.';
+            }
+            saveError = null; notice = { text: said, undo: true };
             queueSave(150); return;
         }
         const t = e.target.closest && e.target.closest('[data-ap]');
         if (!t || !data) return;
         if (t.tagName === 'A') e.preventDefault();
         const action = t.getAttribute('data-ap');
-        if (action === 'undopreset' && presetUndo && byId('ap-risk')) {     // put back what a quick set-up replaced
-            const u = presetUndo, holdBox = byId('ap-hold'); presetUndo = null;
-            byId('ap-risk').value = u.risk; byId('ap-period').value = u.period; byId('ap-every').value = u.every;
-            if (holdBox && u.hold !== null) holdBox.value = u.hold;
+        if (action === 'undopreset' && presetUndo) {        // put back what was ticked before the shortcut
+            const u = presetUndo; presetUndo = null;
             Array.from(document.querySelectorAll('[data-ap-screener]')).forEach(c => { c.checked = u.screeners.includes(c.getAttribute('data-ap-screener')); });
-            saveError = null; notice = { text: 'Put back: the screeners and the pace are as they were before the quick set-up.' };
+            saveError = null; notice = { text: 'Put back: the screeners ticked are as they were.' };
             queueSave(150); return;
         }
         if (action === 'more') { readDraft(); showAll = true; render(); }
