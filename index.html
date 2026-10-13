@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StockIQ - AI Stock Analysis & Screening Platform</title>
-<meta name="description" content="Professional stock analysis with AI-powered insights. Screen 2000+ stocks instantly with market data and technical indicators.">
+<meta name="description" content="AI-assisted stock, ETF and crypto research: explained 0-100 scores, index screeners, an AI chat and a practice portfolio with fake money. Free 3-day trial.">
 <meta name="author" content="StockIQ">
 <meta property="og:title" content="StockIQ - AI Stock Analysis Platform">
-<meta property="og:description" content="Professional stock analysis with AI-powered insights and market data.">
+<meta property="og:description" content="Explained scores for stocks, ETFs and crypto, index screeners, an AI chat and a practice portfolio with fake money.">
 <link rel="canonical" href="https://stockiq.tech/">
 <meta property="og:url" content="https://stockiq.tech/">
 <meta property="og:type" content="website">
@@ -17,7 +17,7 @@
 <meta name="twitter:image" content="https://stockiq.tech/stockiq-logo.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="StockIQ - AI Stock Analysis Platform">
-<meta name="twitter:description" content="Professional stock analysis with AI-powered insights and market data.">
+<meta name="twitter:description" content="Explained scores for stocks, ETFs and crypto, index screeners, an AI chat and a practice portfolio with fake money.">
 <meta name="robots" content="index, follow">
 <meta name="language" content="en-US">
 <meta name="geo.region" content="US">
@@ -429,7 +429,7 @@ document.documentElement.style.setProperty('--limited-banner-display', 'none');
 </head>
 <body>
 <div id="promo-banner" class="promo-banner" onclick="viewPricingPlans()" style="background: var(--card-bg); color: var(--text-primary); text-align: center; padding: 10px 20px; font-weight: 500; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); position: fixed; top: 0; left: 0; right: 0; z-index: 9999; cursor: pointer; transition: background 0.2s; display: none;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='var(--card-bg)'">
-Professional Stock Analysis starting at <strong style="color: #22c55e;">$4.99/month</strong> - Get institutional-grade tools at accessible pricing
+Plans from <strong style="color: #22c55e;">$4.99/month</strong>: more analyses a day, and the AI autopilot (Beta) for your practice portfolio
 </div>
 <script>
 // Update banner content and show for non-paid users
@@ -442,7 +442,7 @@ const banner = document.getElementById('promo-banner');
 if (cachedPaidStatus !== 'paid' && banner) {
 banner.style.display = 'block';
 if (userId === 'anonymous') {
-banner.innerHTML = 'Sign up FREE to get <strong style="color: #22c55e;">15 free analyses</strong> - Professional tools at your fingertips';
+banner.innerHTML = 'Free 3-day trial: <strong style="color: #22c55e;">15 analyses</strong>, no credit card needed';
 }
 }
 })();
@@ -1498,30 +1498,30 @@ setInterval(continuousScroll, 50);
 
 <section class="hero-section">
 <div class="hero-content">
-<p class="hero-title" style="font-size: 2rem; font-weight: 700; margin-bottom: 1rem;">Institutional-Grade Tools at Accessible Pricing</p>
-<p class="hero-subtitle">The StockIQ analysis tool delivers institutional-grade analysis with 600+ parallel AWS Lambda workers, transparent weighted scoring, and AI-powered insights. Fast parallel processing that analyzes 2000+ stocks in seconds.</p>
+<p class="hero-title" style="font-size: 2rem; font-weight: 700; margin-bottom: 1rem;">Research tools for individual investors</p>
+<p class="hero-subtitle">Score a stock, ETF or coin and see every point behind the score. Rank a whole index in one run. Ask the AI chat what the data shows. Then try it out with $100,000 of practice money, by hand or with the AI autopilot (Beta). Free for 3 days, then from $4.99 a month.</p>
 <div class="hero-buttons">
-<a href="analysis.html?option=1" class="cta-primary">🚀 Try StockIQ Analysis Tool</a>
+<a href="analysis.html?option=1" class="cta-primary">📊 Analyze a stock or ETF</a>
 <a href="analysis.html?option=3" class="cta-secondary">🇺🇸 US Stock Screener</a>
 <a href="#pricing" class="cta-secondary">View Pricing Plans</a>
 </div>
 </div>
 <div class="hero-stats">
 <div class="stat-item">
-<div class="stat-number">2000+</div>
-<div class="stat-label">Stocks Analyzed in Seconds</div>
+<div class="stat-number">15</div>
+<div class="stat-label">Screeners: US, UK, Australia, Japan, crypto</div>
 </div>
 <div class="stat-item">
-<div class="stat-number">12</div>
-<div class="stat-label">Published Scoring Factors</div>
+<div class="stat-number">1,800+</div>
+<div class="stat-label">Stocks ranked in one run of the largest screener</div>
 </div>
 <div class="stat-item">
-<div class="stat-number">600+</div>
-<div class="stat-label">Parallel AWS Workers</div>
+<div class="stat-number">540</div>
+<div class="stat-label">Coins in the crypto screener</div>
 </div>
 <div class="stat-item">
-<div class="stat-number">15+</div>
-<div class="stat-label">Technical Indicators</div>
+<div class="stat-number">$100,000</div>
+<div class="stat-label">Practice money (fake) with every account</div>
 </div>
 </div>
 </section>
@@ -1557,15 +1557,15 @@ setInterval(continuousScroll, 50);
 <div class="testimonials-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 30px;">
 <div class="testimonial" style="background: var(--card-bg); padding: 20px; border-radius: 8px; border-left: 4px solid #22c55e;">
 <div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">1. Enter a ticker or run a screener</div>
-<p style="color: var(--text-secondary); margin: 0;">Stocks, ETFs and crypto across US, European, Asian and other markets.</p>
+<p style="color: var(--text-secondary); margin: 0;">Stocks, ETFs and coins. Single reports cover most major exchanges; screeners cover US, UK, Australian and Japanese indexes and 540 coins.</p>
 </div>
 <div class="testimonial" style="background: var(--card-bg); padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">2. Get a transparent score</div>
-<p style="color: var(--text-secondary); margin: 0;">12 published factors, including RSI, MACD, momentum and financial health, combined into one weighted score.</p>
+<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">2. Get a score that shows its working</div>
+<p style="color: var(--text-secondary); margin: 0;">A report scores a stock from 0 to 100 and lists every point added or taken off: trend, RSI, MACD, valuation, growth, debt and more. A screener ranks a whole list by 12 weighted price, momentum and volume factors.</p>
 </div>
 <div class="testimonial" style="background: var(--card-bg); padding: 20px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">3. Read the reasoning</div>
-<p style="color: var(--text-secondary); margin: 0;">A plain-English report explains what is driving the score. <a href="about.html" style="color: #007bff;">See how it works</a>.</p>
+<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">3. Read it, ask about it, practise with it</div>
+<p style="color: var(--text-secondary); margin: 0;">A plain-English report says what is behind the score, the AI chat answers questions about the data, and the practice portfolio lets you try it with fake money. <a href="about.html" style="color: #007bff;">See how it works</a>.</p>
 </div>
 </div>
 <div class="trust-indicators" style="display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap; margin-top: 20px;">
@@ -1574,12 +1574,51 @@ setInterval(continuousScroll, 50);
 <span>Sign-in by AWS Cognito, payments by Stripe</span>
 </div>
 <div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
-<span style="color: #3b82f6; font-size: 1.2rem;">⚡</span>
-<span>Market Data</span>
+<span style="color: #3b82f6; font-size: 1.2rem;">📊</span>
+<span>Prices from Yahoo Finance and Finnhub (may be delayed)</span>
 </div>
 <div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
-<span style="color: #f59e0b; font-size: 1.2rem;">🏆</span>
-<span>Professional-Grade Analysis</span>
+<span style="color: #f59e0b; font-size: 1.2rem;">🧾</span>
+<span>General information only, not financial advice</span>
+</div>
+</div>
+</section>
+
+<section id="features" style="margin: 40px 0;">
+<h2 style="text-align: center; color: var(--text-primary); margin-bottom: 10px; font-size: 1.8rem;">What you can do with StockIQ</h2>
+<p style="text-align: center; color: var(--text-secondary); margin: 0 auto 30px; font-size: 1.1rem; max-width: 760px;">Everything here describes what the data shows. Nothing here tells you what to buy or sell.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px;">
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">🔍 A report on one stock, ETF or coin</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">A score from 0 to 100 with every point explained, a price chart with its moving averages, support and resistance, company figures and the latest news, in the share&rsquo;s own currency.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">📋 Index screeners</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Rank a whole index in one run: Dow 30, S&amp;P 100, 500 and 1500, NASDAQ 100, Russell 1000 and 2000, ASX 50 to 300, FTSE 100 and Nikkei 225. Take the result away as a CSV file.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">📈 Trading signals</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">A short-term technical reading (RSI, MACD, Bollinger bands) for up to 10 symbols, or the five strongest readings across the S&amp;P 100, each with its reasons.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">🪙 Crypto screener</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">540 coins ranked by score, with how long each has been in the top 10 and what its price has done since.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">💬 AI chat</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Ask what the data shows for a stock, or how your own dashboard is doing. It explains and points you to the right place; it does not tell you what to buy or sell.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">💵 Practice portfolio</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Buy and sell with $100,000 of fake money, see today&rsquo;s change and a graph of the account, and compare it with an S&amp;P 500 index fund. Free with every account.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">🤖 AI autopilot (Beta)</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">In every paid plan: it runs your practice portfolio from the screeners&rsquo; results by itself, says why it bought and sold each holding, and tests changes to its own rules. Fake money only.</p>
+</div>
+<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">📁 Your dashboard</div>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Report history and favourites, background runs of the big screeners, and a bell that tells you when a report or a practice trade is in.</p>
 </div>
 </div>
 </section>
@@ -1622,88 +1661,11 @@ setInterval(continuousScroll, 50);
 <p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-secondary);">No spam • Unsubscribe anytime • General information only, not financial advice</p>
 </section>
 
-<section class="problem-solution">
-<div class="problem-card">
-<h3>❌ Common Challenges</h3>
-<ul>
-<li><strong>Enterprise platforms:</strong> $10,000-$25,000/year pricing designed for institutions</li>
-<li><strong>Premium services:</strong> Often use delayed data or limited analysis depth</li>
-<li><strong>Opaque methodologies:</strong> Black-box scoring without transparency</li>
-<li><strong>Sequential processing:</strong> Slow analysis, one stock at a time</li>
-<li><strong>Steep learning curves:</strong> Months of training required for complex tools</li>
-<li><strong>Feature overload:</strong> Paying for institutional tools you don't need</li>
-</ul>
-</div>
-<div class="solution-card">
-<h3>✅ The StockIQ Approach</h3>
-<ul>
-<li><strong>Accessible pricing:</strong> Professional analysis starting at $4.99/month</li>
-<li><strong>Market data:</strong> Prices from Yahoo Finance and Finnhub (may be delayed)</li>
-<li><strong>Complete transparency:</strong> See exact weighted breakdown (12 factors)</li>
-<li><strong>Parallel processing:</strong> 600+ workers analyze 2000+ stocks simultaneously</li>
-<li><strong>Instant use:</strong> No training needed, intuitive interface</li>
-<li><strong>Focused features:</strong> Essential tools serious traders actually use</li>
-</ul>
-</div>
-</section>
-
-<section class="comparison-section">
-<h2>How StockIQ Compares to Market Alternatives</h2>
-<p style="text-align: center; color: var(--text-secondary); margin-bottom: 30px; font-size: 1.1rem;">Professional analysis accessible to everyone</p>
-<div class="comparison-table" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 0;">
-<div class="comparison-header" style="display: contents;">
-<div class="feature-col" style="padding: 15px; background: var(--bg-secondary); font-weight: bold; border: 1px solid var(--border-color); color: var(--text-primary);">Feature</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 15px; background: var(--bg-secondary); font-weight: bold; border: 1px solid var(--border-color); text-align: center; color: var(--text-primary); cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--bg-secondary)'; this.style.borderColor='var(--border-color)'">StockIQ<br><span style="font-size: 0.8em; color: #22c55e; font-weight: normal;">$60/yr</span></div>
-<div class="competitor-col" style="padding: 15px; background: var(--bg-secondary); font-weight: bold; border: 1px solid var(--border-color); text-align: center; color: var(--text-primary);">Bloomberg<br><span style="font-size: 0.8em; color: var(--text-secondary); font-weight: normal;">$24,000/yr</span></div>
-<div class="competitor-col" style="padding: 15px; background: var(--bg-secondary); font-weight: bold; border: 1px solid var(--border-color); text-align: center; color: var(--text-primary);">Morningstar<br><span style="font-size: 0.8em; color: var(--text-secondary); font-weight: normal;">$249/yr</span></div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Bulk Screening Speed</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ 2000 stocks in seconds</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ Hours/days</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ Not available</div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">AI Trading Signals</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Yes</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ No</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ No</div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Transparent Scoring</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Yes (All math shared)</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ No</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">⚠️ Partial</div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Analysis Depth</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Detailed report</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">✅ Comprehensive</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">⚠️ Basic</div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Learning Curve</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Instant</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">❌ Months</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">✅ Easy</div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Multi-Timeframe Analysis</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">✅ Yes (5d-1yr)</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">✅ Yes</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">⚠️ Limited</div>
-</div>
-<div class="comparison-row" style="display: contents;">
-<div class="feature-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg);">Best For</div>
-<div class="stockiq-col clickable-column" onclick="viewPricingPlans()" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#e6f2ff'; this.style.borderColor='#007bff'" onmouseout="this.style.background='var(--card-bg)'; this.style.borderColor='var(--border-color)'">Individual investors</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">Institutions</div>
-<div class="competitor-col" style="padding: 12px 15px; border: 1px solid var(--border-color); background: var(--card-bg); text-align: center;">Casual investors</div>
-</div>
-</div>
-<div style="text-align: center; margin-top: 40px; padding: 30px; background: var(--bg-secondary); border-radius: 12px;">
-<h3 style="color: var(--text-primary); margin-bottom: 15px;">💡 Professional Tools, Accessible Pricing</h3>
-<p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.6; max-width: 800px; margin: 0 auto;">
-StockIQ bridges the gap between free basic screeners and expensive enterprise platforms. Our <strong style="color: var(--text-primary);">fully transparent weighted scoring system</strong> shows you exactly how every decision is made - all 12 factors (momentum, RSI, MACD, volume, etc.) with complete mathematical breakdowns visible in every report. No black boxes, no hidden algorithms - just clear, verifiable analysis at accessible pricing.
+<section style="margin: 40px 0;">
+<div style="text-align: center; padding: 30px; background: var(--bg-secondary); border-radius: 12px;">
+<h3 style="color: var(--text-primary); margin-bottom: 15px;">What StockIQ is, and what it is not</h3>
+<p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; max-width: 820px; margin: 0 auto;">
+StockIQ works out scores, signals and rankings from prices, volume and published company figures, and <strong style="color: var(--text-primary);">shows its working</strong> in every report. It is general information, not financial advice, and StockIQ holds no financial services licence. Prices come from Yahoo Finance and Finnhub and can be delayed. A high score is not a forecast: past screener results have not shown a reliable edge over the market, and past performance does not indicate future results. <a href="about.html" style="color: #007bff;">How the scores are calculated</a>.
 </p>
 </div>
 </section>
