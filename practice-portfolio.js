@@ -688,6 +688,7 @@
         if (!state) { el.innerHTML = `<p style="color: #ef4444;">${esc(loadError || 'The practice portfolio could not be loaded.')}</p><button data-pp="reload" class="pp-btn">Try again</button>`; return; }
 
         const s = summarize(state, quotes);
+        try { document.dispatchEvent(new CustomEvent('practice-portfolio:figures')); } catch (e) {}     // the Admin page takes the same figure
         const card = (label, value, sub, way) => `<div class="pp-card${way > 0.004 ? ' up' : way < -0.004 ? ' down' : ''}"><div class="pp-card-label">${label}</div><div class="pp-card-value">${value}</div><div class="pp-card-sub">${sub || '&nbsp;'}</div></div>`;
         const cell = 'padding: 8px 6px; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap;';
         const left = cell.replace('text-align: right', 'text-align: left');
@@ -1053,6 +1054,13 @@
             'Sold so far: ' + state.closed.length + '.']
             .concat(vs ? ['Against an S&P 500 fund (the second line on the graph): the same ' + usd(STARTING_CASH) + ' put into the fund when the account began and left there would be ' + usd(vs.value) + ' now (' + moved(vs.gainUsd) + '); the account is ' + (Math.abs(vs.gapUsd) < 0.005 ? 'level with that' : (vs.gapUsd > 0 ? 'ahead of' : 'behind') + ' that by ' + usd(Math.abs(vs.gapUsd))) + '.'] : []).join('\n');
     }
-    window.practicePortfolio = { reload: load, setPlans, summary };
+    // The account's figures as this tab shows them, at the latest prices, for the Admin page on the same dashboard (17 Oct 2026:
+    // the Admin page had its own estimate from the last check-in, which differed by about $230). null until prices are in.
+    function figures() {
+        if (!state || !loaded) return null;
+        const s = summarize(state, quotes);
+        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now() };
+    }
+    window.practicePortfolio = { reload: load, setPlans, summary, figures };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();

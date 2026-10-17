@@ -80,13 +80,23 @@
     const money = (n) => (n >= 0 ? '▲ ' : '▼ ') + usd(Math.abs(n));
 
     // The four tiles answer at a glance: how is the account, is the month on course, is anything waiting for me, is it running.
+    // The account as the Practice portfolio tab shows it, at the latest prices, when that tab's script has them; the function's
+    // own figure (an estimate from the last check-in) only until then, and said to be one.
+    function liveAccount() {
+        try { const f = window.practicePortfolio && window.practicePortfolio.figures && window.practicePortfolio.figures(); return f && isFinite(f.accountValue) ? f : null; } catch (e) { return null; }
+    }
+    function withLive(g) {
+        const f = liveAccount();
+        return !g ? g : f ? Object.assign({}, g, { value: f.accountValue, live: true }) : Object.assign({}, g, { live: false });
+    }
+
     function tilesHtml(d) {
-        const g = d.goal, h = d.health, open = (d.open || []).length;
+        const g = withLive(d.goal), h = d.health, open = (d.open || []).length;
         const tile = (kind, label, value, sub) => `<div class="ad-tile ${kind}"><div class="ad-tile-label">${label}</div><div class="ad-tile-value">${value}</div><div class="ad-tile-sub">${sub}</div></div>`;
         const out = [];
         if (g) {
             const gain = g.value - 100000;
-            out.push(tile(gain >= 0 ? 'good' : 'bad', 'Practice account', usd(g.value), `${money(gain)} since the start`));
+            out.push(tile(gain >= 0 ? 'good' : 'bad', 'Practice account', usd(g.value), `${money(gain)} since the start${g.live ? '' : ' (an estimate until the prices are in)'}`));
             const met = [g.trades >= g.tradesGoal, g.n > 0 && g.avg > g.avgGoal, g.value >= g.valueGoal].filter(Boolean).length;
             out.push(tile(met === 3 ? 'good' : met ? 'warn' : 'bad', esc(g.name), `${met} of 3 met`, `${g.daysLeft} days left (due ${esc(g.due)})`));
         }
@@ -99,6 +109,7 @@
     }
 
     function goalHtml(g) {
+        g = withLive(g);
         if (!g) return '';
         const row = (name, now, goal, met, fill) => `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${name}</span>
             <span><span class="ad-goal-now">${now}</span> <span class="ad-pill ${met ? 'good' : 'warn'}">${met ? '✓ target ' : 'target '}${goal}</span></span></div>
@@ -107,7 +118,7 @@
         return `<div class="ad-card goal"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft} days left</span></span>
             ${row('Finished trades in all', String(g.trades), g.tradesGoal, g.trades >= g.tradesGoal, g.trades / g.tradesGoal * 100)}
             ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(± ${Number(g.se).toFixed(2)}, ${g.n} trades)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
-            ${row('The practice account, about', `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.value / g.valueGoal * 100)}
+            ${row(g.live ? 'The practice account, at the latest prices' : 'The practice account, about (an estimate until the prices are in)', `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.value / g.valueGoal * 100)}
             <div class="ad-sub" style="margin-top: 8px;">Fake money. These targets are what would count as progress, set on 12 Oct before the results were in; they are not forecasts.</div></div>`;
     }
 
@@ -192,6 +203,7 @@
         busy = ''; render();
     });
 
+    document.addEventListener('practice-portfolio:figures', () => { if (data) render(); });     // redraw with the same figure the tab shows
     window.adminPanel = { load, render, state: () => data };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
