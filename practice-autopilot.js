@@ -218,7 +218,7 @@
     // only which screeners are ticked. MAIN is one index a country, none of them inside another.
     const MAIN = ['3-3', '5-ftse100', '5-dax40', '5-cac40', '5-smi', '5-aex', '5-ftsemib', '5-ibex35', '4-200', '5-nikkei225', '5-hangseng', '5-sensex', '5-kospi200', '5-sti', '5-tsx60', '5-bovespa', '5-omx30', '5-csi300', '5-tw50', '5-nzx50', '5-ipc'];
     let loadedAt = null, refreshing = false, openDetails = {};       // openDetails: which "Details" are unfolded, kept across redraws
-    const REFRESH_MS = 60000;
+    const REFRESH_MS = 5 * 60000;      // every 5 minutes (it was every minute: the most of the database's reads, 17 Oct 2026); it trades only at :10 and :40, and a press of a button refreshes at once
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-autopilot');
     const byId = (id) => document.getElementById(id);
@@ -850,12 +850,27 @@
                 <div class="ap-card">
                     <span class="ap-label">What it may do by itself</span>
                     ${mayRow('ap-aisell', 'aiSell', 'Sell early on the AI model\'s review', 'At every check-in the AI model looks at each holding with the latest screener figures and recent headlines, and may sell it before the fixed rules would, or keep it with a tighter stop: for instance when a rise has stalled or turned. A larger model is asked when a gain is at stake (a few times a day at most). Shares in the "patient" trial are not reviewed. Off: only the fixed rules sell.')}
+                    ${aiSellRecord(d)}
                     ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'Every 20 finished trades it may try one change to a selling or buying rule beside the current one, and keeps it only if it did clearly better. It also runs two standing trials for shares: which share to buy, and "patient" shares that are not sold when their signal turns. Off: its rules stay exactly as they are and no trial runs.')}
                     ${mayRow('ap-mail', 'emails', 'Email me its reviews', 'An email to your account address each time it reviews its rules, starts a trial or finishes one. Nothing needs doing when one arrives.')}
                     ${mailHtml()}
                 </div>
                 </div>
             </div>`;
+    }
+
+    // Under "Sell early on the AI model's review": what its early sales have done so far, from the record, beside the other sales,
+    // so that the switch's state is explained by the figures (17 Oct 2026: it was switched off at the owner's yes when they were
+    // clearly losing, and he did not remember why it was off).
+    function aiSellRecord(d) {
+        const exits = ((data.scorecard || {}).groups || {}).exit || [];
+        const ai = exits.find(g => /AI model/.test(g.label || ''));
+        const rest = exits.filter(g => !/AI model/.test(g.label || ''));
+        const n = rest.reduce((a, g) => a + g.n, 0), avg = n ? rest.reduce((a, g) => a + g.avg * g.n, 0) / n : null;
+        const pct = (v) => `${v >= 0 ? '+' : ''}${Number(v).toFixed(2)}%`;
+        const line = ai ? `Its early sales so far: ${ai.n} trade${ai.n === 1 ? '' : 's'}, ${pct(ai.avg)} a trade on average` + (avg !== null ? `; every other kind of sale together: ${n} trades, ${pct(avg)}.` : '.') : 'It has not sold anything early yet.';
+        const state = d.aiSell === false ? ' It is off: the fixed rules still sell (the loss limit, the gain mark, the stop that follows a rise, the time limit).' : '';
+        return `<div class="ap-help" style="margin: -4px 0 10px 28px;">${esc(line + state)}${ai && ai.n >= 30 && d.aiSell !== false && ai.avg < (avg || 0) ? ' <strong>It does worse than the other sales.</strong>' : ''}</div>`;
     }
 
     // one of the "what it may do by itself" switches: what is ticked on screen, or what is saved if it is not on screen

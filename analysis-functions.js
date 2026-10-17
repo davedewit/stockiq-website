@@ -840,8 +840,8 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `• Total stocks analyzed: ${allResults.length}\n`;
         output += `• Stocks with positive scores: ${positiveStocks}\n`;
         output += `• Stocks with negative scores: ${negativeStocks}\n`;
-        output += `• Average score: ${avgScore.toFixed(1)}\n`;
-        output += `• Success rate: ${((allResults.length/100)*100).toFixed(1)}%\n`;
+        output += `• Average score: ${averageWords(avgScore)}\n`;
+        output += `• Scored: ${scoredWords(allResults.length, 100)}\n`;
     }
     
     output += `\n✅ Real-time UK FTSE 100 complete!`;
@@ -1799,6 +1799,16 @@ async function saveAnalysisToHistory(result, subOption, option) {
 // Display wording for model output codes. StockIQ gives general information, not advice,
 // so codes such as BUY / SELL are used internally but never shown: they are mapped to
 // neutral signal labels (the same ones the public stock pages use).
+// A screener's average score in words (17 Oct 2026; the owner asked what "Average score: 0.7" meant): the score runs from about
+// -3 to +3, and the same steps as the signal labels say what an average of that size is.
+function averageWords(v) {
+    const label = v >= 2.5 ? 'Strongly positive' : v >= 1.5 ? 'Positive' : v >= 0.5 ? 'Slightly positive' : v > -0.5 ? 'Mixed' : v >= -1.0 ? 'Slightly negative' : v >= -1.5 ? 'Negative' : 'Strongly negative';
+    return `${v >= 0 ? '+' : ''}${v.toFixed(1)} on a scale of about -3 to +3 (${label} on average)`;
+}
+function scoredWords(n, of) {
+    return `${n} of the ${of} stocks in the list (${of ? Math.min(100, n / of * 100).toFixed(0) : 0}%)`;
+}
+
 function signalLabel(code) {
     const labels = {
         'STRONG BUY': 'Strongly positive', 'BUY': 'Positive', 'MODERATE BUY': 'Slightly positive', 'CONSIDER': 'Slightly positive',
@@ -1975,8 +1985,8 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `• Total stocks analyzed: ${sortedResults.length}\n`;
         output += `• Stocks with positive scores: ${positiveStocks}\n`;
         output += `• Stocks with negative scores: ${negativeStocks}\n`;
-        output += `• Average score: ${avgScore.toFixed(1)}\n`;
-        output += `• Success rate: ${((sortedResults.length/universeSize[subOption])*100).toFixed(1)}%\n`;
+        output += `• Average score: ${averageWords(avgScore)}\n`;
+        output += `• Scored: ${scoredWords(sortedResults.length, universeSize[subOption])}\n`;
     } else {
         output += 'No results available\n';
     }
@@ -2269,8 +2279,8 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `• Total stocks analyzed: ${sortedResults.length}\n`;
         output += `• Stocks with positive scores: ${positiveStocks}\n`;
         output += `• Stocks with negative scores: ${negativeStocks}\n`;
-        output += `• Average score: ${avgScore.toFixed(1)}\n`;
-        output += `• Success rate: ${((sortedResults.length/universeSize[subOption])*100).toFixed(1)}%\n`;
+        output += `• Average score: ${averageWords(avgScore)}\n`;
+        output += `• Scored: ${scoredWords(sortedResults.length, universeSize[subOption])}\n`;
     } else {
         output += 'No results available\n';
     }
@@ -3254,8 +3264,8 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `\u2022 Total stocks analyzed: ${sortedResults.length}\n`;
         output += `\u2022 Stocks with positive scores: ${positiveStocks}\n`;
         output += `\u2022 Stocks with negative scores: ${negativeStocks}\n`;
-        output += `\u2022 Average score: ${avgScore.toFixed(1)}\n`;
-        output += `\u2022 Success rate: ${((sortedResults.length/universeSize)*100).toFixed(1)}%\n`;
+        output += `\u2022 Average score: ${averageWords(avgScore)}\n`;
+        output += `\u2022 Scored: ${scoredWords(sortedResults.length, universeSize)}\n`;
     } else {
         output += 'No results available\n';
     }

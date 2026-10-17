@@ -21,7 +21,7 @@
     // Where the site's own pages and files are: beside this script, wherever the site is served from (the top of its address on
     // stockiq.tech, below a folder in a local preview). Never "/something": that is nowhere unless the site is at the top.
     const SITE = (() => { try { const me = document.currentScript && document.currentScript.src; return me && /autopilot-bell\.js/.test(me) ? me.replace(/autopilot-bell\.js.*$/, '') : '/'; } catch (e) { return '/'; } })();
-    const FRESH_MS = 2 * 60 * 1000, LOCKED_MS = 30 * 60 * 1000, KEEP = 12, SHOW = 6;
+    const FRESH_MS = 10 * 60 * 1000, LOCKED_MS = 30 * 60 * 1000, KEEP = 12, SHOW = 6;
     const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
     const put = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* a private window: it works for this page only */ } };
     const user = () => { const u = get('userId'); return u && u !== 'anonymous' ? u : null; };
