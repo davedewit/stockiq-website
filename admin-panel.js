@@ -170,6 +170,12 @@
     }
 
     // AWS this month (17 Oct 2026): the bill so far and Lambda's calls against the free million, read once a day by the function
+    function usageMessage(u) {
+        if (!u) return 'Not done: the figures could not be read.';
+        const fresh = u.costAt && Date.now() - Date.parse(u.costAt) < 120000;
+        if (u.costError) return 'AWS figures read just now: the calls. The bill could not be read just now; the figure shown is the last one read.';
+        return 'AWS figures read just now: the calls' + (fresh ? ' and the bill.' : u.costAt ? `. The bill was read ${ago(u.costAt)}, under 6 hours ago, so it was not read again (each reading costs $0.01).` : '.');
+    }
     function usageHtml(u) {
         if (!u) return '<div class="ad-sub" style="margin-top: 10px;">AWS this month: not read yet (the scheduled run reads it once a day).</div>';
         const chips = [];
@@ -181,7 +187,11 @@
             if (u.yesterday) chips.push(`<span class="ad-pill info">yesterday ${Number(u.yesterday).toLocaleString('en-US')}</span>`);
         }
         const err = u.costError || u.callsError ? ` <span class="ad-sub">(${u.costError ? 'the bill could not be read' : ''}${u.costError && u.callsError ? '; ' : ''}${u.callsError ? 'the calls could not be read' : ''})</span>` : '';
-        return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month, read ${esc(ago(u.at))}:</span><div class="ad-chips">${chips.join('')}</div>${err}</div>`;
+        // each figure with its own age (17 Oct 2026: one "read 6 h ago" was the calls' age, while the bill could be 3 days old)
+        const ages = [u.calls !== undefined ? `calls read ${esc(ago(u.at))}` : '', u.cost !== undefined && u.costAt ? `bill read ${esc(ago(u.costAt))}` : ''].filter(Boolean).join(' · ');
+        return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month (${ages}):</span><div class="ad-chips">${chips.join('')}</div>${err}
+            <button type="button" class="ad-btn" data-ad="usage" ${busy ? 'disabled' : ''}>${busy === 'usage' ? 'Reading…' : '↻ Refresh now'}</button>
+            <div class="ad-sub" style="margin-top: 4px;">By itself it reads the calls about once a day and the bill every 3 days. Refresh now reads the calls at once (free), and the bill too if it was read more than 6 hours ago: each reading of the bill costs $0.01, and AWS itself updates that figure only a few times a day.</div></div>`;
     }
 
     // The improvements (17 Oct 2026; the owner: "put the list of future improvements to track them so i know which was run which is
@@ -271,12 +281,13 @@
         if (!t || busy) return;
         e.preventDefault();
         const id = t.getAttribute('data-ad-id'), answer = t.getAttribute('data-ad-answer');
-        busy = answer ? 'answer' : 'review'; render();
+        const what = answer ? 'answer' : t.getAttribute('data-ad') === 'usage' ? 'usage' : 'review';
+        busy = what; render();
         try {
-            const r = await call(answer ? { op: 'answer', id: Number(id), answer } : { op: 'review' });
+            const r = await call(answer ? { op: 'answer', id: Number(id), answer } : { op: what });
             data = r.admin;
             const p = answer ? (data.answered || []).find(x => String(x.id) === String(id)) : null;
-            message = !answer ? 'The review is written from the latest figures. Nothing was bought, sold or changed; the next automatic one is 7 days from now.' : !p ? '' : p.status === 'done' ? `Done: ${p.title}. It is in force now (the autopilot's activity list says so too).` : p.status === 'yes' ? `Noted: "${p.title}" is for your next session, which will do it and tell you.` : `Left as it is: ${p.title}.`;
+            message = what === 'usage' ? usageMessage(data.usage) : !answer ? 'The review is written from the latest figures. Nothing was bought, sold or changed; the next automatic one is 7 days from now.' : !p ? '' : p.status === 'done' ? `Done: ${p.title}. It is in force now (the autopilot's activity list says so too).` : p.status === 'yes' ? `Noted: "${p.title}" is for your next session, which will do it and tell you.` : `Left as it is: ${p.title}.`;
             if (p && p.status === 'done' && window.practiceAutopilot && window.practiceAutopilot.reload) window.practiceAutopilot.reload();
         } catch (err) { message = 'Not done: ' + err.message; }
         busy = ''; render();
