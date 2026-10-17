@@ -2912,6 +2912,16 @@ ${analysis.report}
                 'South Korea KOSPI 200 Analysis': 'analysis.html?option=5&subOption=kospi200&autorun=true',
                 'Brazil Bovespa Screener': 'analysis.html?option=5&subOption=bovespa&autorun=true',
                 'Brazil Bovespa Analysis': 'analysis.html?option=5&subOption=bovespa&autorun=true',
+                'Euro Stoxx 50 Screener': 'analysis.html?option=5&subOption=sx5e&autorun=true',
+                'Euro Stoxx 50 Analysis': 'analysis.html?option=5&subOption=sx5e&autorun=true',
+                'Sweden OMX Stockholm 30 Screener': 'analysis.html?option=5&subOption=omx30&autorun=true',
+                'Sweden OMX Stockholm 30 Analysis': 'analysis.html?option=5&subOption=omx30&autorun=true',
+                'China CSI 300 Screener': 'analysis.html?option=5&subOption=csi300&autorun=true',
+                'China CSI 300 Analysis': 'analysis.html?option=5&subOption=csi300&autorun=true',
+                'Taiwan 50 Screener': 'analysis.html?option=5&subOption=tw50&autorun=true',
+                'Taiwan 50 Analysis': 'analysis.html?option=5&subOption=tw50&autorun=true',
+                'New Zealand NZX 50 Screener': 'analysis.html?option=5&subOption=nzx50&autorun=true',
+                'New Zealand NZX 50 Analysis': 'analysis.html?option=5&subOption=nzx50&autorun=true',
                 'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
             };
             
@@ -3066,6 +3076,11 @@ ${analysis.report}
             if (companyName.includes('India Sensex') || symbol === 'INDIA_SCREENER') return 'india_screener';
             if (companyName.includes('South Korea KOSPI 200') || symbol === 'KOREA_SCREENER') return 'korea_screener';
             if (companyName.includes('Brazil Bovespa') || symbol === 'BRAZIL_SCREENER') return 'brazil_screener';
+            if (companyName.includes('Euro Stoxx 50') || symbol === 'EUROZONE_SCREENER') return 'eurozone_screener';
+            if (companyName.includes('Sweden OMX Stockholm 30') || symbol === 'SWEDEN_SCREENER') return 'sweden_screener';
+            if (companyName.includes('China CSI 300') || symbol === 'CHINA_SCREENER') return 'china_screener';
+            if (companyName.includes('Taiwan 50') || symbol === 'TAIWAN_SCREENER') return 'taiwan_screener';
+            if (companyName.includes('New Zealand NZX 50') || symbol === 'NEWZEALAND_SCREENER') return 'newzealand_screener';
             if (companyName.includes('ASX')) return 'asx_screener';
             if (companyName.includes('UK FTSE') || symbol === 'UK_FTSE_100') {
                 return 'uk_screener';
@@ -3104,7 +3119,12 @@ ${analysis.report}
                 'Switzerland SMI Screener': 'smi',
                 'India Sensex Screener': 'sensex',
                 'South Korea KOSPI 200 Screener': 'kospi200',
-                'Brazil Bovespa Screener': 'bovespa'
+                'Brazil Bovespa Screener': 'bovespa',
+                'Euro Stoxx 50 Screener': 'sx5e',
+                'Sweden OMX Stockholm 30 Screener': 'omx30',
+                'China CSI 300 Screener': 'csi300',
+                'Taiwan 50 Screener': 'tw50',
+                'New Zealand NZX 50 Screener': 'nzx50'
             };
             return mappings[companyName] || '3';
         }
@@ -3221,6 +3241,21 @@ ${analysis.report}
                 } else if (analysisType === 'brazil_screener') {
                     endpoint = coordinatorUrl;
                     payload = { option: '5', subOption: 'bovespa', userId };
+                } else if (analysisType === 'eurozone_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'sx5e', userId };
+                } else if (analysisType === 'sweden_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'omx30', userId };
+                } else if (analysisType === 'china_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'csi300', userId };
+                } else if (analysisType === 'taiwan_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'tw50', userId };
+                } else if (analysisType === 'newzealand_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'nzx50', userId };
                 } else if (analysisType === 'us_screener' || analysisType === 'asx_screener' || analysisType === 'uk_screener') {
                     // Use coordinator for US/ASX/UK screeners
                     endpoint = coordinatorUrl;
@@ -3613,9 +3648,9 @@ ${analysis.report}
                 // the price: a currency sign and a number ("A$8.43", "¥5,613.00", and the older "$AUD8.43", "£2614.00"), or a number of
                 // pence ("503.80p"), or a currency code and a number ("CHF 77.30", "BRL 56.86": currencies with no sign in the money rule).
                 // London prices are pence in every form, old reports' "£" included.
-                lines = plainText.match(/^\s*\d+\.\s+([A-Z0-9&]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?(?:(?:[$£€¥₹₩]|[A-Z]{3} (?=[0-9][0-9,]*\.[0-9]{2}(?![0-9])))([A-Z]*[0-9][0-9,.]*)|([0-9][0-9,.]*)p(?=\s|\||$))/gm) || [];
+                lines = plainText.match(/^\s*\d+\.\s+([A-Z0-9&]{1,10}(?:[.-][A-Z]+){0,2})\s+.{0,40}?(?:(?:[$£€¥₹₩]|[A-Z]{3} (?=[0-9][0-9,]*\.[0-9]{2}(?![0-9])))([A-Z]*[0-9][0-9,.]*)|([0-9][0-9,.]*)p(?=\s|\||$))/gm) || [];
                 lines.slice(0, 10).forEach(l => {
-                    const m = l.match(/([A-Z0-9&]{1,10}(?:[.-][A-Z]+)?)\s+.{0,40}?(?:(?:[$£€¥₹₩]|[A-Z]{3} (?=[0-9][0-9,]*\.[0-9]{2}(?![0-9])))([A-Z]*[0-9][0-9,.]*)|([0-9][0-9,.]*)p(?=\s|\||$))/);
+                    const m = l.match(/([A-Z0-9&]{1,10}(?:[.-][A-Z]+){0,2})\s+.{0,40}?(?:(?:[$£€¥₹₩]|[A-Z]{3} (?=[0-9][0-9,]*\.[0-9]{2}(?![0-9])))([A-Z]*[0-9][0-9,.]*)|([0-9][0-9,.]*)p(?=\s|\||$))/);
                     if (m) found.push({ symbol: m[1], priceText: (m[2] || m[3]).replace(/[A-Z]+/, '').replace(/,/g, '') });
                 });
             }
@@ -3644,6 +3679,11 @@ ${analysis.report}
             [/ASX 300/i, '^AXKO', 'S&P/ASX 300 index'], [/ASX 200/i, '^AXJO', 'S&P/ASX 200 index'],
             [/ASX 100/i, '^ATOI', 'S&P/ASX 100 index'], [/ASX 50/i, '^AFLI', 'S&P/ASX 50 index'],
             [/FTSE 100/i, '^FTSE', 'FTSE 100 index'], [/Nikkei/i, '^N225', 'Nikkei 225 index'], [/DAX/i, '^GDAXI', 'DAX 40 index'], [/CAC 40/i, '^FCHI', 'CAC 40 index'], [/AEX/i, '^AEX', 'AEX index'], [/TSX/i, '^GSPTSE', 'S&P/TSX Composite index'], [/FTSE MIB/i, 'FTSEMIB.MI', 'FTSE MIB index'], [/IBEX/i, '^IBEX', 'IBEX 35 index'], [/Hang Seng/i, '^HSI', 'Hang Seng index'], [/Singapore STI/i, '^STI', 'Straits Times index'], [/Switzerland SMI/i, '^SSMI', 'Swiss Market Index'], [/Sensex/i, '^BSESN', 'BSE Sensex index'], [/KOSPI/i, '^KS200', 'KOSPI 200 index'], [/Bovespa/i, '^BVSP', 'Ibovespa index'],
+            [/Euro Stoxx/i, '^STOXX50E', 'Euro Stoxx 50 index'],
+            [/OMX Stockholm/i, '^OMX', 'OMX Stockholm 30 index'],
+            [/CSI 300/i, '000300.SS', 'CSI 300 index'],
+            [/Taiwan 50/i, '^TWII', 'Taiwan TAIEX index'],
+            [/NZX 50/i, '^NZ50', 'S&P/NZX 50 index'],
             [/Crypto|CoinSpot/i, 'BTC-USD', 'Bitcoin']
         ];
         function top10Benchmark(companyName) {
@@ -5056,7 +5096,7 @@ ${analysis.report}
     <script src="practice-portfolio.js?v=39"></script>
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
-    <script src="practice-autopilot.js?v=48"></script>
+    <script src="practice-autopilot.js?v=49"></script>
     <script src="admin-panel.js?v=5"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
     <script src="ai-chat.js?v=2"></script>
     <script src="js/timezone-converter.js"></script>

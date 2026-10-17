@@ -216,7 +216,7 @@
     }
     // Shortcuts (13 Oct 2026; they replaced the "quick set-ups", which also changed the pace and the level): they change
     // only which screeners are ticked. MAIN is one index a country, none of them inside another.
-    const MAIN = ['3-3', '5-ftse100', '5-dax40', '5-cac40', '5-smi', '5-aex', '5-ftsemib', '5-ibex35', '4-200', '5-nikkei225', '5-hangseng', '5-sensex', '5-kospi200', '5-sti', '5-tsx60', '5-bovespa'];
+    const MAIN = ['3-3', '5-ftse100', '5-dax40', '5-cac40', '5-smi', '5-aex', '5-ftsemib', '5-ibex35', '4-200', '5-nikkei225', '5-hangseng', '5-sensex', '5-kospi200', '5-sti', '5-tsx60', '5-bovespa', '5-omx30', '5-csi300', '5-tw50', '5-nzx50'];
     let loadedAt = null, refreshing = false, openDetails = {};       // openDetails: which "Details" are unfolded, kept across redraws
     const REFRESH_MS = 60000;
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
