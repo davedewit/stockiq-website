@@ -38,6 +38,9 @@
         #admin-panel .ad-tile-sub { font-size: 0.82rem; color: var(--text-secondary); }
         #admin-panel .ad-card { border: 1px solid var(--border-color); border-left: 5px solid var(--ad-blue); border-radius: 10px; padding: 16px 18px; margin: 14px 0; background: var(--card-bg); }
         #admin-panel .ad-card.goal { border-left-color: var(--ad-purple); }
+        #admin-panel .ad-card.plan { border-left-color: var(--ad-blue); }
+        #admin-panel .ad-section { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-secondary); margin: 14px 0 4px; }
+        #admin-panel ol.ad-next { margin: 4px 0 0 20px; padding: 0; } #admin-panel ol.ad-next li { margin: 6px 0; color: var(--text-primary); }
         #admin-panel .ad-card.ask { border-left-color: var(--ad-green); } #admin-panel .ad-card.ask.waiting { border-left-color: var(--ad-amber); background: var(--ad-amber-bg); }
         #admin-panel .ad-card.run { border-left-color: var(--ad-green); } #admin-panel .ad-card.run.bad { border-left-color: var(--ad-red); }
         #admin-panel .ad-label { display: block; font-weight: 800; font-size: 1.05rem; margin-bottom: 10px; color: var(--text-primary); }
@@ -161,7 +164,7 @@
     function usageHtml(u) {
         if (!u) return '<div class="ad-sub" style="margin-top: 10px;">AWS this month: not read yet (the scheduled run reads it once a day).</div>';
         const chips = [];
-        if (u.cost !== undefined) chips.push(`<span class="ad-pill ${u.cost < 1 ? 'good' : u.cost < 3 ? 'warn' : 'bad'}">AWS bill this month so far: $${Number(u.cost).toFixed(2)}</span>`);
+        if (u.cost !== undefined) chips.push(`<span class="ad-pill ${u.cost < 1 ? 'good' : u.cost < 1.5 ? 'warn' : 'bad'}">AWS bill this month so far: $${Number(u.cost).toFixed(2)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
         if (u.calls !== undefined) {
             const share = u.calls / (u.free || 1000000), f = u.forecast ? u.forecast / (u.free || 1000000) : share;
             chips.push(`<span class="ad-pill ${f < 0.7 ? 'good' : f < 1 ? 'warn' : 'bad'}">Lambda calls: ${Number(u.calls).toLocaleString('en-US')} of ${(u.free || 1000000).toLocaleString('en-US')} free (${Math.round(share * 100)}%)</span>`);
@@ -170,6 +173,33 @@
         }
         const err = u.costError || u.callsError ? ` <span class="ad-sub">(${u.costError ? 'the bill could not be read' : ''}${u.costError && u.callsError ? '; ' : ''}${u.callsError ? 'the calls could not be read' : ''})</span>` : '';
         return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month, read ${esc(ago(u.at))}:</span><div class="ad-chips">${chips.join('')}</div>${err}</div>`;
+    }
+
+    // The improvements (17 Oct 2026; the owner: "put the list of future improvements to track them so i know which was run which is
+    // next ... easily see if something was improved in the past"): check-tools/experiments.json and site_parts.json, copied here by
+    // admin.py sync. Being tested (with how far to its decision), next in order, and done (kept or taken out, with the result).
+    function planHtml(pl) {
+        if (!pl || !pl.items) return '';
+        const items = pl.items, by = (st) => items.filter(e => e.status === st);
+        const running = by('running').sort((a, b) => (a.decide || '').localeCompare(b.decide || ''));
+        const next = by('idea').sort((a, b) => (a.order || 99) - (b.order || 99));
+        const done = items.filter(e => e.status === 'kept' || e.status === 'removed').sort((a, b) => (b.decided || '').localeCompare(a.decided || ''));
+        const tags = (a) => (a || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="ad-tag">${esc(t)}</span>`).join('');
+        const dayms = 86400000, todayMs = Date.now();
+        const runRow = (e) => {
+            const a = Date.parse(e.started), b = Date.parse(e.decide), pct = a && b && b > a ? Math.max(3, Math.min(100, (todayMs - a) / (b - a) * 100)) : 0;
+            const left = b ? Math.ceil((b - todayMs) / dayms) : null;
+            return `<div class="ad-goal"><div class="ad-goal-head"><span><b>${esc(e.what)}</b>${tags(e.angle)}</span><span class="ad-pill ${left !== null && left <= 0 ? 'warn' : 'info'}">${left === null ? '' : left <= 0 ? 'decide now' : 'decided in ' + left + ' day' + (left === 1 ? '' : 's')}</span></div>
+                <div class="ad-bar"><span style="width: ${pct.toFixed(0)}%; background: var(--ad-blue);"></span></div><div class="ad-sub" style="margin-top: 4px;">Measured by: ${esc(e.measure)}</div></div>`;
+        };
+        const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : 'bad'}"><b>${e.status === 'kept' ? '✓ Kept' : '✗ Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
+        const reviewed = (pl.reviews || []).map(r => `<li><b>${esc(r.part)}</b> <span class="ad-sub">${esc(r.at)}</span><div class="ad-sub">${esc(r.found)}</div></li>`).join('');
+        return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
+            <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. Updated ${esc(day(pl.at))}.</div>
+            ${running.length ? `<div class="ad-section">Being tested now</div>${running.map(runRow).join('')}` : ''}
+            ${next.length ? `<div class="ad-section">Next, in order</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle)}</li>`).join('')}</ol>` : ''}
+            ${done.length ? `<div class="ad-section">Done</div><ul class="ad-lines">${done.slice(0, 6).map(doneRow).join('')}</ul>${done.length > 6 ? `<details class="ad-more"><summary>${done.length - 6} more done</summary><ul class="ad-lines">${done.slice(6).map(doneRow).join('')}</ul></details>` : ''}` : ''}
+            ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
     }
 
     function answeredHtml(list) {
@@ -183,7 +213,7 @@
         style();
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3><div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${propsHtml(data.open || [])}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
+            ${tilesHtml(data)}${propsHtml(data.open || [])}${planHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
     }
 
     function reveal() {

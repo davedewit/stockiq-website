@@ -849,8 +849,8 @@
 
                 <div class="ap-card">
                     <span class="ap-label">What it may do by itself</span>
-                    ${mayRow('ap-aisell', 'aiSell', 'Sell early on the AI model\'s review', 'At every check-in the AI model looks at each holding with the latest screener figures and recent headlines, and may sell it before the fixed rules would, or keep it with a tighter stop: for instance when a rise has stalled or turned. A larger model is asked when a gain is at stake (a few times a day at most). Shares in the "patient" trial are not reviewed. Off: only the fixed rules sell.')}
-                    ${aiSellRecord(d)}
+                    ${''/* "Sell early on the AI model's review" was taken out on 17 Oct 2026: its early sales lost money (31 trades, -1.46% a trade, against -0.62% for every other kind of sale). It is off for every account; check-tools/experiments.json "ai-review-off". */}
+                    <div class="ap-help" style="margin: -2px 0 10px;">The AI model no longer sells early: those sales lost money (31 trades, -1.46% a trade, against -0.62% for every other kind of sale), so they were taken out on 17 Oct 2026. The fixed rules sell: the loss limit, the gain mark, the stop that follows a rise, the time limit.</div>
                     ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'Every 20 finished trades it may try one change to a selling or buying rule beside the current one, and keeps it only if it did clearly better. It also runs two standing trials for shares: which share to buy, and "patient" shares that are not sold when their signal turns. Off: its rules stay exactly as they are and no trial runs.')}
                     ${mayRow('ap-mail', 'emails', 'Email me its reviews', 'An email to your account address each time it reviews its rules, starts a trial or finishes one. Nothing needs doing when one arrives.')}
                     ${mailHtml()}
@@ -891,7 +891,7 @@
             budgetUsd: parseFloat(byId('ap-budget').value) || 0, periodDays: pace('ap-period', 'periodDays', v => parseInt(v, 10), 1) || 1,
             everyHours: pace('ap-every', 'everyHours', parseFloat, NaN), maxHoldDays: pace('ap-hold', 'maxHoldDays', parseFloat, NaN),
             screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')).sort(),
-            aiSell: may('ap-aisell', 'aiSell'), selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
+            aiSell: false, selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
             stopPct: ownLimit('ap-stop', 'stopPct'), takePct: ownLimit('ap-take', 'takePct')
         };
         if ('holdings' in data.settings) {                 // the user's own number of holdings; an empty box leaves it to the level
@@ -1158,7 +1158,7 @@
         const level = ((o.risk || {})[String(s.risk)] || {}).positions, own = s.holdings > 0 ? `, the number the user set in "Number of holdings" (it uses ${s.holdings}, not the level's own ${level})` : '';
         lines.push(`AI AUTOPILOT (Beta, fake money): switched ${s.enabled ? 'ON' : 'OFF'}. Risk level ${r.name || s.risk} (up to ${r.positions} holdings${own}; loss limit ${data.rules ? data.rules.stop : r.stop}%, gain mark +${data.rules ? data.rules.take : r.take}%). Budget ${usd0(s.budgetUsd)}; built up over ${s.periodDays} day${s.periodDays === 1 ? '' : 's'}${auto('periodDays')}; checks in ${everyText(s.everyHours)}${auto('everyHours')}; keeps a holding at most ${holdText(s.maxHoldDays)}${auto('maxHoldDays')}. Trailing stop: ${(TRAILS[trailOf(s)] || {}).name || 'default'}.`);
         lines.push('Screeners ticked: ' + (s.screeners.map(k => (o.screeners[k] || {}).name || k).join(', ') || 'none') + '.' + (sharesOn() ? ' ' + cut(splitText(s).split(' On automatic')[0], 320) : ''));
-        lines.push(`May by itself: sell early on the AI review ${s.aiSell !== false ? 'yes' : 'no'}; try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.`);
+        lines.push(`May by itself (selling early on the AI review was taken out on 17 Oct 2026): try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.`);
         if (data.money) lines.push(`Practice money it can use: ${usd0(data.money.reach)} (${usd0(data.money.cash)} cash, ${usd0(data.money.invested)} it has invested).`);
         if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${data.nextCheck.markets.join(' and ')} market.`);
         (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
