@@ -161,8 +161,8 @@
     function healthHtml(h, s, screeners) {
         const runs = h ? `Last scheduled run ${esc(ago(h.at))} (${esc(day(h.at))}): ` + (h.ran ? `${h.ran} of ${h.on} switched-on account${h.on === 1 ? '' : 's'} checked in` : 'nothing was due (its markets were closed, or its next check-in had not come)') + `${h.waiting ? ', ' + h.waiting + ' left for the next run' : ''}${h.paused ? ', ' + h.paused + ' paused' : ''}. ` + (h.failed ? `<span class="red">${h.failed} check-in${h.failed === 1 ? '' : 's'} stopped on an error.</span>` : '<span class="ok">✓ No errors.</span>') : 'No scheduled run recorded yet (it runs at :10 and :40 past every hour).';
         const chip = (text, on) => `<span class="ad-chip${on === false ? ' off' : ''}">${text}</span>`;
-        const chips = s ? [chip(`Autopilot <b>${s.enabled ? 'on' : 'off'}</b>`, s.enabled), chip(`Level <b>${esc(s.risk)}</b>`), chip(`<b>${esc(s.holdings || "the level's")}</b> holdings`), chip(`Budget <b>${usd(s.budgetUsd)}</b>`),
-            chip(`Checks in every <b>${esc(s.everyHours)} h</b>`), chip(`Keeps a holding up to <b>${esc(s.maxHoldDays)} days</b>`), chip(`AI review's early sales <b>${s.aiSell ? 'on' : 'off'}</b>`, s.aiSell), chip(`Tries changes to its rules <b>${s.selfTune ? 'on' : 'off'}</b>`, s.selfTune)].join('') : '';
+        const chips = s ? [chip(`Autopilot <b>${s.enabled ? 'on' : 'off'}</b>`, s.enabled), chip(`<b>${esc(({ 1: 'Cautious', 2: 'Careful', 3: 'Balanced', 4: 'Bold', 5: 'Adventurous' })[s.risk] || 'Level ' + s.risk)}</b> level`), chip(`<b>${esc(s.holdings || "the level's")}</b> holdings`), chip(`Budget <b>${usd(s.budgetUsd)}</b>`),
+            chip(`Checks in every <b>${esc(s.everyHours)} h</b>`), chip(`Keeps a holding up to <b>${esc(s.maxHoldDays)} days</b>`), chip(`Tries changes to its rules <b>${s.selfTune ? 'on' : 'off'}</b>`, s.selfTune)].join('') : '';
         return `<div class="ad-card run${h && h.failed ? ' bad' : ''}"><span class="ad-label">⚙️ How it is running</span><div>${runs}</div>
             ${chips ? `<div class="ad-chips">${chips}</div>` : ''}
             ${s ? `<details class="ad-more"><summary>Show the ${screeners.length} screeners it buys from</summary><div class="ad-sub" style="margin-top: 6px;">${screeners.length ? esc(screeners.join(', ')) : 'none'}.</div></details>` : ''}
@@ -203,7 +203,7 @@
             return `<div class="ad-goal"><div class="ad-goal-head"><span><b>${esc(e.what)}</b>${tags(e.angle, e)}</span><span class="ad-pill ${left !== null && left <= 0 ? 'warn' : 'info'}">${left === null ? '' : left <= 0 ? 'decide now' : 'decided in ' + left + ' day' + (left === 1 ? '' : 's')}</span></div>
                 <div class="ad-bar"><span style="width: ${pct.toFixed(0)}%; background: var(--ad-blue);"></span></div><div class="ad-sub" style="margin-top: 4px;">Measured by: ${esc(e.measure)}</div></div>`;
         };
-        const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : 'bad'}"><b>${e.status === 'kept' ? '✓ Kept' : '✗ Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
+        const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : ''}"><b>${e.status === 'kept' ? '✓ Kept' : 'Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
         const reviewed = (pl.reviews || []).map(r => `<li><b>${esc(r.part)}</b> <span class="ad-sub">${esc(r.at)}</span><div class="ad-sub">${esc(r.found)}</div></li>`).join('');
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
             <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. Updated ${esc(day(pl.at))}.</div>
@@ -223,7 +223,7 @@
         const left = (e) => { const b = Date.parse(e.decide); if (!b) return ''; const d = Math.ceil((b - Date.now()) / 86400000); return d <= 0 ? 'decide now' : d + ' day' + (d === 1 ? '' : 's'); };
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${by('idea').length} next · ${by('kept').length} kept · ${by('removed').length} taken out</span></span>
             <ul class="ad-lines">${running.slice(0, 3).map(e => `<li><b>Testing:</b> ${esc(e.what)} <span class="ad-pill info">${esc(left(e))}</span></li>`).join('')}
-            ${done.slice(0, 3).map(e => `<li class="${e.status === 'kept' ? 'good' : 'bad'}"><b>${e.status === 'kept' ? '✓ Kept' : '✗ Taken out'}:</b> ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span></li>`).join('')}</ul>
+            ${done.slice(0, 3).map(e => `<li class="${e.status === 'kept' ? 'good' : ''}"><b>${e.status === 'kept' ? '✓ Kept' : 'Taken out'}:</b> ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span></li>`).join('')}</ul>
             <button type="button" class="ad-btn" data-ad-view="improvements">See every improvement: what is next and the history →</button></div>`;
     }
 

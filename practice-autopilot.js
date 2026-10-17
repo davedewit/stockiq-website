@@ -15,6 +15,8 @@
         #practice-autopilot ul.ap-imp { list-style: none; margin: 0; padding: 0; }
         #practice-autopilot .ap-imp-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-primary); }
         #practice-autopilot .ap-imp-row:first-child { border-top: none; }
+        #practice-autopilot .ap-imp-word { flex: none; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-top: 2px; white-space: nowrap; }
+        #practice-autopilot .ap-imp-word.ok { background: rgba(22, 163, 74, 0.14); color: #16a34a; } #practice-autopilot .ap-imp-word.no { background: rgba(128, 128, 128, 0.16); color: var(--text-secondary); }
         #practice-autopilot .ap-imp-mark { font-weight: 800; width: 1em; flex: none; text-align: center; }
         #practice-autopilot .ap-imp-mark.ok { color: #16a34a; } #practice-autopilot .ap-imp-mark.no { color: #dc2626; } #practice-autopilot .ap-imp-mark.test { color: #2563eb; } #practice-autopilot .ap-imp-mark.next { color: var(--text-secondary); }
         #practice-autopilot .ap-imp-when { color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap; }
@@ -397,8 +399,8 @@
         if (!r || !(d.maxHoldDays > 0) || !(d.everyHours > 0)) return '';
         const late = d.maxHoldDays * 24 < d.everyHours - 1e-9, quick = d.everyHours < 3 || d.maxHoldDays < 1;
         const shares = d.screeners.some(k => (data.options.screeners[k] || {}).kind !== 'crypto');
-        return `It sells a holding once it has had it for ${holdText(d.maxHoldDays)}, whatever the price, and sooner at ${r.stop}% or +${r.take}%${TRAILS[trailOf(d)].says ? ', ' + TRAILS[trailOf(d)].says + ',' : ''} or when its screener signal turns negative or it slips far down the ranking. The money is then free for the next buy. At every check-in the AI model also reviews each holding against the latest screener figures and recent headlines, and may sell it earlier than these rules.`
-            + (shares && d.selfTune !== false ? ' One exception, for as long as "Try changes to its own rules" is on: every second pair of shares it buys is a "patient" share in a trial. A patient share is sold only by the limits and the time above, not when its signal turns or it slips down the ranking, and the AI model does not review it.' : '')
+        return `It sells a holding once it has had it for ${holdText(d.maxHoldDays)}, whatever the price, and sooner at ${r.stop}% or +${r.take}%${TRAILS[trailOf(d)].says ? ', ' + TRAILS[trailOf(d)].says + ',' : ''} or when its screener signal turns negative or it slips far down the ranking. The money is then free for the next buy.${d.aiSell === true ? ' At every check-in the AI model also reviews each holding against the latest screener figures and recent headlines, and may sell it earlier than these rules.' : ''}`
+            + (shares && d.selfTune !== false ? ' One exception, for as long as "Try changes to its own rules" is on: every second pair of shares it buys is a "patient" share in a trial. A patient share is sold only by the limits and the time above, not when its signal turns or it slips down the ranking' + (d.aiSell === true ? ', and the AI model does not review it.' : '.') : '')
             + (late ? ` It only checks in ${everyText(d.everyHours)}, though, so in practice a holding is sold at the next check-in, about ${holdText(d.everyHours / 24)} after it was bought. Check in more often for it to be sold on time.` : '')
             + (quick && shares ? ' Shares are only traded while their market is open and their rankings change little within a day, so quick settings mostly make a difference for coins.' : '')
             + (data.costEachWay ? ` A trading cost of ${data.costEachWay}% is taken off each buy and each sale${quick ? ': trading this often gives up a good part of every result to costs' : ''}.` : '')
@@ -411,7 +413,7 @@
         const r = withHoldings(data.options.risk[String(s.risk)] || {}, s);
         const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(s.budgetUsd)} budget is invested.` : '';
         const next = data.nextCheck && data.nextCheck.at
-            ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${data.nextCheck.markets.join(' and ')} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
+            ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${andList(data.nextCheck.markets)} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
             : (data.nextCheck === null ? ' No check-in is due in the next ten days.' : '');
         return 'On.' + holding + (last ? ` Last check-in ${when(last)}.` : (next ? '' : ' First check-in at the next hourly check.')) + next;
     }
@@ -455,11 +457,30 @@
         if (tab.textContent !== want) { tab.textContent = want; tab.title = !n && want.indexOf('🔒') > 0 ? 'Part of the paid plans' : n ? `${n === 1 ? 'One thing needs' : n + ' things need'} you: see "Needs you" on this tab` : ''; }
     }
     // The first thing under Activity: what is coming, soonest first, each with a countdown; then what goes by the number of trades
+    function andList(names) { names = (names || []).slice(); return names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]; }
+    // What happens next (17 Oct 2026, on the owner's real list: 51 rows, 39 of them "X is sold at the latest"): the holdings'
+    // last days are one row (the first of them, and how many follow, the list folded under it), and a release of the budget
+    // at the same minute as a check-in is left out: that check-in's row already says what it may buy then.
+    function comingRows(list) {
+        const timed = list.filter(c => c.at), sells = timed.filter(c => c.kind === 'sell'), out = [];
+        timed.forEach(c => {
+            if (c.kind === 'sell' && sells.length > 2) return;
+            if (c.kind === 'release') { const check = timed.find(x => x.kind === 'check' && x.at === c.at); if (check) return; }
+            out.push(c);
+        });
+        if (sells.length > 2) {
+            const first = sells[0], last = sells[sells.length - 1], days = (x) => esc(when(x.at).replace(/,? \d\d:\d\d.*$/, ''));
+            const at = out.findIndex(c => Date.parse(c.at) > Date.parse(first.at)), row = { at: first.at, kind: 'sells', count: sells.length, list: sells,
+                html: `${sells.length} holdings reach the end of their holding time between ${days(first)} and ${days(last)}, and are sold at the latest then (each at a check-in while its market is open). The first: ${esc(first.text.split(' is sold')[0])}.` };
+            if (at < 0) out.push(row); else out.splice(at, 0, row);
+        }
+        return out;
+    }
     function comingHtml() {
         const list = data.coming;
         if (!Array.isArray(list) || !list.length) return '';
-        const timed = list.filter(c => c.at), counted = list.filter(c => !c.at);
-        const row = (c, i) => `${until(c.at, i === 0 ? 'first' : '')}<div><time>${esc(when(c.at))}</time>${esc(c.text)}</div>`;
+        const timed = comingRows(list), counted = list.filter(c => !c.at);
+        const row = (c, i) => `${until(c.at, i === 0 ? 'first' : '')}<div><time>${esc(when(c.at))}</time>${c.html || esc(c.text)}${c.list ? `<details data-ap-fold="coming-sells" ${openDetails['coming-sells'] ? 'open' : ''}><summary>Each of the ${c.count}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${c.list.map(x => `<li>${esc(when(x.at))}: ${esc(x.text.split(':')[0])}</li>`).join('')}</ul></details>` : ''}</div>`;
         const rest = timed.slice(4);
         return `<div class="ap-section" id="ap-coming" style="scroll-margin-top: 120px;"><h4>What happens next <span class="ap-sub">a forecast from its settings: the prices and rankings of the moment decide what is really bought or sold</span></h4>
             <div class="ap-next">${timed.slice(0, 4).map(row).join('')}</div>
@@ -546,7 +567,10 @@
         const rested = restedUntil(d, group);
         if (rested !== null) return `<div class="ap-share none">No share of the budget for now: ${rested ? 'resting until ' + esc(rested) : 'resting'}. Its part goes to the other markets until then.</div>`;
         const mine = typeof (d.shares || {})[group] === 'number', chosen = mine ? Math.min(positions, Math.max(0, Math.round(d.shares[group] / 100 * positions))) : -1;
-        const steps = []; for (let k = 0; k <= positions; k++) steps.push(`<option value="${stepPct(k, positions)}" ${k === chosen ? 'selected' : ''}>${stepLabel(k, positions, size)}</option>`);
+        // With many holdings a step for each made a menu of 51 lines (the owner's 50): steps of about a tenth then, and always the
+        // value that is set. Any whole number of holdings is still allowed; the menu just offers fewer of them.
+        const every = positions > 20 ? Math.ceil(positions / 10) : 1;
+        const steps = []; for (let k = 0; k <= positions; k++) if (k % every === 0 || k === positions || k === chosen) steps.push(`<option value="${stepPct(k, positions)}" ${k === chosen ? 'selected' : ''}>${stepLabel(k, positions, size)}</option>`);
         return `<div class="ap-share" style="border-left-color: ${marketColour(group)};"><div class="ap-share-label"><span>Share of the budget</span> <span class="ap-auto ${mine ? 'own' : ''}">${mine ? 'set by you' : 'automatic'}</span></div><select id="ap-share-${index}" data-ap-share="${esc(group)}" aria-label="Share of the budget for ${esc(group)}" title="Choose how much of the budget this market may hold, or leave it on Automatic"><option value="auto" ${mine ? '' : 'selected'}>Automatic: ${stepLabel(autoSlots(d, group), positions, size)}</option>${steps.join('')}</select></div>`;
     }
     // A market whose every ticked screener is resting: the day the last rest ends ('' if not known), or null if it is not resting
@@ -617,7 +641,9 @@
         const cols = versus ? 5 : 4;
         const row = (x) => `<tr><td class="ap-bd-name">${esc(x.label)}</td><td>${x.n}</td><td class="ap-bd-num" style="color: ${tint(x.avg)};">${pc(x.avg)}</td><td>${x.up} of ${x.n}</td>${versus ? `<td class="ap-bd-num" style="color: ${tint(x.vs)};">${pc(x.vs)}</td>` : ''}</tr>`;
         const section = (title, list) => list && list.length ? `<tr class="ap-bd-gap"><td colspan="${cols}"></td></tr><tr class="ap-bd-head"><td colspan="${cols}">${title}</td></tr>` + list.map(row).join('') : '';
-        const lessons = data.lessons && data.lessons.items && data.lessons.items.length ? `<div style="margin-top: 10px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">What it has noted from its record</strong> <span style="font-size: 0.8rem;">(written by the AI model on ${esc(day(data.lessons.at))} from ${data.lessons.n} finished trades)</span><ul style="margin: 4px 0 0 18px; padding: 0;">${data.lessons.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+        // The AI model's notes are not shown here any more (17 Oct 2026): they restated the breakdown above in words, with the
+        // counts of the day they were written, so the two disagreed on the page. The model still reads them when it chooses.
+        const lessons = '';
         return `<div class="ap-section"><h4>How it is doing</h4>
             ${held}${barHtml()}${month}
             <div style="margin-top: 4px;">${c.n} finished trade${c.n === 1 ? '' : 's'} in all: ${c.up} up, ${c.n - c.up} down or level, average <span style="color: ${tint(c.avg)}; font-weight: 600;">${pc(c.avg)}</span> each.${c.n < need ? ` Fewer than ${need} trades: too few to conclude anything yet.` : ''}</div>
@@ -732,14 +758,14 @@
         if (o.mode === 'trial') testing.push({ text: `Every second share bought is the one furthest above its 52-week low. So far that way ${side(o.with, o.avgWith)}, as ranked ${side(o.without, o.avgWithout)}.`, since: o.since });
         site.filter(e => e.status === 'running').forEach(e => testing.push({ text: e.publicText, since: e.started, until: e.decide }));
         const made = [];
-        past.forEach(x => made.push({ ok: x.verdict === 'kept' && !x.undone, when: x.ended, text: `${x.text}: ${x.undone ? 'kept, then put back' : verdicts[x.verdict] || x.verdict}.` }));
-        if (o.ended) made.push({ ok: o.mode === 'low52', when: o.ended, text: o.mode === 'low52' ? 'Every share is now bought furthest above its 52-week low (kept after a trial).' : 'Tried: buying the share furthest above its 52-week low. Not kept: shares are bought as their screener ranks them.' });
-        site.filter(e => e.status === 'kept' || e.status === 'removed').forEach(e => made.push({ ok: e.status === 'kept', when: e.decided, text: e.publicText }));
+        past.forEach(x => made.push({ ok: x.verdict === 'kept' && !x.undone, word: x.verdict === 'kept' && !x.undone ? 'Kept' : 'Not kept', when: x.ended, text: `${x.text}: ${x.undone ? 'kept, then put back' : verdicts[x.verdict] || x.verdict}.` }));
+        if (o.ended) made.push({ ok: o.mode === 'low52', word: o.mode === 'low52' ? 'Kept' : 'Not kept', when: o.ended, text: o.mode === 'low52' ? 'Every share is now bought furthest above its 52-week low (kept after a trial).' : 'Buying the share furthest above its 52-week low, tried beside the usual order: shares are bought as their screener ranks them.' });
+        site.filter(e => e.status === 'kept' || e.status === 'removed').forEach(e => made.push({ ok: e.status === 'kept', word: e.status === 'kept' ? 'Kept' : 'Taken out', when: e.decided, text: e.publicText }));
         made.sort((a, b) => String(b.when || '').localeCompare(String(a.when || '')));
         const next = site.filter(e => e.status === 'idea');
         const dated = (w) => w ? esc(day(w)) : '';
         const testRow = (x) => `<li class="ap-imp-row"><span class="ap-imp-mark test">●</span><div>${esc(x.text)} <span class="ap-imp-when">since ${dated(x.since)}${x.until ? ' · decided by ' + dated(x.until) : ''}</span></div></li>`;
-        const madeRow = (x) => `<li class="ap-imp-row"><span class="ap-imp-mark ${x.ok ? 'ok' : 'no'}">${x.ok ? '✓' : '✗'}</span><div>${esc(x.text)} <span class="ap-imp-when">${dated(x.when)}</span></div></li>`;
+        const madeRow = (x) => `<li class="ap-imp-row"><span class="ap-imp-word ${x.ok ? 'ok' : 'no'}">${x.word}</span><div>${esc(x.text)} <span class="ap-imp-when">${dated(x.when)}</span></div></li>`;
         const details = `${sharedHtml()}
             ${improvedLine()}
             <div style="margin-top: 6px;">Its rules now (${esc(r.name)} level): ${esc(ruleWords(r))}.${(r.yours || []).length ? ` Set by you: ${esc(r.yours.map(k => names[k]).join(' and '))}; its trials leave ${r.yours.length === 1 ? 'that' : 'those'} alone.` : ''}${changed.length ? ` Changed by itself after a trial: ${changed.map(k => esc(names[k] + ' (the level starts at ' + r.changed[k] + ')') + (mayChange() ? ` <a href="#" data-ap="restore" data-param="${esc(k)}">put it back</a>` : '')).join(', ')}.` : ''}</div>
@@ -751,7 +777,7 @@
         return `<div class="ap-section"><h4>How it is improving</h4>
             <div class="ap-imp-sub">Every change is tested beside what it replaces and kept only if the figures show it helps. ${testing.length} being tested now · ${made.filter(x => x.ok).length} kept · ${made.filter(x => !x.ok).length} not kept or taken out</div>
             ${testing.length ? `<div class="ap-imp-head">Being tested now</div><ul class="ap-imp">${testing.map(testRow).join('')}</ul>` : ''}
-            ${made.length ? `<div class="ap-imp-head">Improvements made</div><ul class="ap-imp">${made.slice(0, 5).map(madeRow).join('')}</ul>${made.length > 5 ? fold('imp-more', `${made.length - 5} earlier`, made.slice(5).map(x => `${x.ok ? '✓' : '✗'} ${x.text} (${day(x.when)})`)) : ''}` : ''}
+            ${made.length ? `<div class="ap-imp-head">Improvements made</div><ul class="ap-imp">${made.slice(0, 5).map(madeRow).join('')}</ul>${made.length > 5 ? fold('imp-more', `${made.length - 5} earlier`, made.slice(5).map(x => `${x.word}: ${x.text} (${day(x.when)})`)) : ''}` : ''}
             ${next.length ? `<div class="ap-imp-head">Coming next</div><ul class="ap-imp">${next.map(x => `<li class="ap-imp-row"><span class="ap-imp-mark next">→</span><div>${esc(x.publicText)}</div></li>`).join('')}</ul>` : ''}
             <details class="ap-more ap-imp-details"><summary>The details: its rules now, how it learns from every account, the trials in full</summary><div style="margin-top: 8px;">${details}</div></details>
         </div>`;
@@ -769,7 +795,7 @@
             <div class="ap-section"><h4>What it does</h4>
                 <ul style="margin: 4px 0 0 18px; padding: 0; line-height: 1.6;">
                     <li>Buys from the screeners you choose (shares in the US, Europe, Asia-Pacific and the Americas, and coins), spreading the budget over the markets as you set it.</li>
-                    <li>Sells by rules you can see: a loss limit, a gain mark, a stop that follows a rising holding, and a longest holding time. An AI model also reviews each holding at every check-in.</li>
+                    <li>Sells by rules you can see: a loss limit, a gain mark, a stop that follows a rising holding, and a longest holding time. An AI model chooses what to buy from the screeners' shortlist.</li>
                     <li>Shows a countdown to its next check-in, what it plans to do, and every buy and sale with the reason.</li>
                     <li>Keeps a record of its results, compares each 20 finished trades with the 20 before, and tests changes to its own rules, keeping one only if it did clearly better.</li>
                 </ul>
@@ -1191,7 +1217,7 @@
         lines.push('Screeners ticked: ' + (s.screeners.map(k => (o.screeners[k] || {}).name || k).join(', ') || 'none') + '.' + (sharesOn() ? ' ' + cut(splitText(s).split(' On automatic')[0], 320) : ''));
         lines.push(`May by itself (selling early on the AI review was taken out on 17 Oct 2026): try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.`);
         if (data.money) lines.push(`Practice money it can use: ${usd0(data.money.reach)} (${usd0(data.money.cash)} cash, ${usd0(data.money.invested)} it has invested).`);
-        if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${data.nextCheck.markets.join(' and ')} market.`);
+        if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${andList(data.nextCheck.markets)} market.`);
         (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
         lines.push('Needs the user: ' + ((data.needs || []).map(n => cut(n.text, 200)).join(' | ') || 'nothing') + '.');
         (data.plans || []).slice(0, 8).forEach(p => lines.push(`Holds ${p.label}: sold at the latest ${when(p.sellBy)}, sooner at ${p.stop}% or +${p.take}%${p.closed ? '; its market is closed now' : ''}.`));
