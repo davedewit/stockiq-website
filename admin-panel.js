@@ -112,7 +112,7 @@
             const met = [g.trades >= g.tradesGoal, g.n > 0 && g.avg > g.avgGoal, g.value >= g.valueGoal].filter(Boolean).length;
             out.push(tile(met === 3 ? 'good' : met ? 'warn' : 'bad', esc(g.name), `${met} of 3 met`, `${g.daysLeft} days left (due ${esc(g.due)})`));
         }
-        out.push(tile(open ? 'warn' : 'good', 'Needs your yes', open ? String(open) : '✓ Nothing', open ? 'see below and answer' : 'nothing to decide'));
+        out.push(tile(open ? 'warn' : 'good', 'Decisions for you', open ? String(open) : '✓ None', open ? 'see below and answer' : 'nothing waiting'));
         if (h) {
             const late = Date.now() - Date.parse(h.at) > 70 * 60000;
             out.push(tile(h.failed ? 'bad' : late ? 'warn' : 'good', 'Running', h.failed ? `${h.failed} error${h.failed === 1 ? '' : 's'}` : late ? 'Late' : '✓ OK', `last run ${esc(ago(h.at))}`));
@@ -138,8 +138,8 @@
         const body = open.length ? open.map(p => `<div class="ad-prop"><b>${esc(p.title)}</b><span class="ad-tag">${p.kind === 'setting' ? 'applied the moment you say yes' : 'done in your next session'}</span>
             <div class="ad-sub" style="margin-top: 4px;">${esc(p.why)}</div>
             <button type="button" class="ad-btn yes" data-ad-answer="yes" data-ad-id="${p.id}" ${busy ? 'disabled' : ''}>Yes</button><button type="button" class="ad-btn" data-ad-answer="no" data-ad-id="${p.id}" ${busy ? 'disabled' : ''}>Not now</button></div>`).join('')
-            : '<div class="ok">✓ Nothing needs your yes right now.</div><div class="ad-sub" style="margin-top: 4px;">Proposals appear here when the weekly review finds something, or when a session has something for you to decide.</div>';
-        return `<div class="ad-card ask${open.length ? ' waiting' : ''}"><span class="ad-label">${open.length ? '⚠️' : '✅'} Needs your yes ${open.length ? `<span class="ad-pill warn">${open.length}</span>` : ''}</span>${body}</div>`;
+            : '<div class="ok">✓ No decisions waiting.</div><div class="ad-sub" style="margin-top: 4px;">A change to the site or its settings that the weekly review or a session thinks worth making is put here for your yes or no. Anything wrong with the autopilot itself (no cash, a failed check-in) shows on the AI autopilot tab, as it does for every user.</div>';
+        return `<div class="ad-card ask${open.length ? ' waiting' : ''}"><span class="ad-label">${open.length ? '⚠️' : '✅'} Decisions for you ${open.length ? `<span class="ad-pill warn">${open.length}</span>` : ''}</span>${body}</div>`;
     }
 
     // A review line is marked by what it says: "clearly down" / "Clearly losing" red, "clearly up" / "Clearly making" green;
@@ -154,7 +154,7 @@
         return `<div class="ad-card"><span class="ad-label">📋 Weekly review <span class="ad-sub">${r ? 'written by the autopilot ' + esc(day(r.at)) + (next ? '; the next one ' + esc(day(next)) : '') : 'not written yet: the scheduled run writes one every 7 days'}</span></span>
             ${r ? '<ul class="ad-lines">' + r.lines.map(lineHtml).join('') + '</ul>' : ''}
             <button type="button" class="ad-btn" data-ad="review" ${busy ? 'disabled' : ''}>${busy === 'review' ? 'Writing…' : 'Write a fresh one now'}</button>
-            <div class="ad-sub" style="margin-top: 6px;">You never need to press this: the autopilot writes the review by itself every 7 days. Pressing it writes it again straight away from the latest figures. It buys, sells and changes nothing; it may add a question under "Needs your yes"; and the next automatic review then comes 7 days after your press.</div>
+            <div class="ad-sub" style="margin-top: 6px;">You never need to press this: the autopilot writes the review by itself every 7 days. Pressing it writes it again straight away from the latest figures. It buys, sells and changes nothing; it may add a question under "Decisions for you"; and the next automatic review then comes 7 days after your press.</div>
             <div class="ad-sub" style="margin-top: 8px;">A group of trades is only called losing or making money from 30 trades, and only when it is beyond twice its margin of error. Past practice results; nothing here is advice.</div></div>`;
     }
 

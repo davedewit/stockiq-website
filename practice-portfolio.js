@@ -535,6 +535,10 @@
         return ppQuote;
     }
     const openPlans = new Set();                  // the holdings whose plan is unfolded (kept across redraws)
+    // The holdings table shows the latest 10, the rest behind a link (17 Oct 2026, the owner: 39 holdings were one long list;
+    // as "What it has done" on the autopilot tab). Kept while the page is open, not remembered.
+    const HELD_SHOWN = 10;
+    let allHeld = false;
     let moreOpen = false;                         // whether the breakdown under the three figures is unfolded (kept across redraws)
     let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
@@ -701,7 +705,7 @@
         const showAll = `<a href="#" data-pp="chart-key" data-id="value" style="color: #007bff; white-space: nowrap;">Show all</a>`;
         const partLine = part && state.holdings.length ? `<div id="pp-part" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">${held.length ? `Showing <strong style="color: var(--text-primary);">${whose}</strong>: ${held.length} of ${state.holdings.length} holdings.` : `None of the ${state.holdings.length} holdings ${state.holdings.length === 1 ? 'is' : 'are'} ${chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys'}.`} ${showAll}</div>` : '';
 
-        const rows = held.slice().reverse().map(h => {
+        const rowList = held.slice().reverse().map(h => {
             const v = valueOf(h, quotes), today = dayMove(h, quotes), shut = closedFor(h.symbol, quotes[h.symbol]);
             return `<tr>
                 <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
@@ -715,7 +719,9 @@
                 <td data-label="Since bought" style="${cell}">${v.priced ? pctHtml(v.changePct, v.gainUsd) : '<span style="color: var(--text-secondary);">no price</span>'}</td>
                 <td class="pp-act" style="${cell}">${shut ? `<button class="pp-btn ghost" disabled title="${esc(closedText(h.label, shut, 'sold'))}">Market closed</button>` : `<button data-pp="sell" data-id="${esc(h.id)}" class="pp-btn${busy === 'sell:' + h.id ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'sell:' + h.id ? 'Selling…' : 'Sell'}</button>`}</td>
             </tr>`;
-        }).join('');
+        });
+        const rows = (allHeld ? rowList : rowList.slice(0, HELD_SHOWN)).join('');
+        const heldMore = rowList.length > HELD_SHOWN ? `<div id="pp-held-more" style="margin: 8px 0 0; font-size: 0.85rem;"><a href="#" data-pp="held-all" style="color: #007bff;">${allHeld ? `Show only the latest ${HELD_SHOWN}` : `Show all ${rowList.length} (${rowList.length - HELD_SHOWN} more)`}</a></div>` : '';
 
         const closed = soldOnes.slice().reverse().map(h => {
             const change = (h.proceedsUsd / h.costUsd - 1) * 100;
@@ -741,7 +747,7 @@
         // box): how the account stands against the same starting money in an S&P 500 fund, as the graph shows it. Without the
         // fund's prices back to the start it falls back to what is still held against the fund over the same days.
         const start = usd(state.startingCash).replace(/\.00$/, '');
-        const fundCard = vs ? card('Against the S&amp;P 500', big(behind), `${behind === 0 ? 'level with' : behind > 0 ? 'ahead of' : 'behind'} the same ${start} in an S&amp;P 500 fund since the start (it would be ${usd(vs.value)} now)`, behind)
+        const fundCard = vs ? card('Against the S&amp;P 500', movedHtml(behind, behind / state.startingCash * 100), `${behind === 0 ? 'level with' : behind > 0 ? 'ahead of' : 'behind'} the same ${start} in an S&amp;P 500 fund since the start (it would be ${usd(vs.value)} now)`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
@@ -770,7 +776,7 @@
                 <button data-pp="buy" class="pp-btn big${busy === 'buy' ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'buy' ? 'Buying…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
-            ${partLine}${held.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${count(held.length, state.holdings.length)})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>` : state.holdings.length ? '' : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
+            ${partLine}${held.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${count(held.length, state.holdings.length)})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>${heldMore}` : state.holdings.length ? '' : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
             ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${count(soldOnes.length, state.closed.length)})</summary>${soldOnes.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div>` : `<p style="margin: 8px 0 0; font-size: 0.85rem; color: var(--text-secondary);">None of the ${state.closed.length} sold ${state.closed.length === 1 ? 'is' : 'are'} ${whose}. ${showAll}</p>`}<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span>${part ? '' : `<button data-pp="clearsold" class="pp-btn ghost${busy === 'clearsold' ? ' busy' : ''}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>${busy === 'clearsold' ? 'Clearing…' : 'Clear sold list'}</button>`}</div></details>` : ''}
             ${beside ? '' : `<div id="pp-tools" style="margin-top: 12px;">${toolsHtml()}</div>`}
             <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
@@ -796,7 +802,7 @@
         const where = `<div class="pp-pl-line">Where the money is: cash <strong>${usd(s.cash)}</strong> · in holdings <strong>${usd(s.holdingsValue)}</strong>${s.openGainPct === null ? '' : ` (${usd(s.cost)} was put in)`} · together <strong>${usd(s.accountValue)}</strong>, the account value.</div>`;
         const vs = state.holdings.length || state.closed.length ? versusStart(state, quotes, Date.now()) : null;
         // two sums, said apart: the whole account since the start (as the graph), and only what is still held (it can point the other way)
-        const whole = vs ? `<li><strong>The whole account:</strong> the same ${usd(state.startingCash)} put into the fund when the account began would be ${usd(vs.value)} now (${movedHtml(vs.gainUsd)}), so the account is <strong>${Math.abs(vs.gapUsd) < 0.005 ? 'level with it' : (vs.gapUsd > 0 ? 'ahead of it' : 'behind it') + ' by ' + usd(Math.abs(vs.gapUsd))}</strong>.</li>` : '';
+        const whole = vs ? `<li><strong>The whole account:</strong> the same ${usd(state.startingCash)} put into the fund when the account began would be ${usd(vs.value)} now (${movedHtml(vs.gainUsd)}), so the account is <strong>${Math.abs(vs.gapUsd) < 0.005 ? 'level with it' : (vs.gapUsd > 0 ? 'ahead of it' : 'behind it') + ' by ' + usd(Math.abs(vs.gapUsd)) + ' (' + Math.abs(vs.gapUsd / state.startingCash * 100).toFixed(2) + '%)'}</strong>.</li>` : '';
         const held = s.marketPct === null ? '' : s.marketFlat ? `<li><strong>What is still held:</strong> nothing to compare yet, <span id="pp-us-opens">${esc(marketWait())}</span>.</li>`
             : `<li><strong>What is still held:</strong> ${pctHtml(s.openGainPct)} since it was bought; the same dollars in the fund on the same days ${pctHtml(s.marketPct)}${versusFund(s)}</li>`;
         const fund = whole || held ? `<div class="pp-pl-line" id="pp-pl-fund">Against an S&amp;P 500 index fund:<ul>${whole}${held}</ul></div>` : '';
@@ -848,7 +854,7 @@
         if (typeof point.f !== 'number') return moment + account;
         // Two lines, each led by its colour: they are the graph's key as well. Who is ahead is said in words, in dollars.
         const gap = Math.round((point.v - point.f) * 100) / 100;
-        const verdict = gap === 0 ? 'your account is level with it' : `your account is <strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))}</strong>`;
+        const verdict = gap === 0 ? 'your account is level with it' : `your account is <strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))} (${Math.abs(share(gap)).toFixed(2)}%)</strong>`;
         return `<div>${moment}</div>
             <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>Your account</span><span>${account}</span></div>
             <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key fund" aria-hidden="true"></span>The same ${usd(cash).replace(/\.00$/, '')} in an S&amp;P 500 fund</span><span><strong>${usd(point.f)}</strong> ${movedHtml(point.f - cash, share(point.f - cash))} · ${verdict}</span></div>`;
@@ -933,6 +939,7 @@
         if (!t) { const sug = document.getElementById('pp-suggest'); if (sug && !e.target.closest('#pp-suggest, #pp-symbol')) sug.style.display = 'none'; return; }
         const action = t.getAttribute('data-pp');
         if (t.tagName === 'A') e.preventDefault();
+        if (action === 'held-all') { allHeld = !allHeld; redraw(); return; }
         if (action === 'chart-key' || action === 'chart-range') {
             if (action === 'chart-key') { chartKey = t.getAttribute('data-id'); redraw(); return; }      // the lists follow the graph
             chartRange = t.getAttribute('data-id');

@@ -443,7 +443,7 @@
     // What needs the user. Its own reviews and trials do not: they happen by themselves at check-ins
     function needsHtml() {
         if (!Array.isArray(data.needs)) return '';
-        if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now.${data.settings.enabled ? ' It checks in, reviews its own rules and tests changes to them by itself; nothing has to be approved or pushed.' : ''}</div>`;
+        if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now${data.settings.enabled ? ': its settings, cash and screeners are all in order, and it runs by itself' : ''}.</div>`;
         return `<div id="ap-needs" class="ap-needs" role="status"><strong>⚠ Needs you</strong><ul>${data.needs.map(n => `<li>${esc(n.text)}${n.at ? ` <span style="color: var(--text-secondary);">(${esc(when(n.at))})</span>` : ''}</li>`).join('')}</ul></div>`;
     }
     // The dashboard's own tab for this panel carries a mark while something needs the user, so it is seen from any tab
