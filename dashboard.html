@@ -2922,6 +2922,8 @@ ${analysis.report}
                 'Taiwan 50 Analysis': 'analysis.html?option=5&subOption=tw50&autorun=true',
                 'New Zealand NZX 50 Screener': 'analysis.html?option=5&subOption=nzx50&autorun=true',
                 'New Zealand NZX 50 Analysis': 'analysis.html?option=5&subOption=nzx50&autorun=true',
+                'Mexico IPC Screener': 'analysis.html?option=5&subOption=ipc&autorun=true',
+                'Mexico IPC Analysis': 'analysis.html?option=5&subOption=ipc&autorun=true',
                 'Crypto Universe Screener': 'analysis.html?option=7&subOption=1&autorun=true'
             };
             
@@ -3081,6 +3083,7 @@ ${analysis.report}
             if (companyName.includes('China CSI 300') || symbol === 'CHINA_SCREENER') return 'china_screener';
             if (companyName.includes('Taiwan 50') || symbol === 'TAIWAN_SCREENER') return 'taiwan_screener';
             if (companyName.includes('New Zealand NZX 50') || symbol === 'NEWZEALAND_SCREENER') return 'newzealand_screener';
+            if (companyName.includes('Mexico IPC') || symbol === 'MEXICO_SCREENER') return 'mexico_screener';
             if (companyName.includes('ASX')) return 'asx_screener';
             if (companyName.includes('UK FTSE') || symbol === 'UK_FTSE_100') {
                 return 'uk_screener';
@@ -3124,7 +3127,8 @@ ${analysis.report}
                 'Sweden OMX Stockholm 30 Screener': 'omx30',
                 'China CSI 300 Screener': 'csi300',
                 'Taiwan 50 Screener': 'tw50',
-                'New Zealand NZX 50 Screener': 'nzx50'
+                'New Zealand NZX 50 Screener': 'nzx50',
+                'Mexico IPC Screener': 'ipc'
             };
             return mappings[companyName] || '3';
         }
@@ -3256,6 +3260,9 @@ ${analysis.report}
                 } else if (analysisType === 'newzealand_screener') {
                     endpoint = coordinatorUrl;
                     payload = { option: '5', subOption: 'nzx50', userId };
+                } else if (analysisType === 'mexico_screener') {
+                    endpoint = coordinatorUrl;
+                    payload = { option: '5', subOption: 'ipc', userId };
                 } else if (analysisType === 'us_screener' || analysisType === 'asx_screener' || analysisType === 'uk_screener') {
                     // Use coordinator for US/ASX/UK screeners
                     endpoint = coordinatorUrl;
@@ -3684,6 +3691,7 @@ ${analysis.report}
             [/CSI 300/i, '000300.SS', 'CSI 300 index'],
             [/Taiwan 50/i, '^TWII', 'Taiwan TAIEX index'],
             [/NZX 50/i, '^NZ50', 'S&P/NZX 50 index'],
+            [/Mexico IPC/i, '^MXX', 'S&P/BMV IPC index'],
             [/Crypto|CoinSpot/i, 'BTC-USD', 'Bitcoin']
         ];
         function top10Benchmark(companyName) {
@@ -5096,7 +5104,7 @@ ${analysis.report}
     <script src="practice-portfolio.js?v=39"></script>
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
-    <script src="practice-autopilot.js?v=49"></script>
+    <script src="practice-autopilot.js?v=50"></script>
     <script src="admin-panel.js?v=5"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
     <script src="ai-chat.js?v=2"></script>
     <script src="js/timezone-converter.js"></script>
