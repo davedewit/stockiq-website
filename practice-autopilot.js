@@ -10,6 +10,16 @@
 (function () {
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
     const CSS = `
+        #practice-autopilot .ap-imp-sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+        #practice-autopilot .ap-imp-head { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-secondary); margin: 12px 0 4px; }
+        #practice-autopilot ul.ap-imp { list-style: none; margin: 0; padding: 0; }
+        #practice-autopilot .ap-imp-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-primary); }
+        #practice-autopilot .ap-imp-row:first-child { border-top: none; }
+        #practice-autopilot .ap-imp-mark { font-weight: 800; width: 1em; flex: none; text-align: center; }
+        #practice-autopilot .ap-imp-mark.ok { color: #16a34a; } #practice-autopilot .ap-imp-mark.no { color: #dc2626; } #practice-autopilot .ap-imp-mark.test { color: #2563eb; } #practice-autopilot .ap-imp-mark.next { color: var(--text-secondary); }
+        #practice-autopilot .ap-imp-when { color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap; }
+        #practice-autopilot .ap-imp-details summary { cursor: pointer; color: #2563eb; font-size: 0.85rem; margin-top: 12px; }
+
         #practice-autopilot .ap-wrap { color: var(--text-primary); font-size: 0.9rem; }
         #practice-autopilot .ap-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         #practice-autopilot .ap-head h3 { margin: 0; font-size: 1.15rem; color: var(--text-primary); }
@@ -712,17 +722,38 @@
             ? `<div style="margin-top: 6px;"><strong style="color: var(--text-primary);">Trying now</strong> (since ${esc(day(trial.since))}): ${esc(trial.text)}. Why: ${esc(trial.why)}. ${esc(trial.how)} So far: with the change ${side(trial.with, trial.avgWith)}, without it ${side(trial.without, trial.avgWithout)}. It decides after ${group} each way and keeps the change only if that group did clearly better. ${mayChange() ? '<a href="#" data-ap="stoptrial">Stop this trial</a>' : ''}</div>`
             : `<div style="margin-top: 6px;">${t.nextReviewIn === 0 ? 'It reviews its rules at the next sale.' : `Next review of its rules after ${t.nextReviewIn} more finished trade${t.nextReviewIn === 1 ? '' : 's'}`}${t.nextReviewIn === 0 ? '' : ` (it reviews them every ${t.batch}).`} If the record suggests a change worth trying, it tries it beside the current rule over the same days.</div>`;
         const verdicts = { kept: 'kept', dropped: 'not kept', stopped: 'stopped' };
-        const past = (t.past || []).slice().reverse();
-        return `<div class="ap-section"><h4>Improving its own rules</h4>
-            ${sharedHtml()}
+        const past = (t.past || []).slice().reverse(), o = data.order || {};
+        // 17 Oct 2026: a lighter view for every user (the owner: "one is for everyone the other is just for me so perhaps the one
+        // for everyone a lighter version showing improvements only"): what is being tested now and what has been improved, with dates;
+        // the explanations, the rules in force and the trials in full are folded under "The details".
+        const site = Array.isArray(data.improvements) ? data.improvements : [];
+        const testing = [];
+        if (trial) testing.push({ text: `A change to one of its rules: ${trial.text}. So far with the change ${side(trial.with, trial.avgWith)}, without it ${side(trial.without, trial.avgWithout)}.`, since: trial.since });
+        if (o.mode === 'trial') testing.push({ text: `Every second share bought is the one furthest above its 52-week low. So far that way ${side(o.with, o.avgWith)}, as ranked ${side(o.without, o.avgWithout)}.`, since: o.since });
+        site.filter(e => e.status === 'running').forEach(e => testing.push({ text: e.publicText, since: e.started, until: e.decide }));
+        const made = [];
+        past.forEach(x => made.push({ ok: x.verdict === 'kept' && !x.undone, when: x.ended, text: `${x.text}: ${x.undone ? 'kept, then put back' : verdicts[x.verdict] || x.verdict}.` }));
+        if (o.ended) made.push({ ok: o.mode === 'low52', when: o.ended, text: o.mode === 'low52' ? 'Every share is now bought furthest above its 52-week low (kept after a trial).' : 'Tried: buying the share furthest above its 52-week low. Not kept: shares are bought as their screener ranks them.' });
+        site.filter(e => e.status === 'kept' || e.status === 'removed').forEach(e => made.push({ ok: e.status === 'kept', when: e.decided, text: e.publicText }));
+        made.sort((a, b) => String(b.when || '').localeCompare(String(a.when || '')));
+        const next = site.filter(e => e.status === 'idea');
+        const dated = (w) => w ? esc(day(w)) : '';
+        const testRow = (x) => `<li class="ap-imp-row"><span class="ap-imp-mark test">●</span><div>${esc(x.text)} <span class="ap-imp-when">since ${dated(x.since)}${x.until ? ' · decided by ' + dated(x.until) : ''}</span></div></li>`;
+        const madeRow = (x) => `<li class="ap-imp-row"><span class="ap-imp-mark ${x.ok ? 'ok' : 'no'}">${x.ok ? '✓' : '✗'}</span><div>${esc(x.text)} <span class="ap-imp-when">${dated(x.when)}</span></div></li>`;
+        const details = `${sharedHtml()}
             ${improvedLine()}
             <div style="margin-top: 6px;">Its rules now (${esc(r.name)} level): ${esc(ruleWords(r))}.${(r.yours || []).length ? ` Set by you: ${esc(r.yours.map(k => names[k]).join(' and '))}; its trials leave ${r.yours.length === 1 ? 'that' : 'those'} alone.` : ''}${changed.length ? ` Changed by itself after a trial: ${changed.map(k => esc(names[k] + ' (the level starts at ' + r.changed[k] + ')') + (mayChange() ? ` <a href="#" data-ap="restore" data-param="${esc(k)}">put it back</a>` : '')).join(', ')}.` : ''}</div>
             ${now}
             ${orderHtml()}
             ${patientHtml()}
-            ${data.aiSellPausedUntil ? `<div style="margin-top: 6px;">The AI model's early sells are paused until ${esc(day(data.aiSellPausedUntil))}: the holdings it had sold early went on rising afterwards. The fixed selling rules still apply.</div>` : ''}
-            ${past.length ? fold('past-trials', `Earlier trials (${past.length})`, past.map(p => `${day(p.since)} to ${day(p.ended)}: ${p.text}: ${verdicts[p.verdict] || p.verdict}. ${p.result ? p.result.charAt(0).toUpperCase() + p.result.slice(1) + '.' : ''}`)) : ''}
-            <div style="font-size: 0.8rem; margin-top: 6px;">It can only change these five rules, inside fixed limits, and the order it buys shares in, for its own fake-money trades. It never changes your settings, the budget or anything else on the site. Each review is emailed to your account address.</div>
+            ${past.length ? fold('past-trials', `Earlier trials of its rules (${past.length})`, past.map(p => `${day(p.since)} to ${day(p.ended)}: ${p.text}: ${verdicts[p.verdict] || p.verdict}. ${p.result ? p.result.charAt(0).toUpperCase() + p.result.slice(1) + '.' : ''}`)) : ''}
+            <div style="font-size: 0.8rem; margin-top: 6px;">By itself it can only change five of its own rules, inside fixed limits, and the order it buys shares in, for its own fake-money trades; a change is kept only if the trades made with it did clearly better. It never changes your settings, the budget or anything else on the site. Bigger changes (the screeners' score, what it may do) are tested on past prices first and then measured the same way.</div>`;
+        return `<div class="ap-section"><h4>How it is improving</h4>
+            <div class="ap-imp-sub">Every change is tested beside what it replaces and kept only if the figures show it helps. ${testing.length} being tested now · ${made.filter(x => x.ok).length} kept · ${made.filter(x => !x.ok).length} not kept or taken out</div>
+            ${testing.length ? `<div class="ap-imp-head">Being tested now</div><ul class="ap-imp">${testing.map(testRow).join('')}</ul>` : ''}
+            ${made.length ? `<div class="ap-imp-head">Improvements made</div><ul class="ap-imp">${made.slice(0, 5).map(madeRow).join('')}</ul>${made.length > 5 ? fold('imp-more', `${made.length - 5} earlier`, made.slice(5).map(x => `${x.ok ? '✓' : '✗'} ${x.text} (${day(x.when)})`)) : ''}` : ''}
+            ${next.length ? `<div class="ap-imp-head">Coming next</div><ul class="ap-imp">${next.map(x => `<li class="ap-imp-row"><span class="ap-imp-mark next">→</span><div>${esc(x.publicText)}</div></li>`).join('')}</ul>` : ''}
+            <details class="ap-more ap-imp-details"><summary>The details: its rules now, how it learns from every account, the trials in full</summary><div style="margin-top: 8px;">${details}</div></details>
         </div>`;
     }
 
@@ -992,7 +1023,7 @@
     // practice-portfolio.js marks the autopilot's holdings with when and at what they will be sold
     function sharePlans() { if (data && data.allowed && window.practicePortfolio && window.practicePortfolio.setPlans) window.practicePortfolio.setPlans(data.plans || [], { realizedUsd: data.realizedUsd }); }
     // What changes when the autopilot acts: its activity list and what it holds
-    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck]);
+    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck, r.improvements]);      // improvements: a new one shows at the next refresh (17 Oct 2026)
     // Ask again without disturbing anything: not while a change is being typed, saved or run
     async function refresh(byHand) {
         if (!data || !data.allowed || refreshing || working || saving || saveTimer || isDirty() || (editing() && !byHand)) return;

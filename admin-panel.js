@@ -12,6 +12,11 @@
     const day = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); };
     const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return !isFinite(m) ? '' : m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 48 * 60 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
     let data = null, busy = '', message = '';
+    // Two views (17 Oct 2026, the owner: "maybe make it a tab within admin page for the improvements? or have a minimal part of it
+    // there then a tab for older stuff"): Overview (the status, what needs a yes, a short summary of the improvements) and
+    // Improvements (all of them: being tested, next, done, the parts of the site reviewed). Remembered in the browser.
+    let view = 'overview';
+    try { view = localStorage.getItem('stockiqAdminView') === 'improvements' ? 'improvements' : 'overview'; } catch (e) {}
 
     async function call(extra) {
         const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action: 'admin', userId: userId() }, extra || {})) });
@@ -39,6 +44,10 @@
         #admin-panel .ad-card { border: 1px solid var(--border-color); border-left: 5px solid var(--ad-blue); border-radius: 10px; padding: 16px 18px; margin: 14px 0; background: var(--card-bg); }
         #admin-panel .ad-card.goal { border-left-color: var(--ad-purple); }
         #admin-panel .ad-card.plan { border-left-color: var(--ad-blue); }
+        #admin-panel .ad-tag.pub { background: rgba(37, 99, 235, 0.12); color: var(--ad-blue); }
+        #admin-panel .ad-views { display: flex; gap: 6px; margin: 10px 0 12px; flex-wrap: wrap; }
+        #admin-panel .ad-view { padding: 7px 16px; border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+        #admin-panel .ad-view.on { background: var(--ad-blue); border-color: var(--ad-blue); color: #fff; }
         #admin-panel .ad-section { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-secondary); margin: 14px 0 4px; }
         #admin-panel ol.ad-next { margin: 4px 0 0 20px; padding: 0; } #admin-panel ol.ad-next li { margin: 6px 0; color: var(--text-primary); }
         #admin-panel .ad-card.ask { border-left-color: var(--ad-green); } #admin-panel .ad-card.ask.waiting { border-left-color: var(--ad-amber); background: var(--ad-amber-bg); }
@@ -184,22 +193,38 @@
         const running = by('running').sort((a, b) => (a.decide || '').localeCompare(b.decide || ''));
         const next = by('idea').sort((a, b) => (a.order || 99) - (b.order || 99));
         const done = items.filter(e => e.status === 'kept' || e.status === 'removed').sort((a, b) => (b.decided || '').localeCompare(a.decided || ''));
-        const tags = (a) => (a || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="ad-tag">${esc(t)}</span>`).join('');
+        const tags0 = (a) => (a || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="ad-tag">${esc(t)}</span>`).join('');
+        // the item itself is passed where it is known, so that one shown to every user carries 👥
+        const tags = (a, e) => tags0(a) + (e && e.public ? '<span class="ad-tag pub" title="Also shown, in plain words, to every user on the AI autopilot tab">👥 users see it</span>' : '');
         const dayms = 86400000, todayMs = Date.now();
         const runRow = (e) => {
             const a = Date.parse(e.started), b = Date.parse(e.decide), pct = a && b && b > a ? Math.max(3, Math.min(100, (todayMs - a) / (b - a) * 100)) : 0;
             const left = b ? Math.ceil((b - todayMs) / dayms) : null;
-            return `<div class="ad-goal"><div class="ad-goal-head"><span><b>${esc(e.what)}</b>${tags(e.angle)}</span><span class="ad-pill ${left !== null && left <= 0 ? 'warn' : 'info'}">${left === null ? '' : left <= 0 ? 'decide now' : 'decided in ' + left + ' day' + (left === 1 ? '' : 's')}</span></div>
+            return `<div class="ad-goal"><div class="ad-goal-head"><span><b>${esc(e.what)}</b>${tags(e.angle, e)}</span><span class="ad-pill ${left !== null && left <= 0 ? 'warn' : 'info'}">${left === null ? '' : left <= 0 ? 'decide now' : 'decided in ' + left + ' day' + (left === 1 ? '' : 's')}</span></div>
                 <div class="ad-bar"><span style="width: ${pct.toFixed(0)}%; background: var(--ad-blue);"></span></div><div class="ad-sub" style="margin-top: 4px;">Measured by: ${esc(e.measure)}</div></div>`;
         };
         const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : 'bad'}"><b>${e.status === 'kept' ? '✓ Kept' : '✗ Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
         const reviewed = (pl.reviews || []).map(r => `<li><b>${esc(r.part)}</b> <span class="ad-sub">${esc(r.at)}</span><div class="ad-sub">${esc(r.found)}</div></li>`).join('');
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
             <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. Updated ${esc(day(pl.at))}.</div>
+            <div class="ad-sub" style="margin-bottom: 8px;">This is the full list, for you only. Every user sees a short, plain version on the AI autopilot tab ("How it is improving"): only what affects their autopilot, marked here 👥.</div>
             ${running.length ? `<div class="ad-section">Being tested now</div>${running.map(runRow).join('')}` : ''}
-            ${next.length ? `<div class="ad-section">Next, in order</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle)}</li>`).join('')}</ol>` : ''}
-            ${done.length ? `<div class="ad-section">Done</div><ul class="ad-lines">${done.slice(0, 6).map(doneRow).join('')}</ul>${done.length > 6 ? `<details class="ad-more"><summary>${done.length - 6} more done</summary><ul class="ad-lines">${done.slice(6).map(doneRow).join('')}</ul></details>` : ''}` : ''}
+            ${next.length ? `<div class="ad-section">Next, in order</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}</li>`).join('')}</ol>` : ''}
+            ${done.length ? `<div class="ad-section">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
             ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
+    }
+
+    // The short version for the Overview: how many, what is being tested (soonest decision first) and the latest three done
+    function planSummaryHtml(pl) {
+        if (!pl || !pl.items) return '';
+        const items = pl.items, by = (st) => items.filter(e => e.status === st);
+        const running = by('running').sort((a, b) => (a.decide || '').localeCompare(b.decide || ''));
+        const done = items.filter(e => e.status === 'kept' || e.status === 'removed').sort((a, b) => (b.decided || '').localeCompare(a.decided || ''));
+        const left = (e) => { const b = Date.parse(e.decide); if (!b) return ''; const d = Math.ceil((b - Date.now()) / 86400000); return d <= 0 ? 'decide now' : d + ' day' + (d === 1 ? '' : 's'); };
+        return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${by('idea').length} next · ${by('kept').length} kept · ${by('removed').length} taken out</span></span>
+            <ul class="ad-lines">${running.slice(0, 3).map(e => `<li><b>Testing:</b> ${esc(e.what)} <span class="ad-pill info">${esc(left(e))}</span></li>`).join('')}
+            ${done.slice(0, 3).map(e => `<li class="${e.status === 'kept' ? 'good' : 'bad'}"><b>${e.status === 'kept' ? '✓ Kept' : '✗ Taken out'}:</b> ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span></li>`).join('')}</ul>
+            <button type="button" class="ad-btn" data-ad-view="improvements">See every improvement: what is next and the history →</button></div>`;
     }
 
     function answeredHtml(list) {
@@ -211,9 +236,15 @@
     function render() {
         const el = box(); if (!el || !data) return;
         style();
-        el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3><div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
+        const n = ((data.plan || {}).items || []).length;
+        const tabs = `<div class="ad-views"><button type="button" class="ad-view${view === 'overview' ? ' on' : ''}" data-ad-view="overview">Overview</button><button type="button" class="ad-view${view === 'improvements' ? ' on' : ''}" data-ad-view="improvements">🧭 Improvements${n ? ` (${n})` : ''}</button></div>`;
+        if (view === 'improvements') {
+            el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}${planHtml(data.plan) || '<div class="ad-card">No improvements recorded yet.</div>'}`;
+            return;
+        }
+        el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${propsHtml(data.open || [])}${planHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
+            ${tilesHtml(data)}${propsHtml(data.open || [])}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
     }
 
     function reveal() {
@@ -233,6 +264,9 @@
     }
 
     document.addEventListener('click', async (e) => {
+        const v = e.target.closest && e.target.closest('#admin-panel [data-ad-view]');
+        const vName = v && v.getAttribute('data-ad-view');
+        if (vName === 'overview' || vName === 'improvements') { e.preventDefault(); view = vName; try { localStorage.setItem('stockiqAdminView', view); } catch (x) {} render(); return; }
         const t = e.target.closest && e.target.closest('#admin-panel [data-ad-answer], #admin-panel [data-ad]');
         if (!t || busy) return;
         e.preventDefault();
