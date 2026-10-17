@@ -460,6 +460,14 @@
         #practice-portfolio .pp-card-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
         #practice-portfolio .pp-card-value { font-size: 1.45rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
         #practice-portfolio .pp-card-sub { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+        #practice-portfolio .pp-pl { margin-bottom: 8px; }
+        #practice-portfolio .pp-pl td { border-bottom: 1px solid var(--border-color); }
+        #practice-portfolio .pp-pl tr.pp-pl-total td { border-bottom: 0; border-top: 2px solid var(--border-color); }
+        #practice-portfolio .pp-pl tr.pp-pl-total td:not(.pp-name) { font-weight: 700; font-size: 0.95rem; }
+        #practice-portfolio .pp-pl-note { font-size: 0.75rem; font-weight: 400; color: var(--text-secondary); }
+        #practice-portfolio .pp-pl-line { font-size: 0.85rem; color: var(--text-secondary); margin: 6px 2px; line-height: 1.6; }
+        #practice-portfolio .pp-pl-line strong { color: var(--text-primary); }
+        #practice-portfolio .pp-pl-line ul { margin: 2px 0 0; padding-left: 20px; }
         #practice-portfolio .pp-split { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; font-size: 0.85rem; color: var(--text-secondary); margin: -4px 0 14px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; }
         #practice-portfolio .pp-split-head { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
         #practice-portfolio .pp-split-item > span:first-child { color: var(--text-primary); font-weight: 600; margin-right: 4px; }
@@ -693,7 +701,6 @@
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}: ${movedHtml(sold.gainUsd, sold.gainPct)}.` : '';
         // one total mixes the user's own buys with the autopilot's: say which part is whose
         const split = splitGain(state, quotes, autoRealized);
-        const splitLine = split.any ? `<div class="pp-split" title="The two add up to the account's change since the start. A holding that is not sold yet counts at its latest price."><span class="pp-split-head">Whose result is whose</span><span class="pp-split-item"><span>Your own buys</span> ${movedHtml(split.yours)} <span class="pp-split-sub">(sold ${movedHtml(split.yoursSold)} · still held ${movedHtml(split.yoursOpen)})</span></span><span class="pp-split-item"><span>🤖 AI autopilot</span> ${movedHtml(split.auto)} <span class="pp-split-sub">(sold ${movedHtml(split.autoSold)} · still held ${movedHtml(split.autoOpen)})</span></span></div>` : '';
         const th = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
         // The top answers three questions at a glance: what is it worth, how is today, how is it since the start. Everything else
         // (cash, what is in holdings, the index fund, sold and still held, whose result is whose) was on show at once, about
@@ -718,14 +725,8 @@
                 ${card('Since the start', big(s.gainUsd), share(s.gainPct), s.gainUsd)}
             </div>
             <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong>${fund}</div>
-            <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: what was sold and what is still held, yours and the autopilot’s, the index fund</summary>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
-                ${card('Account value', usd(s.accountValue), `${s.dayUsd === null ? '' : `<span class="pp-today">Today ${movedHtml(s.dayUsd, s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null)}</span><br>`}${movedHtml(s.gainUsd, s.gainPct)} since the start${state.holdings.length || state.closed.length || Math.abs(s.gainUsd) > 0.004 ? (split.any ? `<br>Sold, yours and the autopilot’s together ${movedHtml(s.gainUsd - s.openGainUsd)}<br>Still held, together ${movedHtml(s.openGainUsd)}` : `<br>Sold ${movedHtml(s.gainUsd - s.openGainUsd)} · Still held ${movedHtml(s.openGainUsd)}`) : ''}`, s.gainUsd)}
-                ${card('Practice cash left', usd(s.cash), 'of ' + usd(state.startingCash))}
-                ${card('In holdings', usd(s.holdingsValue), s.openGainPct === null ? 'nothing held yet' : `${s.dayUsd === null ? '' : `Today ${movedHtml(s.dayUsd, s.dayPct)}<br>`}${movedHtml(s.openGainUsd, s.openGainPct)} since bought, on ${usd(s.cost)} put in`)}
-                ${card('For comparison: S&amp;P 500 fund', s.marketPct === null ? '–' : s.marketFlat ? 'no change yet' : pctHtml(s.marketPct), s.marketFlat ? `the same money in an S&amp;P 500 index fund instead: <span id="pp-us-opens">${esc(marketWait())}</span>, so there is nothing to compare yet` : 'the money in what is still held, in an S&amp;P 500 index fund instead' + versusFund(s))}
-            </div>
-            ${splitLine}
+            <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: profit and loss, yours and the autopilot’s, and the index fund</summary>
+            ${breakdownHtml(s, split)}
             </details>
             <div id="pp-chart">${chartHtml()}</div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 6px;">
@@ -750,14 +751,36 @@
     }
 
     function say(text, bad) { notice = text ? { text, bad: !!bad } : null; }
+    // The breakdown, as a broker's statement reads: one table of profit and loss (what was sold is made or lost for good; what
+    // is still held is on paper, at the latest prices), whose it is in columns, the total in the last row; then where the
+    // money is now, and the index fund in words. Until 17 Oct 2026 this was four cards and a row: the same figure appeared
+    // twice with two different percentages (today on the account and on the holdings), which the owner read as a fault.
+    function breakdownHtml(s, split) {
+        const cols = split.any ? [['Your own buys', 'yours'], ['🤖 AI autopilot', 'auto'], ['Together', 'all']] : [['', 'all']];
+        const part = { sold: { yours: split.yoursSold, auto: split.autoSold, all: s.gainUsd - s.openGainUsd },
+                       held: { yours: split.yoursOpen, auto: split.autoOpen, all: s.openGainUsd },
+                       total: { yours: split.yours, auto: split.auto, all: s.gainUsd } };
+        const head = (t, align) => `<th style="padding: 6px; text-align: ${align || 'right'}; font-weight: 600; white-space: nowrap;">${t}</th>`;
+        const row = (key, name, note) => `<tr class="pp-pl-${key}"><td class="pp-name" style="padding: 7px 6px; text-align: left;"><strong style="color: var(--text-primary);">${name}</strong><div class="pp-pl-note">${note}</div></td>${cols.map(([label, k]) => `<td data-label="${label || 'Result'}" style="padding: 7px 6px; text-align: right; white-space: nowrap;">${movedHtml(part[key][k])}</td>`).join('')}</tr>`;
+        const table = `<div style="overflow-x: auto;"><table class="pp-stack pp-pl" style="width: 100%; border-collapse: collapse; font-size: 0.88rem; color: var(--text-secondary);"><tr class="pp-head">${head('Profit and loss', 'left')}${cols.map(([label]) => head(label || 'Result')).join('')}</tr>
+            ${row('sold', 'Sold', 'made or lost for good')}${row('held', 'Still held', 'on paper, at the latest prices')}${row('total', 'Since the start', 'the two together')}</table></div>`;
+        const where = `<div class="pp-pl-line">Where the money is: cash <strong>${usd(s.cash)}</strong> · in holdings <strong>${usd(s.holdingsValue)}</strong>${s.openGainPct === null ? '' : ` (${usd(s.cost)} was put in)`} · together <strong>${usd(s.accountValue)}</strong>, the account value.</div>`;
+        const vs = state.holdings.length || state.closed.length ? versusStart(state, quotes, Date.now()) : null;
+        // two sums, said apart: the whole account since the start (as the graph), and only what is still held (it can point the other way)
+        const whole = vs ? `<li><strong>The whole account:</strong> the same ${usd(state.startingCash)} put into the fund when the account began would be ${usd(vs.value)} now (${movedHtml(vs.gainUsd)}), so the account is <strong>${Math.abs(vs.gapUsd) < 0.005 ? 'level with it' : (vs.gapUsd > 0 ? 'ahead of it' : 'behind it') + ' by ' + usd(Math.abs(vs.gapUsd))}</strong>.</li>` : '';
+        const held = s.marketPct === null ? '' : s.marketFlat ? `<li><strong>What is still held:</strong> nothing to compare yet, <span id="pp-us-opens">${esc(marketWait())}</span>.</li>`
+            : `<li><strong>What is still held:</strong> ${pctHtml(s.openGainPct)} since it was bought; the same dollars in the fund on the same days ${pctHtml(s.marketPct)}${versusFund(s)}</li>`;
+        const fund = whole || held ? `<div class="pp-pl-line" id="pp-pl-fund">Against an S&amp;P 500 index fund:<ul>${whole}${held}</ul></div>` : '';
+        return table + where + fund;
+    }
     // The card shows what the fund did; said beside it, in words, is how the holdings did against that. Without this the fund's
     // "▲ 0.06%" was read as the account being ahead of the fund (the owner, 12 Oct 2026).
     function versusFund(s) {
         if (s.openGainPct === null || s.marketPct === null) return '';
         const d = s.openGainPct - s.marketPct;
-        // This card counts only what is still held; the graph and the line under the three figures compare the whole account
-        // (what was sold too) with the fund since the start. The two can point opposite ways, so the card says which it is.
-        return `, over the same days.<br>Your holdings: ${pctHtml(s.openGainPct)}, so they are ${Math.abs(d) < 0.005 ? 'level with the fund' : `<strong>${d > 0 ? 'ahead of' : 'behind'} the fund by ${Math.abs(d).toFixed(2)}%</strong>`}.<br>Only what is still held is counted here, not what was sold: the graph compares the whole account.`;
+        // Only what is still held, against the same dollars in the fund on the days they were put in: it can point the other way
+        // from the sentence before it (the whole account since the start), so it says which it is.
+        return `, so it is ${Math.abs(d) < 0.005 ? 'level with the fund' : `<strong>${d > 0 ? 'ahead of' : 'behind'} the fund by ${Math.abs(d).toFixed(2)}%</strong>`}. What was sold is not in this one.`;
     }
     // Why the "For comparison" card has nothing to show yet, with when that changes. The dashboard's sidebar counts down to
     // the US opening: its own figure is used when it is on the page, so the card and the sidebar can never disagree.

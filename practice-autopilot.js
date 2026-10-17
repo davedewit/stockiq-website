@@ -483,7 +483,9 @@
     // MARKET_SPLIT_START
     function marketSplit(d) {
         const all = data.options.groups || [], r = data.options.risk[String(d.risk)] || {};
-        const groups = all.filter(g => d.screeners.some(k => (data.options.screeners[k] || {}).group === g)), own = {};
+        // a market whose every ticked screener is resting gets no share (the function's market_split(settings, resting))
+        const resting = data.resting || {};
+        const groups = all.filter(g => d.screeners.some(k => (data.options.screeners[k] || {}).group === g && !resting[k])), own = {};
         groups.forEach(g => { const v = (d.shares || {})[g]; if (typeof v === 'number' && isFinite(v)) own[g] = v / 100; });
         const left = Math.max(0, 1 - Object.keys(own).reduce((a, g) => a + own[g], 0)), auto = groups.filter(g => !(g in own)), out = Object.assign({}, own);
         let coin = 0;
@@ -531,9 +533,18 @@
         if (!positions) return '';
         // nothing ticked in this market: say so, where its share would be (an empty space looked like something missing)
         if (!ticked) return `<div class="ap-share none">No share of the budget: nothing is ticked in this market.</div>`;
+        const rested = restedUntil(d, group);
+        if (rested !== null) return `<div class="ap-share none">No share of the budget for now: ${rested ? 'resting until ' + esc(rested) : 'resting'}. Its part goes to the other markets until then.</div>`;
         const mine = typeof (d.shares || {})[group] === 'number', chosen = mine ? Math.min(positions, Math.max(0, Math.round(d.shares[group] / 100 * positions))) : -1;
         const steps = []; for (let k = 0; k <= positions; k++) steps.push(`<option value="${stepPct(k, positions)}" ${k === chosen ? 'selected' : ''}>${stepLabel(k, positions, size)}</option>`);
         return `<div class="ap-share" style="border-left-color: ${marketColour(group)};"><div class="ap-share-label"><span>Share of the budget</span> <span class="ap-auto ${mine ? 'own' : ''}">${mine ? 'set by you' : 'automatic'}</span></div><select id="ap-share-${index}" data-ap-share="${esc(group)}" aria-label="Share of the budget for ${esc(group)}" title="Choose how much of the budget this market may hold, or leave it on Automatic"><option value="auto" ${mine ? '' : 'selected'}>Automatic: ${stepLabel(autoSlots(d, group), positions, size)}</option>${steps.join('')}</select></div>`;
+    }
+    // A market whose every ticked screener is resting: the day the last rest ends ('' if not known), or null if it is not resting
+    function restedUntil(d, group) {
+        const resting = data.resting || {}, keys = d.screeners.filter(k => (data.options.screeners[k] || {}).group === group);
+        if (!keys.length || !keys.every(k => resting[k])) return null;
+        const last = keys.map(k => Date.parse(resting[k]) || 0).reduce((a, b) => Math.max(a, b), 0);
+        return last ? day(new Date(last).toISOString()) : '';
     }
     // In words, under the screeners: where the budget goes, and what is left over or left out
     function splitText(d) {
@@ -548,7 +559,9 @@
             : groups.some(mine) ? 'the shares set by hand leave nothing for it.' : `there are more markets ticked than the ${positions} holdings of this level.`)).join('');
         const idle = spare > 0 && groups.some(mine) ? ` ${holdingsWord(spare)} (${usd0(spare * size)}) ${spare === 1 ? 'is' : 'are'} not given to any market and stay${spare === 1 ? 's' : ''} in cash.` : '';
         const rule = groups.length > 1 ? ` On automatic the budget is spread evenly over the markets ticked${groups.includes('Coins') && !(r.crypto >= 1) ? ` (coins at most ${Math.round((r.crypto || 0) * 100)}% at this level)` : ''}; pick a share yourself to change one. A market never takes more than its share, whichever opens first.` : '';
-        return how + left + idle + rule;
+        const rested = (data.options.groups || []).map(g => [g, restedUntil(d, g)]).filter(([, u]) => u !== null)
+            .map(([g, u]) => ` ${g} ${g.endsWith('s') ? 'get' : 'gets'} no share for now: ${u ? 'resting until ' + u : 'resting'}, so its part goes to the other markets.`).join('');
+        return how + left + idle + rested + rule;
     }
 
     function screenerGroups(all) {
