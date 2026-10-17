@@ -63,7 +63,8 @@
     function reviewHtml(r, next) {
         return `<div class="ad-card"><span class="ad-label">Weekly review <span class="ad-sub">${r ? 'written by the autopilot ' + esc(day(r.at)) + (next ? '; the next one ' + esc(day(next)) : '') : 'not written yet: the scheduled run writes one every 7 days'}</span></span>
             ${r ? '<ul>' + r.lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>' : ''}
-            <button type="button" class="ad-btn" data-ad="review" ${busy ? 'disabled' : ''}>${busy === 'review' ? 'Writing…' : 'Write it now'}</button>
+            <button type="button" class="ad-btn" data-ad="review" ${busy ? 'disabled' : ''}>${busy === 'review' ? 'Writing…' : 'Write a fresh one now'}</button>
+            <div class="ad-sub" style="margin-top: 6px;">You never need to press this: the autopilot writes the review by itself every 7 days. Pressing it writes it again straight away from the latest figures. It buys, sells and changes nothing; it may add a question under "Needs your yes"; and the next automatic review then comes 7 days after your press.</div>
             <div class="ad-sub" style="margin-top: 8px;">A group of trades is only called losing or making money from 30 trades, and only when it is beyond twice its margin of error. Past practice results; nothing here is advice.</div></div>`;
     }
 
@@ -114,7 +115,7 @@
             const r = await call(answer ? { op: 'answer', id: Number(id), answer } : { op: 'review' });
             data = r.admin;
             const p = answer ? (data.answered || []).find(x => String(x.id) === String(id)) : null;
-            message = !answer ? 'The review is written.' : !p ? '' : p.status === 'done' ? `Done: ${p.title}. It is in force now (the autopilot's activity list says so too).` : p.status === 'yes' ? `Noted: "${p.title}" is for your next session, which will do it and tell you.` : `Left as it is: ${p.title}.`;
+            message = !answer ? 'The review is written from the latest figures. Nothing was bought, sold or changed; the next automatic one is 7 days from now.' : !p ? '' : p.status === 'done' ? `Done: ${p.title}. It is in force now (the autopilot's activity list says so too).` : p.status === 'yes' ? `Noted: "${p.title}" is for your next session, which will do it and tell you.` : `Left as it is: ${p.title}.`;
             if (p && p.status === 'done' && window.practiceAutopilot && window.practiceAutopilot.reload) window.practiceAutopilot.reload();
         } catch (err) { message = 'Not done: ' + err.message; }
         busy = ''; render();
