@@ -30,7 +30,7 @@
                 "name": "What makes StockIQ different from other stock screeners?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Every score shows its working: a single-stock report lists each point added or taken off, and the screeners publish their 12 weighted factors. A screener ranks a whole index in one run, up to about 1,800 stocks, with more than 700 small programs working side by side. And every account has a practice portfolio with $100,000 of fake money, and an AI chat that explains what the data shows without telling you what to buy or sell."
+                    "text": "Every score shows its working: a single-stock report lists each point added or taken off, and the screeners publish how their trend score is built. A screener ranks a whole index in one run, up to about 1,800 stocks, with more than 700 small programs working side by side. And every account has a practice portfolio with $100,000 of fake money, and an AI chat that explains what the data shows without telling you what to buy or sell."
                 }
             },
             {
@@ -203,7 +203,7 @@
                 <span class="faq-toggle">▼</span>
             </div>
             <div class="faq-answer">
-                Every score shows its working: a single-stock report lists each point added or taken off, and the screeners publish their 12 weighted factors. A screener ranks a whole index in one run, up to about 1,800 stocks, with more than 700 small programs working side by side. And every account has a practice portfolio with $100,000 of fake money, and an AI chat that explains what the data shows without telling you what to buy or sell.
+                Every score shows its working: a single-stock report lists each point added or taken off, and the screeners publish how their trend score is built. A screener ranks a whole index in one run, up to about 1,800 stocks, with more than 700 small programs working side by side. And every account has a practice portfolio with $100,000 of fake money, and an AI chat that explains what the data shows without telling you what to buy or sell.
             </div>
         </div>
 
@@ -293,7 +293,7 @@ Enterprise terminals are built for professional trading desks and priced for the
                 <span class="faq-toggle">▼</span>
             </div>
             <div class="faq-answer">
-                StockIQ does a few things and shows how it does them: every score comes with its working, the screeners&rsquo; 12 factors and their weights are published, and you can try what you see with practice money first. It does not offer analyst research, in-depth financial statements or real-time data: prices come from Yahoo Finance and Finnhub and can be delayed.
+                StockIQ does a few things and shows how it does them: every score comes with its working, how the screeners&rsquo; trend score is built is published, and you can try what you see with practice money first. It does not offer analyst research, in-depth financial statements or real-time data: prices come from Yahoo Finance and Finnhub and can be delayed.
             </div>
         </div>
 
@@ -303,7 +303,7 @@ Enterprise terminals are built for professional trading desks and priced for the
                 <span class="faq-toggle">▼</span>
             </div>
             <div class="faq-answer">
-                The screener score is a weighted sum of 12 factors: Short Momentum (18%), RSI (20%), MACD (20%), Volume (10%), Medium Momentum (8%), Long Momentum (6%), Financial Health (6%), Bollinger Bands (5%), Sentiment (3%), Market Conditions (3%), Risk (2%), and MA Trend (1%). These are the multipliers the model applies; together they total 102%, so read them as relative weights rather than shares of 100%. In practice the screeners work from price, momentum and volume only: their financial health, sentiment and risk factors do not use company data. A single-stock report uses a different 0&ndash;100 score that does include company figures, and lists every point. See the <a href="about.html" style="color: #007bff;">About page</a> for both.
+                The screener score is a trend score with four parts: how far the share stands above its 52-week low (up to +2), its rise over the past year leaving out the latest month (up to &plusmn;1.5), whether the price is above its 200-day average (&plusmn;0.5) and whether its 50-day average is above its 200-day (&plusmn;0.5); 0.5 comes off when the RSI is over 80. A positive total is multiplied by 0.6, so that the labels from Strongly positive to Strongly negative span about the same range as before. It uses prices only, no company figures. It replaced a 12-factor score in October 2026: tested on about 1,750 shares in nine markets over four years, the old score&rsquo;s top 10 did worse than its own list in 17 of 18 periods, the trend score&rsquo;s better in 13 of 18, with bigger swings. Those are past results and promise nothing. A single-stock report uses a different 0&ndash;100 score that does include company figures, and lists every point. See the <a href="about.html" style="color: #007bff;">About page</a> for both.
             </div>
         </div>
 

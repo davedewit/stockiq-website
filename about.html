@@ -189,24 +189,18 @@ gtag('config', 'G-WVETNMPF8V');
             <li><strong>Momentum:</strong> recent price moves and volume, with a penalty for overextended moves</li>
         </ul>
         <p>The score is limited to 0&ndash;100. Higher scores mean more positive signals.</p>
-        <h3>Screeners: 12-factor weighted score</h3>
-        <p>The market screeners rank many stocks at once using 12 factors with fixed weights:</p>
+        <h3>Screeners: the trend score</h3>
+        <p>The market screeners rank many stocks at once by a trend score built from four parts:</p>
         <table class="weights-table">
-            <tr><td>RSI</td><td>20%</td></tr>
-            <tr><td>MACD</td><td>20%</td></tr>
-            <tr><td>Short-term momentum</td><td>18%</td></tr>
-            <tr><td>Volume</td><td>10%</td></tr>
-            <tr><td>Medium-term momentum</td><td>8%</td></tr>
-            <tr><td>Long-term momentum</td><td>6%</td></tr>
-            <tr><td>Financial health</td><td>6%</td></tr>
-            <tr><td>Bollinger Bands</td><td>5%</td></tr>
-            <tr><td>Sentiment</td><td>3%</td></tr>
-            <tr><td>Market conditions</td><td>3%</td></tr>
-            <tr><td>Risk</td><td>2%</td></tr>
-            <tr><td>Moving-average trend</td><td>1%</td></tr>
+            <tr><td>How far the price stands above its 52-week low</td><td>0 to +2 (in full at 100% above)</td></tr>
+            <tr><td>The rise over the past year, leaving out the latest month</td><td>&minus;1.5 to +1.5 (in full at 60%)</td></tr>
+            <tr><td>The price above or below its 200-day average</td><td>+0.5 or &minus;0.5</td></tr>
+            <tr><td>The 50-day average above or below the 200-day</td><td>+0.5 or &minus;0.5</td></tr>
+            <tr><td>RSI over 80 (overheated)</td><td>&minus;0.5</td></tr>
         </table>
-        <p>These are the multipliers used in the code. Together they total 102%, so read them as relative weights rather than shares of 100%.</p>
-        <p>The screeners work from price and volume data only. They do not fetch company financials: the &ldquo;Financial health&rdquo; factor uses fixed estimates for a small number of large companies and a neutral default for the rest, &ldquo;Sentiment&rdquo; is the day&rsquo;s price move, and &ldquo;Risk&rdquo; reflects the time of year (earnings season). In practice the screener score measures price trend, momentum and volume. It is a short- and medium-term measure and says nothing about valuation. For company fundamentals, run a single-stock report, which does fetch them.</p>
+        <p>A positive total is multiplied by 0.6, so that the signal labels, from Strongly positive to Strongly negative, span about the same range as before. Every screener result lists these parts for each stock.</p>
+        <p>Why this score: in October 2026 the screeners&rsquo; earlier 12-factor score (RSI, MACD, short-term momentum, volume and others) was tested on about 1,750 shares in nine markets over four years. Its top 10, changed weekly, did worse than simply holding its whole list in 17 of 18 periods. A trend score&rsquo;s top 10 did better in 13 of 18, with bigger swings on the way. These are past results on today&rsquo;s index members in a mostly rising period; they promise nothing.</p>
+        <p>The screeners work from prices only and do not use company financials. The score is a measure of trend over months and says nothing about valuation. For company fundamentals, run a single-stock report, which does fetch them.</p>
 
         <h2>Where the data comes from</h2>
         <ul>

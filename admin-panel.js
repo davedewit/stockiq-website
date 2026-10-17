@@ -117,7 +117,7 @@
         const avgOk = g.n > 0 && g.avg > g.avgGoal;
         return `<div class="ad-card goal"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft} days left</span></span>
             ${row('Finished trades in all', String(g.trades), g.tradesGoal, g.trades >= g.tradesGoal, g.trades / g.tradesGoal * 100)}
-            ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(± ${Number(g.se).toFixed(2)}, ${g.n} trades)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
+            ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(${g.n} trades; the real average is probably between ${signed(g.avg - 2 * g.se, 2)}% and ${signed(g.avg + 2 * g.se, 2)}%)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
             ${row(g.live ? 'The practice account, at the latest prices' : 'The practice account, about (an estimate until the prices are in)', `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.value / g.valueGoal * 100)}
             <div class="ad-sub" style="margin-top: 8px;">Fake money. These targets are what would count as progress, set on 12 Oct before the results were in; they are not forecasts.</div></div>`;
     }
@@ -153,8 +153,23 @@
             chip(`Checks in every <b>${esc(s.everyHours)} h</b>`), chip(`Keeps a holding up to <b>${esc(s.maxHoldDays)} days</b>`), chip(`AI review's early sales <b>${s.aiSell ? 'on' : 'off'}</b>`, s.aiSell), chip(`Tries changes to its rules <b>${s.selfTune ? 'on' : 'off'}</b>`, s.selfTune)].join('') : '';
         return `<div class="ad-card run${h && h.failed ? ' bad' : ''}"><span class="ad-label">⚙️ How it is running</span><div>${runs}</div>
             ${chips ? `<div class="ad-chips">${chips}</div>` : ''}
-            ${s ? `<details class="ad-more"><summary>Screeners it buys from (${screeners.length})</summary><div class="ad-sub" style="margin-top: 6px;">${screeners.length ? esc(screeners.join(', ')) : 'none'}.</div></details>` : ''}
-            <div class="ad-sub" style="margin-top: 8px;">AWS usage against the free allowance: in your daily usage email (this page cannot read it yet).</div></div>`;
+            ${s ? `<details class="ad-more"><summary>Show the ${screeners.length} screeners it buys from</summary><div class="ad-sub" style="margin-top: 6px;">${screeners.length ? esc(screeners.join(', ')) : 'none'}.</div></details>` : ''}
+            ${usageHtml(data.usage)}</div>`;
+    }
+
+    // AWS this month (17 Oct 2026): the bill so far and Lambda's calls against the free million, read once a day by the function
+    function usageHtml(u) {
+        if (!u) return '<div class="ad-sub" style="margin-top: 10px;">AWS this month: not read yet (the scheduled run reads it once a day).</div>';
+        const chips = [];
+        if (u.cost !== undefined) chips.push(`<span class="ad-pill ${u.cost < 1 ? 'good' : u.cost < 3 ? 'warn' : 'bad'}">AWS bill this month so far: $${Number(u.cost).toFixed(2)}</span>`);
+        if (u.calls !== undefined) {
+            const share = u.calls / (u.free || 1000000), f = u.forecast ? u.forecast / (u.free || 1000000) : share;
+            chips.push(`<span class="ad-pill ${f < 0.7 ? 'good' : f < 1 ? 'warn' : 'bad'}">Lambda calls: ${Number(u.calls).toLocaleString('en-US')} of ${(u.free || 1000000).toLocaleString('en-US')} free (${Math.round(share * 100)}%)</span>`);
+            if (u.forecast) chips.push(`<span class="ad-pill info">on course for about ${Math.round(u.forecast / 1000).toLocaleString('en-US')}k this month</span>`);
+            if (u.yesterday) chips.push(`<span class="ad-pill info">yesterday ${Number(u.yesterday).toLocaleString('en-US')}</span>`);
+        }
+        const err = u.costError || u.callsError ? ` <span class="ad-sub">(${u.costError ? 'the bill could not be read' : ''}${u.costError && u.callsError ? '; ' : ''}${u.callsError ? 'the calls could not be read' : ''})</span>` : '';
+        return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month, read ${esc(ago(u.at))}:</span><div class="ad-chips">${chips.join('')}</div>${err}</div>`;
     }
 
     function answeredHtml(list) {
