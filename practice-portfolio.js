@@ -11,6 +11,11 @@
     // The same figure is in the autopilot function (TRADE_COST): keep the two in step.
     const TRADE_COST_PCT = (typeof practiceTradeCostPct === 'number') ? practiceTradeCostPct : 0.1;      // eslint-disable-line no-undef
     const DEFAULT_AMOUNT = 1000;
+    // A practice buy or sale by hand is made only at a price that has traded in the last FRESH_HOURS, as the autopilot's are
+    // (FRESH_HOURS in stockiq-ai-trader: keep the two the same). An older price means the share's market is closed (a night, a
+    // weekend, a public holiday): on 17 Oct 2026, a Saturday, the owner sold TLS.AX at Friday's closing price. Coins trade
+    // round the clock and are never held back.
+    const FRESH_HOURS = 3;
     const BENCHMARK = 'SPY';                      // an S&P 500 fund: "what if the same money had simply gone into the market"
 
     // ---------------------------------------------------------------- sums (no page, no network)
@@ -378,7 +383,21 @@
         return Math.floor(left / 3600000) + 'h ' + Math.floor((left % 3600000) / 60000) + 'm';
     }
 
-    const pure = { newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart };
+    // Whether a symbol's market is closed now, by the age of its last traded price: null when it can be traded (a coin, a
+    // currency, a fresh price, or a quote that gives no time), else { at: when it last traded (ms), hours: how long ago }
+    function closedFor(symbol, q, now) {
+        if (/-USD$|=X$/.test(String(symbol || '')) || !q || !(q.time > 0)) return null;
+        const at = q.time * 1000, hours = ((now === undefined ? Date.now() : now) - at) / 3600000;
+        return hours > FRESH_HOURS ? { at, hours } : null;
+    }
+    function agoText(hours) { return hours < 48 ? `${Math.round(hours)} hours ago` : `${Math.round(hours / 24)} days ago`; }
+    // what is said when a buy or a sale has to wait: verb 'bought' or 'sold'
+    function closedText(label, c, verb) {
+        return `${label} cannot be ${verb} now: its market is closed. Its last price is from ${when(new Date(c.at).toISOString())} (${agoText(c.hours)}). `
+            + `A practice ${verb === 'sold' ? 'sale' : 'buy'} is made only at a price that has traded in the last ${FRESH_HOURS} hours, as the autopilot's are, so that it is a price someone could really have traded at. Try again once its market is open.`;
+    }
+
+    const pure = { closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -637,6 +656,8 @@
         if (!userId()) throw new Error('Sign in to use the practice portfolio');
         if (!loaded || !state) { await load(); if (!state) throw new Error(loadError || 'The practice portfolio could not be loaded'); }
         const { symbol, trade } = await resolveSymbol(text);
+        const closed = closedFor(symbol, trade.q);
+        if (closed) throw new Error(closedText(label || symbol, closed, 'bought'));
         if (qty > 0) amountUsd = qty * trade.q.price * trade.fx;        // bought by quantity: the dollars follow from the latest price
         const holding = await change(s => applyBuy(s, { symbol, label: label || symbol, name: trade.q.name, currency: trade.q.currency, price: trade.q.price,
                                                        fx: trade.fx, spy: trade.spy, amountUsd, note, now: new Date().toISOString() }));
@@ -647,6 +668,8 @@
         if (!h) throw new Error('That holding is no longer in the list');
         const trade = await quoteForTrade(h.symbol);
         if (!trade) throw new Error('No price available for ' + h.label + ' right now, so it cannot be sold');
+        const closed = closedFor(h.symbol, trade.q);
+        if (closed) throw new Error(closedText(h.label, closed, 'sold'));
         return change(s => applySell(s, id, { price: trade.q.price, fx: trade.fx, spy: trade.spy, now: new Date().toISOString() }));
     }
 
@@ -678,7 +701,7 @@
         const partLine = part && state.holdings.length ? `<div id="pp-part" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">${held.length ? `Showing <strong style="color: var(--text-primary);">${whose}</strong>: ${held.length} of ${state.holdings.length} holdings.` : `None of the ${state.holdings.length} holdings ${state.holdings.length === 1 ? 'is' : 'are'} ${chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys'}.`} ${showAll}</div>` : '';
 
         const rows = held.slice().reverse().map(h => {
-            const v = valueOf(h, quotes), today = dayMove(h, quotes);
+            const v = valueOf(h, quotes), today = dayMove(h, quotes), shut = closedFor(h.symbol, quotes[h.symbol]);
             return `<tr>
                 <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
                     ? `<details class="pp-plan" data-id="${esc(h.id)}"${openPlans.has(h.id) ? ' open' : ''}><summary>🤖 Autopilot: its plan for this${plans[h.id].patient ? ' · patient share (trial)' : ''}${plans[h.id].closed ? ' · market closed' : ''}</summary><div>${esc(planLine(h, plans[h.id]))}</div></details>`
@@ -689,7 +712,7 @@
                 <td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(v.valueUsd)}</td>
                 <td data-label="Today" style="${cell}">${today ? pctHtml(today.pct, today.usd) : '<span style="color: var(--text-secondary);">–</span>'}</td>
                 <td data-label="Since bought" style="${cell}">${v.priced ? pctHtml(v.changePct, v.gainUsd) : '<span style="color: var(--text-secondary);">no price</span>'}</td>
-                <td class="pp-act" style="${cell}"><button data-pp="sell" data-id="${esc(h.id)}" class="pp-btn${busy === 'sell:' + h.id ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'sell:' + h.id ? 'Selling…' : 'Sell'}</button></td>
+                <td class="pp-act" style="${cell}">${shut ? `<button class="pp-btn ghost" disabled title="${esc(closedText(h.label, shut, 'sold'))}">Market closed</button>` : `<button data-pp="sell" data-id="${esc(h.id)}" class="pp-btn${busy === 'sell:' + h.id ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'sell:' + h.id ? 'Selling…' : 'Sell'}</button>`}</td>
             </tr>`;
         }).join('');
 
@@ -920,7 +943,9 @@
             if (line) { line.style.color = 'var(--text-secondary)'; line.textContent = 'Looking up ' + picked + '…'; }
             priceFor(picked).then(q => {
                 if (!line || document.getElementById('pp-symbol').value !== picked) return;
-                line.textContent = q ? `${picked}: ${q.name || 'no name available'}, latest price ${money(q.price, q.currency)}` : `No price found for ${picked}`;
+                const c = q && closedFor(picked, quotes[picked]);
+                if (c) line.style.color = '#ef4444';
+                line.textContent = !q ? `No price found for ${picked}` : `${picked}: ${q.name || 'no name available'}, latest price ${money(q.price, q.currency)}` + (c ? `. Its market is closed (last traded ${when(new Date(c.at).toISOString())}): it can be bought once it opens.` : '');
             });
         } else if (action === 'clear') {
             document.getElementById('pp-symbol').value = '';
