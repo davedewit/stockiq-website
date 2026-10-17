@@ -736,18 +736,23 @@
         // the same dollars in the fund on the days they were put in.) Without the fund's prices back to the start, that card's
         // figure stands here as before.
         const vs = state.holdings.length || state.closed.length ? versusStart(state, quotes, Date.now()) : null, behind = vs ? Math.round(vs.gapUsd * 100) / 100 : 0;
-        const fund = vs ? ` · Against the same ${usd(state.startingCash).replace(/\.00$/, '')} in an S&amp;P 500 fund since the start: <strong>${behind === 0 ? 'level' : (behind > 0 ? 'ahead' : 'behind') + ' by ' + usd(Math.abs(behind))}</strong>`
-            : s.marketPct === null ? '' : s.marketFlat ? ' · S&amp;P 500 fund: no change yet to compare with'
-            : ` · Against an S&amp;P 500 fund over the same days: <strong>${gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : (gap > 0 ? 'ahead' : 'behind') + ' by ' + Math.abs(gap).toFixed(2) + '%'}</strong>`;
+        // The third figure (17 Oct 2026, the owner's idea: "since the start" moved under the account value, which freed the
+        // box): how the account stands against the same starting money in an S&P 500 fund, as the graph shows it. Without the
+        // fund's prices back to the start it falls back to what is still held against the fund over the same days.
+        const start = usd(state.startingCash).replace(/\.00$/, '');
+        const fundCard = vs ? card('Against the S&amp;P 500', big(behind), `${behind === 0 ? 'level with' : behind > 0 ? 'ahead of' : 'behind'} the same ${start} in an S&amp;P 500 fund since the start (it would be ${usd(vs.value)} now)`, behind)
+            : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
+            : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
+            : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
             <div class="pp-top">
-                ${card('Account value', usd(s.accountValue), 'fake money · it started with ' + usd(state.startingCash), s.gainUsd)}
+                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start · fake money, it started with ${usd(state.startingCash)}`, s.gainUsd)}
                 ${card('Today', s.dayUsd === null ? '–' : big(s.dayUsd), s.dayUsd === null ? 'nothing held' : share(dayOfAccount) + ' of the account · what it holds now', s.dayUsd === null ? 0 : s.dayUsd)}
-                ${card('Since the start', big(s.gainUsd), share(s.gainPct), s.gainUsd)}
+                ${fundCard}
             </div>
-            <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong>${fund}</div>
+            <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
             <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: profit and loss, yours and the autopilot’s, and the index fund</summary>
             ${breakdownHtml(s, split)}
             </details>
