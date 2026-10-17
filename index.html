@@ -1005,15 +1005,15 @@ fetchMarketDataSidebar();
 updateMarketCountdownSidebar();
 setInterval(updateMarketCountdownSidebar, 60000);
 
-// Refresh market data every 5 minutes (only when page is visible AND user is active)
+// Refresh market data once a minute, only while the page is visible and someone has used it in the last 10 minutes
 setInterval(() => {
 const idleTime = Date.now() - lastActivity;
-const maxIdle = 10 * 60 * 1000; // 30 minutes
+const maxIdle = 10 * 60 * 1000;
 
 if (!document.hidden && idleTime < maxIdle) {
 fetchMarketDataSidebar();
 }
-}, 10 * 1000);
+}, 60 * 1000);
 
 // Refresh immediately when user returns to tab (if not idle)
 document.addEventListener('visibilitychange', () => {
@@ -2435,7 +2435,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchTrendingTickers(false);
-}, 1000);
+}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
 }, Math.random() * 10000);
 
 setTimeout(() => {
@@ -2443,7 +2443,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchTopGainers(false);
-}, 1000);
+}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
 }, Math.random() * 10000);
 
 setTimeout(() => {
@@ -2451,7 +2451,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchTopLosers(false);
-}, 1000);
+}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
 }, Math.random() * 10000);
 
 setTimeout(() => {
@@ -2459,7 +2459,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchMostActive(false);
-}, 1000);
+}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
 }, Math.random() * 10000);
 
 

@@ -1174,6 +1174,7 @@
             <button type="button" class="dash-tab active" role="tab" aria-selected="true" data-dash-tab="reports">📈 Reports</button>
             <button type="button" class="dash-tab" role="tab" aria-selected="false" data-dash-tab="practice">💵 Practice portfolio</button>
             <button type="button" class="dash-tab" role="tab" aria-selected="false" data-dash-tab="autopilot" hidden>🤖 AI autopilot (Beta)</button>
+            <button type="button" class="dash-tab" role="tab" aria-selected="false" data-dash-tab="admin" hidden>🛠 Admin</button>
         </div>
         <!-- DASH_TABS_BAR_END -->
 
@@ -1294,6 +1295,12 @@
         </div>
         </div>
 
+        <div data-dash-panel="admin" hidden>
+        <div class="history-section" id="admin-section">
+            <div id="admin-panel"></div>
+        </div>
+        </div>
+
         <!-- The plan sections stay below every tab: other pages link to dashboard.html#upgrade and code scrolls here -->
         <div class="history-section" id="upgrade" style="scroll-margin-top: calc(var(--body-padding, 105px) + 15px);">
             <h2>💎 Upgrade Your Plan</h2>
@@ -1365,7 +1372,7 @@
     // #upgrade, opens Reports. The AI autopilot tab only appears once its panel has something in it (it is empty for
     // users the autopilot is not open to).
     (function () {
-        var KEY = 'stockiqDashboardTab', NAMES = ['reports', 'practice', 'autopilot'], wanted = null;
+        var KEY = 'stockiqDashboardTab', NAMES = ['reports', 'practice', 'autopilot', 'admin'], wanted = null;
         var all = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
         var button = function (name) { return document.querySelector('[data-dash-tab="' + name + '"]'); };
         var open = function (name) { var b = button(name); return !!b && !b.hidden; };
@@ -4663,7 +4670,7 @@ ${analysis.report}
             const idleTime = Date.now() - lastActivity;
             const maxIdle = 10 * 60 * 1000;
             if (!document.hidden && idleTime < maxIdle) fetchSidebarTickers(false);
-        }, 10 * 1000);
+        }, 60 * 1000);                                      // once a minute, only while the tab is visible and in use
         
         const isPaid = localStorage.getItem(`userPaidStatus_${localStorage.getItem('userId') || 'anonymous'}`) === 'paid';
         document.documentElement.style.setProperty('--quick-panel-top', isPaid ? '94px' : '135px');
@@ -4914,13 +4921,11 @@ ${analysis.report}
             }
         });
         
-        fetchMarketDataSidebar(true);
-        fetchSidebarTickers(true);
+        fetchMarketDataSidebar(true);                       // the tickers are fetched, and kept fresh, by the block above (they were fetched twice)
         updateMarketCountdownSidebar();
         setInterval(updateMarketCountdownSidebar, 60000);
         setTimeout(() => {
-            setInterval(() => fetchMarketDataSidebar(false), 10 * 1000);
-            setInterval(() => fetchSidebarTickers(false), 10 * 1000);
+            setInterval(() => { if (!document.hidden) fetchMarketDataSidebar(false); }, 60 * 1000);   // once a minute, not while the tab is hidden
         }, Math.random() * 10000);
         
         window.addEventListener('storage', (e) => {
@@ -5052,6 +5057,7 @@ ${analysis.report}
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
     <script src="practice-autopilot.js?v=47"></script>
+    <script src="admin-panel.js?v=1"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
     <script src="ai-chat.js?v=2"></script>
     <script src="js/timezone-converter.js"></script>
     <script>
