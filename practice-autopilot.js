@@ -487,6 +487,19 @@
         }
         return out;
     }
+    // The market-risk gauge (18 Oct 2026, the owner's idea): five steps from very low to very high, for information. It holds no
+    // cash: a replay found that holding more cash by it made less than staying invested. Each buy records it, so the record can tell.
+    function gaugeHtml() {
+        const g = data.gauge;
+        if (!g || typeof g.level !== 'number') return '';
+        const colours = ['#2e9e5b', '#7dbb4a', '#d4a52a', '#e07a2f', '#d0453c'];
+        const steps = [0, 1, 2, 3, 4].map(k => `<span style="display: inline-block; width: 22px; height: 8px; margin-right: 2px; border-radius: 2px; background: ${k <= g.level ? colours[g.level] : 'var(--border-color)'};"></span>`).join('');
+        const why = [g.spy < g.avg200 ? 'the S&amp;P 500 is below its 200-day average' : 'the S&amp;P 500 is above its 200-day average',
+                     g.spy < g.avg50 ? 'below its 50-day average' : 'above its 50-day average',
+                     `the VIX (the swings the market expects) is ${g.vix}` + (g.vix > 30 ? ', over 30' : g.vix > 20 ? ', over 20' : ', under 20')];
+        return `<div class="ap-section" id="ap-gauge"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><strong>Market risk now: ${esc(g.name)}</strong><span aria-label="${esc(g.name)}, ${g.level} of 4">${steps}</span></div>`
+            + `<details data-ap-fold="gauge" ${openDetails.gauge ? 'open' : ''} style="margin-top: 4px;"><summary class="ap-sub">What it is, and why it does not hold cash</summary><div class="ap-help" style="margin-top: 4px;">One point each when the S&amp;P 500 is below its 200-day average, below its 50-day average, and when the VIX is over 20 and over 30. Now: ${why.join('; ')}. It is shown for information and recorded with every buy; it does not make the autopilot hold cash. Tested on four years of prices, holding more cash when it was high made less than staying invested (the worst falls were a little smaller). The record will show whether buys made at a high reading do worse.</div></details></div>`;
+    }
     function comingHtml() {
         const list = data.coming;
         if (!Array.isArray(list) || !list.length) return '';
@@ -675,7 +688,7 @@
     // ---------------------------------------------------------------- progress, a batch of finished trades at a time
     // After every batch (20) the function compares it with the batch before; if it did no better it looks into why and acts
     // within its own rules. This shows each batch, the verdict, and what it did.
-    // The themes part (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's weekly calls
+    // The themes part (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's daily calls
     function themesHtml() {
         const t = data.themes;
         if (!t) return '';
@@ -685,7 +698,7 @@
         const held = t.held.length ? t.held.map(h => `<strong style="color: var(--text-primary);">${esc(h.symbol)}</strong> ${esc(h.name)} (${usd0(h.cost)}${names[h.symbol] ? `, ${pc(names[h.symbol].trend)} over the past year` : ''})`).join(' · ') : 'nothing yet: it buys at the first check-in while the US market is open';
         const r = t.trades || {}, done = r.n ? `${r.n} fund${r.n === 1 ? '' : 's'} sold so far, ${usd2(r.usd)} in all, ${pc(r.avg)} each${r.vs !== null && r.vs !== undefined ? `, ${pc(r.vs)} against an S&P 500 fund over the same days` : ''}.` : 'No fund sold yet: its first result comes with the first monthly change.';
         const ai = t.ai || {}, calls = (ai.recent || []).filter(c => c.view);
-        const aiLine = ai.at ? `Its last read (${esc(when(ai.at))})${ai.theme ? `: “${esc(String(ai.theme).replace(/[.\s]+$/, ''))}”` : ''}. ${ai.scored ? `${ai.right} of ${ai.scored} of its calls scored so far were right` : 'None of its calls has been scored yet'}${ai.scored < 30 ? ' (too few to read under 30)' : ''}.` : 'It has not read the news yet: it does so once a week while the US market is open.';
+        const aiLine = ai.at ? `Its last read (${esc(when(ai.at))})${ai.theme ? `: “${esc(String(ai.theme).replace(/[.\s]+$/, ''))}”` : ''}. ${ai.scored ? `${ai.right} of ${ai.scored} of its calls scored so far were right` : 'None of its calls has been scored yet'}${ai.scored < 30 ? ' (too few to read under 30)' : ''}.` : 'It has not read the news yet: it does so every trading day while the US market is open.';
         const table = (t.ranking || []).length ? box('themes-rank', 'The 14 funds by their past year, as last ranked', `<table class="ap-bd" style="width: 100%;"><tr><th style="text-align: left;">Fund</th><th>Past year (less the last month)</th><th>3 months</th></tr>${t.ranking.map((x, i) => `<tr><td style="text-align: left;">${i < t.count ? '<strong>' : ''}${esc(x.symbol)} ${esc(x.name)}${i < t.count ? '</strong>' : ''}</td><td>${pc(x.trend)}</td><td>${pc(x.m3)}</td></tr>`).join('')}</table>`) : '';
         const callList = calls.length ? box('themes-calls', 'Its latest calls', `<ul style="margin: 4px 0 0 18px; padding: 0;">${calls.map(c => `<li>${esc(when(c.at))}: ${esc(c.symbol)} ${c.view === 'better' ? 'better' : 'worse'} than an S&P 500 fund over the week (${esc(c.why)})${typeof c.rel === 'number' ? `: it was ${c.rel >= 0 ? 'ahead' : 'behind'} by ${Math.abs(c.rel).toFixed(1)}%, ${c.right ? 'right' : 'wrong'}` : ', not scored yet'}</li>`).join('')}</ul>`) : '';
         return `<div class="ap-section" id="ap-themes"><h4>Themes part <span class="ap-sub">a trial: ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)})</span></h4>
@@ -693,7 +706,7 @@
             <div>Holds: ${held}.</div>
             ${t.next ? `<div style="margin-top: 4px;">Next monthly change ${until(t.next)} <span class="ap-sub">(${esc(when(t.next))})</span>.</div>` : ''}
             <div style="margin-top: 4px;">${done}</div>
-            <div style="margin-top: 8px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">The AI model's weekly read of the news</strong> <span class="ap-sub">recorded and scored, not acted on</span><div style="margin-top: 2px;">Once a week the AI model reads the market's headlines and says which funds it expects to do better or worse than an S&P 500 fund over the next week. A week later each call is scored. Only if its calls prove right far more often than chance (from 30 calls) would it be allowed to act. ${aiLine}</div>${callList}</div>
+            <div style="margin-top: 8px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">The AI model's daily read of the news</strong> <span class="ap-sub">recorded and scored, not acted on</span><div style="margin-top: 2px;">Every trading day the AI model reads the market's headlines and says which funds it expects to do better or worse than an S&P 500 fund over the next week. A week later each call is scored. Only if its calls prove right far more often than chance (from 30 calls) would it be allowed to act. ${aiLine}</div>${callList}</div>
             ${table}
         </div>`;
     }
@@ -888,6 +901,7 @@
                 </div>
 
                 <div id="ap-pane-activity" class="ap-pane" style="${part === 'activity' ? '' : 'display: none;'}">
+                ${gaugeHtml()}
                 ${comingHtml()}
                 ${recordHtml()}
                 ${themesHtml()}
@@ -1086,7 +1100,7 @@
     // practice-portfolio.js marks the autopilot's holdings with when and at what they will be sold
     function sharePlans() { if (data && data.allowed && window.practicePortfolio && window.practicePortfolio.setPlans) window.practicePortfolio.setPlans(data.plans || [], { realizedUsd: data.realizedUsd }); }
     // What changes when the autopilot acts: its activity list and what it holds
-    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck, r.improvements, r.themes]);      // improvements: a new one shows at the next refresh (17 Oct 2026)
+    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck, r.improvements, r.themes, r.gauge && r.gauge.level]);      // improvements: a new one shows at the next refresh (17 Oct 2026)
     // Ask again without disturbing anything: not while a change is being typed, saved or run
     async function refresh(byHand) {
         if (!data || !data.allowed || refreshing || working || saving || saveTimer || isDirty() || (editing() && !byHand)) return;
@@ -1257,7 +1271,8 @@
         if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${andList(data.nextCheck.markets)} market.`);
         (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
         lines.push('Needs the user: ' + ((data.needs || []).map(n => cut(n.text, 200)).join(' | ') || 'nothing') + '.');
-        if (data.themes && data.themes.on) { const t = data.themes; lines.push(`Themes part (a trial since 18 Oct 2026): ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)}) in the ${t.count} strongest of 14 sector and theme funds by their past year, changed monthly; holds ${t.held.map(h => h.symbol + ' ' + h.name).join(', ') || 'nothing yet'}; next change ${t.next ? when(t.next) : 'at the next US check-in'}; ${t.trades && t.trades.n ? `${t.trades.n} sold, ${usd2(t.trades.usd)}` : 'none sold yet'}. The AI model's weekly news calls are recorded and scored, not acted on: ${t.ai && t.ai.scored ? `${t.ai.right} of ${t.ai.scored} right` : 'none scored yet'}.`); }
+        if (data.gauge && typeof data.gauge.level === 'number') lines.push(`Market risk gauge now: ${data.gauge.name} (${data.gauge.level} of 4; S&P 500 ${data.gauge.spy < data.gauge.avg200 ? 'below' : 'above'} its 200-day and ${data.gauge.spy < data.gauge.avg50 ? 'below' : 'above'} its 50-day average, VIX ${data.gauge.vix}). Shown for information and recorded with each buy; it does not make the autopilot hold cash.`);
+        if (data.themes && data.themes.on) { const t = data.themes; lines.push(`Themes part (a trial since 18 Oct 2026): ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)}) in the ${t.count} strongest of 14 sector and theme funds by their past year, changed monthly; holds ${t.held.map(h => h.symbol + ' ' + h.name).join(', ') || 'nothing yet'}; next change ${t.next ? when(t.next) : 'at the next US check-in'}; ${t.trades && t.trades.n ? `${t.trades.n} sold, ${usd2(t.trades.usd)}` : 'none sold yet'}. The AI model's daily news calls are recorded and scored a week later, not acted on: ${t.ai && t.ai.scored ? `${t.ai.right} of ${t.ai.scored} right` : 'none scored yet'}.`); }
         (data.plans || []).filter(p => !p.theme).slice(0, 8).forEach(p => lines.push(`Holds ${p.label}: sold at the latest ${when(p.sellBy)}, sooner at ${p.stop}% or +${p.take}%${p.closed ? '; its market is closed now' : ''}.`));
         const c = data.scorecard, m = data.month && data.month.last30;
         if (c && c.n) lines.push(`Finished trades: ${c.n} (${c.up} up), average ${pc(c.avg)} each${m ? `; last 30 days ${usd2(m.usd)}` : ''}. Too few to judge under ${data.minSample || 8}.`);
