@@ -160,6 +160,21 @@
     };
 
     // ---- the four lists
+    // On the home page a share that has a stock page is a link to it (18 Oct 2026): a visitor sees the page first, with its
+    // figures, news and the full report a click away (one click used to run the report and spend an anonymous visitor's one
+    // free analysis of the day), and Google finds links to the stock pages. The dashboard keeps its click: the report runs
+    // in the background there. stock-pages.js (written daily by update_home_stock_links.py) lists the shares with a page.
+    var HERE = (document.currentScript && document.currentScript.src || '').replace(/[^/]*$/, '');
+    function pages() { return typeof window.STOCK_PAGES === 'string' ? window.STOCK_PAGES.split(',') : null; }
+    var pageSet = null;
+    function hasPage(t) { if (!pageSet) { var p = pages(); if (!p) return false; pageSet = {}; p.forEach(function (x) { pageSet[x] = 1; }); } return !!pageSet[t]; }
+    function loadPages() {
+        if (typeof window.runSidebarAnalysis === 'function' || pages() || document.getElementById('stock-pages-js')) return;
+        var sc = document.createElement('script'); sc.id = 'stock-pages-js'; sc.async = true;
+        sc.src = HERE + 'stock-pages.js?d=' + new Date().toISOString().slice(0, 10);       // a new address each day: the list changes daily
+        sc.onload = function () { pageSet = null; renderLists(); };
+        (document.head || document.documentElement).appendChild(sc);
+    }
     function rowClick(ticker, div) {
         if (typeof window.runSidebarAnalysis === 'function') {
             div.style.background = 'var(--hover-bg)'; setTimeout(function () { div.style.background = 'transparent'; }, 2000);
@@ -173,17 +188,19 @@
         box.innerHTML = '';
         (tickers || []).slice(0, SHOWN).forEach(function (ticker, i, all) {
             var p = prices[ticker] || {}, id = idOf(ticker), has = typeof p.price === 'number', up = p.changePercent >= 0;
-            var div = document.createElement('div');
+            var link = !back && hasPage(ticker), div = document.createElement(link ? 'a' : 'div');
+            if (link) { div.href = HERE + 'stocks/' + encodeURIComponent(ticker) + '.html'; div.style.textDecoration = 'none'; div.style.color = 'inherit'; }
             div.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; padding: 5px 0; cursor: pointer; transition: background 0.2s;'
                 + (i < all.length - 1 ? ' border-bottom: 1px solid var(--border-color);' : '');
-            div.title = back ? 'Run Analysis in Background' : 'Run Analysis';
+            div.title = back ? 'Run Analysis in Background' : link ? ticker + ': its stock page' : 'Run Analysis';
+            if (link) div.style.textDecoration = 'none', div.style.color = 'inherit';
             div.innerHTML = '<div style="flex: 1; pointer-events: none;"><div style="color: #3b82f6; font-size: 0.75rem; font-weight: 600; margin-bottom: 1px;">' + esc(ticker) + '</div>'
                 + '<div id="' + L[0] + '-name-' + id + '" style="color: var(--text-secondary); font-size: 0.65rem;">' + esc(p.name || ticker) + '</div></div>'
                 + '<div style="text-align: right; pointer-events: none;"><div id="' + L[0] + '-price-' + id + '" style="color: var(--text-primary); font-size: 0.75rem; font-weight: 600; margin-bottom: 1px;">' + (has ? money(p.price) : '--') + '</div>'
                 + '<div id="' + L[0] + '-change-' + id + '" style="font-size: 0.65rem; color: ' + (has ? (up ? '#22c55e' : '#ef4444') : 'var(--text-secondary)') + ';">' + (has ? changeText(p.change, p.changePercent) : '') + '</div></div>';
             div.onmouseover = function () { div.style.background = 'var(--hover-bg)'; };
             div.onmouseout = function () { div.style.background = 'transparent'; };
-            div.onclick = function () { rowClick(ticker, div); };
+            if (!link) div.onclick = function () { rowClick(ticker, div); };
             box.appendChild(div);
         });
     }
@@ -232,7 +249,7 @@
         if (np && !np.hasAttribute('data-desk-style')) np.setAttribute('data-desk-style', np.getAttribute('style') || '');   // put back after the phone sidebar
         var first = openTab();                                        // the tab of the market trading now (a tab picked later stays)
         if (first !== window.currentTabSidebar) window.switchToTab(first);
-        scrollHint(); renderLists(); window.fetchMarketDataSidebar(true); window.fetchSidebarTickers();
+        loadPages(); scrollHint(); renderLists(); window.fetchMarketDataSidebar(true); window.fetchSidebarTickers();
         window.updateMarketCountdownSidebar(); setInterval(window.updateMarketCountdownSidebar, 60000);
         setInterval(function () { if (inUse()) { window.fetchMarketDataSidebar(); window.fetchSidebarTickers(); } }, EVERY);
     }
@@ -241,6 +258,6 @@
     window.addEventListener('storage', function (e) {                // another tab of the site fetched newer figures
         if (e.key === 'marketDataSidebar' && e.newValue) { try { window.marketDataSidebar = JSON.parse(e.newValue); window.renderMarketDataSidebar(window.currentTabSidebar); } catch (x) { } }
     });
-    window.marketPanel = { version: 2, openTab: openTab, refresh: refresh, renderLists: renderLists, deskStyle: function (np) { return np.getAttribute('data-desk-style'); } };
+    window.marketPanel = { version: 3, hasPage: hasPage, openTab: openTab, refresh: refresh, renderLists: renderLists, deskStyle: function (np) { return np.getAttribute('data-desk-style'); } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
