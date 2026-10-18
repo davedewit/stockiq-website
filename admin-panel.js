@@ -245,6 +245,17 @@
             <button type="button" class="ad-btn" data-ad-view="improvements">See every improvement: what is next and the history →</button></div>`;
     }
 
+    // The site checked every night (check-tools/site_audit.py, run by the daily deploy; 18 Oct 2026, the owner: "why can't you
+    // actively do this every 24+ hours"). Problems first; each new since the night before is marked. A session works through them.
+    function auditHtml(a) {
+        if (!a || !a.findings) return '';
+        const row = (f) => `<li style="margin: 4px 0;"><span class="ad-pill ${f.level === 'problem' ? 'bad' : 'info'}" style="margin-right: 6px;">${f.level === 'problem' ? 'problem' : 'idea'}</span>${f.new ? '<strong style="color: var(--ad-amber);">new</strong> ' : ''}${esc(f.text)}${f.where ? ` <span class="ad-sub">${esc(f.where)}</span>` : ''}</li>`;
+        const probs = a.findings.filter(f => f.level === 'problem'), ideas = a.findings.filter(f => f.level !== 'problem');
+        return `<div class="ad-card${probs.length ? ' run bad' : ' run'}"><span class="ad-label">🔎 Site check <span class="ad-sub">every night, by itself · last ${esc(day(a.at))} · ${probs.length} problem${probs.length === 1 ? '' : 's'}, ${ideas.length} idea${ideas.length === 1 ? '' : 's'}${a.new ? ` · ${a.new} new` : ''}${a.gone ? ` · ${a.gone} put right` : ''}</span></span>
+            <div class="ad-sub" style="margin: 4px 0 6px;">The site's pages and scripts tested for faults a person would otherwise have to spot: links, search basics, copied code, made-up visuals, pages that grew heavy. A session works through these; nothing here changes the site by itself.</div>
+            ${probs.length ? `<ul style="margin: 0; padding-left: 18px;">${probs.map(row).join('')}</ul>` : '<div>✓ No problems found.</div>'}
+            ${ideas.length ? `<details style="margin-top: 6px;"><summary class="ad-sub" style="cursor: pointer;">${ideas.length} idea${ideas.length === 1 ? '' : 's'}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${ideas.map(row).join('')}</ul></details>` : ''}</div>`;
+    }
     function answeredHtml(list) {
         if (!list.length) return '';
         const word = { done: ['done', 'good'], yes: ['yes: for the next session', 'info'], no: ['not now', 'warn'] };
@@ -262,7 +273,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${propsHtml(data.open || [])}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
+            ${tilesHtml(data)}${propsHtml(data.open || [])}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
     }
 
     function reveal() {
