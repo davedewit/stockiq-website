@@ -505,9 +505,9 @@
         if (!Array.isArray(list) || !list.length) return '';
         const timed = comingRows(list), counted = list.filter(c => !c.at);
         const row = (c, i) => `${until(c.at, i === 0 ? 'first' : '')}<div><time>${esc(when(c.at))}</time>${c.html || esc(c.text)}${c.list ? `<details data-ap-fold="coming-sells" ${openDetails['coming-sells'] ? 'open' : ''}><summary>Each of the ${c.count}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${c.list.map(x => `<li>${esc(when(x.at))}: ${esc(x.text.split(':')[0])}</li>`).join('')}</ul></details>` : ''}</div>`;
-        const rest = timed.slice(4);
+        const rest = timed.slice(3);
         return `<div class="ap-section" id="ap-coming" style="scroll-margin-top: 120px;"><h4>What happens next <span class="ap-sub">a forecast from its settings: the prices and rankings of the moment decide what is really bought or sold</span></h4>
-            <div class="ap-next">${timed.slice(0, 4).map(row).join('')}</div>
+            <div class="ap-next">${timed.slice(0, 3).map(row).join('')}</div>
             ${rest.length ? `<details data-ap-fold="coming" ${openDetails.coming ? 'open' : ''}><summary>${rest.length} more further ahead</summary><div class="ap-next">${rest.map(c => row(c, 1)).join('')}</div></details>` : ''}
             ${counted.length ? `<div class="ap-next" style="margin-top: 12px;">${counted.map(c => `<span class="ap-count">${typeof c.after === 'number' ? (c.after > 0 ? `after ${c.after} more finished trade${c.after === 1 ? '' : 's'}` : 'at the next check-in') : 'not planned'}</span><div>${esc(c.text)}</div>`).join('')}</div>
             <div style="font-size: 0.8rem; margin-top: 8px;">A finished trade is a holding it bought and has sold. Its reviews and trials happen by themselves at check-ins: you do not have to approve or push anything. It can only adjust its own five trading rules, inside fixed limits; changes to the program itself are made by a person, never by the autopilot.</div>` : ''}
@@ -650,16 +650,17 @@
             if (on && p.patient) chips.push(chip('patient share (trial)', 'trial'));
             if (on && p.view && (p.view.sell || p.view.tighten)) chips.push(chip(`AI review: ${p.view.sell ? 'sell' : 'keep, tighter stop'}`));
             if (!on) chips.push(chip('autopilot off: it stays until you sell it', 'quiet'));
-            const what = b ? `${b.name ? esc(b.name) + ' · ' : ''}${esc(b.why)}` : `bought ${esc(when(p.boughtAt))}`;
+            const short = (t) => t.length > 90 ? t.slice(0, 88).replace(/[\s,;:]+\S*$/, '') + '…' : t;
+            const what = b ? `${b.name ? esc(b.name) + ' · ' : ''}${esc(short(b.why))}` : `bought ${esc(when(p.boughtAt))}`;
             return `<details class="ap-held-row"><summary><strong class="ap-held-name">${esc(p.label)}</strong><span class="ap-held-main"><span class="ap-held-what">${what}</span>${chips.length ? `<span class="ap-held-chips">${chips.join('')}</span>` : ''}</span><span class="ap-held-open">its plan</span></summary><div class="ap-held-plan">${heldPlan(p)}.</div></details>`;
         };
-        const sorted = plans.filter(p => !p.theme).sort((x, y) => String(y.boughtAt).localeCompare(String(x.boughtAt))), shown = sorted.slice(0, 8), older = sorted.slice(8);
+        const sorted = plans.filter(p => !p.theme).sort((x, y) => String(y.boughtAt).localeCompare(String(x.boughtAt))), shown = sorted.slice(0, 5), older = sorted.slice(5);
         const held = plans.length
             ? `<div>Holding now: ${plans.length}, newest first. A row opens to its plan: when it is sold at the latest, its limits and its own stop.</div><div class="ap-held">${shown.map(heldRow).join('')}${older.length ? `<details class="ap-held-rest"><summary>and ${older.length} bought earlier</summary>${older.map(heldRow).join('')}</details>` : ''}</div>`
             : `<div>Holding nothing right now.</div>`;
         const m = data.month && data.month.last30, before = data.month && data.month.before30;
         const month = m && m.n ? `<div style="margin-top: 4px;">Last 30 days: <span style="color: ${tint(m.usd)}; font-weight: 600;">${usd2(m.usd)}</span> from ${m.n} finished trade${m.n === 1 ? '' : 's'} (${m.up} up)${m.pct !== null ? `, which is <span style="color: ${tint(m.pct)}; font-weight: 600;">${(m.pct >= 0 ? '+' : '') + m.pct.toFixed(2)}%</span> of the ${usd0(data.settings.budgetUsd)} budget` : ''}.${before && before.n ? ` The 30 days before: ${usd2(before.usd)} from ${before.n}${before.pct !== null ? ' (' + (before.pct >= 0 ? '+' : '') + before.pct.toFixed(2) + '%)' : ''}.` : ''}${typeof m.afterCosts === 'number' && data.costEachWay && Math.abs(m.afterCosts - m.usd) > 0.005 ? ` Trades made before 11 Oct 2026 had no trading cost taken off: with ${data.costEachWay}% on each buy and each sale the figure would be <span style="color: ${tint(m.afterCosts)}; font-weight: 600;">${usd2(m.afterCosts)}</span>.` : data.costEachWay ? ` A trading cost of ${data.costEachWay}% on each buy and each sale is already in these figures.` : ''}</div>` : '';
-        if (!c || !c.n) return `<div class="ap-section"><h4>How it is doing</h4>${held}${barHtml()}<div style="margin-top: 4px;">No finished trades yet: nothing it bought has been sold. Each sale will be listed here with its result, and the autopilot uses that record at later check-ins.</div></div>`;
+        if (!c || !c.n) return `<div class="ap-section"><h4>How it is doing</h4>${held}<div style="margin-top: 4px;">No finished trades yet: nothing it bought has been sold. Each sale will be listed here with its result, and the autopilot uses that record at later check-ins.</div></div>`;
         const g = c.groups || {};
         // the comparison with an index fund is a column of its own only when it says something the average does not
         // (after a weekend of coin trades the fund has not moved, and the column would repeat the average)
@@ -671,7 +672,7 @@
         // counts of the day they were written, so the two disagreed on the page. The model still reads them when it chooses.
         const lessons = '';
         return `<div class="ap-section"><h4>How it is doing</h4>
-            ${held}${barHtml()}${month}
+            ${held}${month}
             <div style="margin-top: 4px;">${c.n} finished trade${c.n === 1 ? '' : 's'} in all: ${c.up} up, ${c.n - c.up} down or level, average <span style="color: ${tint(c.avg)}; font-weight: 600;">${pc(c.avg)}</span> each.${c.n < need ? ` Fewer than ${need} trades: too few to conclude anything yet.` : ''}</div>
             <details id="ap-breakdown" ${breakdownOpen ? 'open' : ''} style="margin-top: 6px;"><summary>Breakdown</summary><div style="overflow-x: auto;"><table class="ap-bd">
                 <tr><th style="text-align: left; padding-left: 0;">Finished trades, grouped</th><th>Trades</th><th>Average</th><th title="How many of the trades finished with a gain">Made money</th>${versus ? '<th title="The average result minus what an S&amp;P 500 index fund did over the same time">Against an index fund</th>' : ''}</tr>
@@ -689,6 +690,13 @@
     // After every batch (20) the function compares it with the batch before; if it did no better it looks into why and acts
     // within its own rules. This shows each batch, the verdict, and what it did.
     // The themes part (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's daily calls
+    // One line on the themes part in the summary; the section itself is under "More detail"
+    function themesLine() {
+        const t = data.themes;
+        if (!t || !t.on) return '';
+        const held = t.held && t.held.length ? 'holds ' + t.held.map(h => esc(h.symbol)).join(', ') : 'buys its first funds at the next check-in while the US market is open';
+        return `<div class="ap-section ap-themes-line"><strong>Themes part</strong> <span class="ap-sub">a trial, ${Math.round(t.share * 100)}% of the budget</span>: ${held}${t.next && t.held && t.held.length ? `; next monthly change ${esc(when(t.next))}` : ''}. <a href="#ap-themes" data-ap-part="activity" data-ap-goto="ap-themes">Its detail</a></div>`;
+    }
     function themesHtml() {
         const t = data.themes;
         if (!t) return '';
@@ -871,7 +879,7 @@
         const tag = (key) => lvl ? `<span id="ap-tag-${key}" class="ap-auto ${isAuto(d, key) ? '' : 'own'}">${isAuto(d, key) ? 'automatic' : 'set by you'}</span>` : '';
         const icons = { buy: '🟢', sell: '🔴', note: 'ℹ️' };
         const all = (data.log || []).slice().reverse(), log = tradesOnly ? all.filter(e => e.type !== 'note') : all;
-        const shown = showAll ? log : log.slice(0, 8);
+        const shown = showAll ? log : log.slice(0, 5);
         const holds = (data.plans || []).length;
         // with "Buys and sells only" on, the latest check-in's own line is still shown if it is newer than the last trade: it says why nothing happened
         const latest = tradesOnly && all.length && all[0].type === 'note' && all[0].key ? all[0] : null;
@@ -904,9 +912,13 @@
                 ${gaugeHtml()}
                 ${comingHtml()}
                 ${recordHtml()}
+                ${themesLine()}
+                <details class="ap-more-all" data-ap-fold="more-all" ${openDetails['more-all'] ? 'open' : ''}><summary>More detail: the bar its results must clear, the themes part in full, progress every 20 trades, how it is improving</summary>
+                ${barHtml()}
                 ${themesHtml()}
                 ${progressHtml()}
                 ${tuneHtml()}
+                </details>
                 <div class="ap-section" id="ap-done"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><label class="ap-mini" title="On: only its buys and sells are listed. Off: its check-ins and notes too. Remembered in this browser."><input id="ap-tradesonly" type="checkbox" ${tradesOnly ? 'checked' : ''}><span class="ap-dot"></span>Buys and sells only</label></span></h4>
                     ${latest ? `<div class="ap-log"><time>${icons.note} ${esc(when(latest.t))}</time> Latest check-in: ${esc(latest.text.replace(/^Checked in\. /, ''))}${latest.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${latest.n} check-ins in a row)</span>` : ''}</div>` : ''}
                     ${log.length ? shown.map(e => `<div class="ap-log"><time>${icons[e.type] || ''} ${esc(when(e.t))}</time> ${e.type === 'buy' ? `<strong style="color: var(--text-primary);">Bought ${esc(e.symbol)}</strong> with ${usd0(e.usd)}. ` : e.type === 'sell' ? `<strong style="color: var(--text-primary);">Sold ${esc(e.symbol)}</strong>${gainOf(e) !== null ? ' ' + deltaHtml(gainOf(e), e.pct) : typeof e.pct === 'number' ? ` <span style="color: ${tint(e.pct)}; font-weight: 600;">${pc(e.pct)}</span>` : ''}. ` : ''}${esc(e.text)}${e.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${e.n} check-ins in a row, since ${esc(when(e.first))})</span>` : ''}${fold(e.type + e.t + e.symbol, e.type === 'sell' ? 'Why, and the details' : 'The plan for it', e.detail)}</div>`).join('') : `<div>${tradesOnly && all.length ? 'No buys or sells yet.' : 'Nothing yet. Its buys, sells and check-ins will be listed here.'}</div>`}
@@ -1144,6 +1156,7 @@
             if (view.tagName === 'A' && e.preventDefault) e.preventDefault();
             showPart(view.getAttribute('data-ap-part'), true);
             const place = goto && byId(goto);
+            for (let p = place; p; p = p.parentElement) if (p.tagName === 'DETAILS') { p.open = true; const k = p.getAttribute && p.getAttribute('data-ap-fold'); if (k) openDetails[k] = true; }
             if (place && place.scrollIntoView) place.scrollIntoView({ block: 'start' });
             return;
         }
