@@ -256,6 +256,15 @@
             ${probs.length ? `<ul style="margin: 0; padding-left: 18px;">${probs.map(row).join('')}</ul>` : '<div>✓ No problems found.</div>'}
             ${ideas.length ? `<details style="margin-top: 6px;"><summary class="ad-sub" style="cursor: pointer;">${ideas.length} idea${ideas.length === 1 ? '' : 's'}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${ideas.map(row).join('')}</ul></details>` : ''}</div>`;
     }
+    // What the sessions changed, in plain words (check-tools/changes.json, copied in by admin.py; 18 Oct 2026, the owner: "easy for
+    // me to read on admin page what is going on")
+    function changesHtml(list) {
+        if (!list || !list.length) return '';
+        const when = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+        const li = c => `<li>${esc(c.what)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
+        return `<div class="ad-card" id="ad-changes"><span class="ad-label">🔧 What changed lately</span><ul class="ad-plain">${list.slice(0, 5).map(li).join('')}</ul>`
+            + (list.length > 5 ? `<details><summary class="ad-sub" style="cursor: pointer;">${list.length - 5} earlier</summary><ul class="ad-plain">${list.slice(5).map(li).join('')}</ul></details>` : '') + '</div>';
+    }
     function answeredHtml(list) {
         if (!list.length) return '';
         const word = { done: ['done', 'good'], yes: ['yes: for the next session', 'info'], no: ['not now', 'warn'] };
@@ -278,7 +287,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
+            ${tilesHtml(data)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
     }
 
     function reveal() {
