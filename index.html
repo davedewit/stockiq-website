@@ -1013,7 +1013,7 @@ const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) {
 fetchMarketDataSidebar();
 }
-}, 60 * 1000);
+}, 5 * 60 * 1000);   // every 5 minutes: the figures on show are kept fresh by live-market.js (18 Oct 2026)
 
 // Refresh immediately when user returns to tab (if not idle)
 document.addEventListener('visibilitychange', () => {
@@ -2435,7 +2435,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchTrendingTickers(false);
-}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
+}, 5 * 60 * 1000);   // which shares are on the list, every 5 minutes; their prices are kept fresh by live-market.js (18 Oct 2026)
 }, Math.random() * 10000);
 
 setTimeout(() => {
@@ -2443,7 +2443,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchTopGainers(false);
-}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
+}, 5 * 60 * 1000);   // which shares are on the list, every 5 minutes; their prices are kept fresh by live-market.js (18 Oct 2026)
 }, Math.random() * 10000);
 
 setTimeout(() => {
@@ -2451,7 +2451,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchTopLosers(false);
-}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
+}, 5 * 60 * 1000);   // which shares are on the list, every 5 minutes; their prices are kept fresh by live-market.js (18 Oct 2026)
 }, Math.random() * 10000);
 
 setTimeout(() => {
@@ -2459,7 +2459,7 @@ setInterval(() => {
 const idleTime = Date.now() - lastActivity;
 const maxIdle = 10 * 60 * 1000;
 if (!document.hidden && idleTime < maxIdle) fetchMostActive(false);
-}, 60 * 1000);   // once a minute (it was every second: about 14,000 calls an hour from one open tab)
+}, 5 * 60 * 1000);   // which shares are on the list, every 5 minutes; their prices are kept fresh by live-market.js (18 Oct 2026)
 }, Math.random() * 10000);
 
 

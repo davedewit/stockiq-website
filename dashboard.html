@@ -4718,7 +4718,7 @@ ${analysis.report}
             const idleTime = Date.now() - lastActivity;
             const maxIdle = 10 * 60 * 1000;
             if (!document.hidden && idleTime < maxIdle) fetchSidebarTickers(false);
-        }, 60 * 1000);                                      // once a minute, only while the tab is visible and in use
+        }, 5 * 60 * 1000);                                  // every 5 minutes while in use: the figures are kept fresh by live-market.js (18 Oct 2026)
         
         const isPaid = localStorage.getItem(`userPaidStatus_${localStorage.getItem('userId') || 'anonymous'}`) === 'paid';
         document.documentElement.style.setProperty('--quick-panel-top', isPaid ? '94px' : '135px');
@@ -4973,7 +4973,7 @@ ${analysis.report}
         updateMarketCountdownSidebar();
         setInterval(updateMarketCountdownSidebar, 60000);
         setTimeout(() => {
-            setInterval(() => { if (!document.hidden) fetchMarketDataSidebar(false); }, 60 * 1000);   // once a minute, not while the tab is hidden
+            setInterval(() => { if (!document.hidden) fetchMarketDataSidebar(false); }, 5 * 60 * 1000);   // every 5 minutes: the figures on show are kept fresh by live-market.js (18 Oct 2026)
         }, Math.random() * 10000);
         
         window.addEventListener('storage', (e) => {

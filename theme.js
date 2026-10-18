@@ -265,3 +265,24 @@ document.addEventListener('visibilitychange', function() {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 // VISITOR_BAR_END
+
+// LIVE_MARKET_START (18 Oct 2026; taking everything from here to LIVE_MARKET_END out switches it off on every page)
+// The market data on the page (the side panel, the movers lists) is kept fresh by live-market.js while someone is looking at it:
+// a request every 6 to 10 seconds while the tab is on screen and in use, slower when nothing changes, none when nobody is there.
+(function () {
+    var here = (document.currentScript && document.currentScript.src) || '';
+    var beside = /theme\.js/.test(here) ? here.replace(/theme\.js.*$/, '') : '/';
+    var tries = 0;
+    function go() {
+        try {
+            if (window.liveMarket) return;
+            var has = document.getElementById('market-data-sidebar-container') || document.querySelector('[id^="gainer-price-"],[id^="loser-price-"],[id^="active-price-"],[id^="trend-price-"]');
+            if (!has) { if (++tries < 4) setTimeout(go, 2500); return; }      // the lists are drawn a moment after the page
+            var script = document.createElement('script');
+            script.src = beside + 'live-market.js?h=' + Math.floor(Date.now() / 36e5); script.async = true;
+            document.head.appendChild(script);
+        } catch (e) { /* the page works without it */ }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+// LIVE_MARKET_END
