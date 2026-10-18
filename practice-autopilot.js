@@ -291,7 +291,12 @@
     function hint(level, key) { const r = autoRules(level), n = r ? Math.abs(r[key]) : NaN; return isFinite(n) ? String(n) : ''; }
     // ... and with the user's own loss limit and gain mark, as they stand on screen: these come before everything else
     // What the number of holdings means, in words: how big each is, what a larger or smaller number does, and any catch
+    // While the themes part (a trial) runs, the share part works with the rest of the budget: the same sum as share_part in the
+    // function. Every size and build-up on the panel goes through it.
+    function themesShare(d) { const t = data && data.themes; return t && t.on && (!d || d.selfTune !== false) ? (t.share || 0) : 0; }
+    function sharePart(d) { const k = themesShare(d); return k ? Object.assign({}, d, { budgetUsd: Math.round(d.budgetUsd * (1 - k) * 100) / 100 }) : d; }
     function holdingsHint(d) {
+        d = sharePart(d);
         const level = (data.options.risk[String(d.risk)] || {}).positions || 0, n = positionsOf(d), bound = data.options.holdings || { min: 2, max: 50 };
         if (!n) return '';
         const size = d.budgetUsd / n, each = `${n} holdings of about ${usd0(size)} each`;
@@ -356,17 +361,19 @@
     }
     // What the chosen settings mean in practice: every sentence is built from what is selected right now
     function planText(d) {
+        const whole = d.budgetUsd, k = themesShare(d);
+        d = sharePart(d);
         const r = withHoldings(data.options.risk[String(d.risk)], d);
         if (!r || !(d.budgetUsd > 0) || !(d.periodDays > 0) || !(d.everyHours > 0) || !(d.maxHoldDays > 0)) return '';
         const size = d.budgetUsd / r.positions, start = `It checks in ${everyText(d.everyHours)}.`;
         const up = buildUp(d, r, d.budgetUsd);            // with only coin screeners ticked the whole budget may go into coins (coin_share in the Lambda)
         if (!up.count) return start + ` The ${r.name} level spreads the budget over ${r.positions} holdings, which makes each about ${usd0(size)}: under the $25 smallest buy, so it will buy nothing. Raise the budget.`;
         const quickest = Math.min.apply(null, data.options.everyHours), oftener = d.everyHours > quickest && d.maxHoldDays * 24 > quickest + 1e-9;   // would checking in more often let it hold more?
-        const many = up.count === 1 ? '1 holding' : `${up.count} holdings`, whole = up.peak >= d.budgetUsd - 0.01;
+        const many = up.count === 1 ? '1 holding' : `${up.count} holdings`, full = up.peak >= d.budgetUsd - 0.01;
         const steps = up.hours <= 0 ? ', bought at the first check-in.'
             : `: ${up.first} at the first check-in` + (up.count - up.first === 1 ? ' and one more' : `, then more as the budget is released, all ${up.count}`) + ` after about ${holdText(up.hours / 24)}.`;
-        return `${start} Up to ${many} of about ${usd0(size)} each${whole ? '' : ' at a time'}${steps}`
-            + (whole ? ` Then the whole ${usd0(d.budgetUsd)} is in use.`
+        return `${start}${k ? ` ${Math.round(k * 100)}% of the ${usd0(whole)} budget (${usd0(whole * k)}) is the themes part (a trial, under Activity); the shares get the rest.` : ''} Up to ${many} of about ${usd0(size)} each${full ? '' : ' at a time'}${steps}`
+            + (full ? ` Then the whole ${usd0(d.budgetUsd)}${k ? ' for shares' : ''} is in use.`
                 : ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: it buys at most ${buysPerCheck(positionsOf(d))} at a check-in and sells each holding after ${holdText(d.maxHoldDays)}. Keep holdings longer${oftener ? ', or check in more often,' : ''} for it to use more.`)
             + (!sharesOn() && mixed(d) && r.crypto < 1 ? ` Of that, at most ${Math.round(r.crypto * 100)}% (${usd0(d.budgetUsd * r.crypto)}) goes into coins at this level.` : '')
             + (d.everyHours <= 3 && d.screeners.some(k => (data.options.screeners[k] || {}).kind === 'crypto') ? ' A coin is only bought once it has been near the top at two check-ins running (coin rankings change fast and many drop out again within the hour), so coin buying starts one check-in later than this.' : '')
@@ -411,7 +418,9 @@
         if (!s.enabled) return 'Off. Nothing is bought or sold automatically.';
         if (!s.screeners.length) return 'On, but no screener is chosen yet. Tick at least one below and it will start at the next check-in.';
         const r = withHoldings(data.options.risk[String(s.risk)] || {}, s);
-        const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(s.budgetUsd)} budget is invested.` : '';
+        const t = data.themes && data.themes.on ? data.themes : null, forShares = t ? s.budgetUsd * (1 - t.share) : s.budgetUsd;
+        const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(forShares)} ${t ? 'for shares' : 'budget'} is invested.`
+            + (t ? ` The themes part (trial) holds ${t.held.length} fund${t.held.length === 1 ? '' : 's'} (${usd0(t.invested)} of its ${usd0(t.target)}).` : '') : '';
         const next = data.nextCheck && data.nextCheck.at
             ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${andList(data.nextCheck.markets)} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
             : (data.nextCheck === null ? ' No check-in is due in the next ten days.' : '');
@@ -559,6 +568,7 @@
     }
     function shareRow(d, group, index) {
         if (!sharesOn()) return '';
+        d = sharePart(d);
         const r = data.options.risk[String(d.risk)] || {}, positions = positionsOf(d), size = d.budgetUsd / (positions || 1);
         const ticked = isTicked(d, group);
         if (!positions) return '';
@@ -583,6 +593,7 @@
     // In words, under the screeners: where the budget goes, and what is left over or left out
     function splitText(d) {
         if (!sharesOn()) return '';
+        d = sharePart(d);
         const r = data.options.risk[String(d.risk)] || {}, positions = positionsOf(d), size = d.budgetUsd / (positions || 1), slots = marketSlots(d), groups = Object.keys(slots);
         if (!groups.length || !positions) return '';
         const mine = (g) => typeof (d.shares || {})[g] === 'number';
@@ -627,7 +638,7 @@
             const what = b ? `${b.name ? esc(b.name) + ' · ' : ''}${esc(b.why)}` : `bought ${esc(when(p.boughtAt))}`;
             return `<details class="ap-held-row"><summary><strong class="ap-held-name">${esc(p.label)}</strong><span class="ap-held-main"><span class="ap-held-what">${what}</span>${chips.length ? `<span class="ap-held-chips">${chips.join('')}</span>` : ''}</span><span class="ap-held-open">its plan</span></summary><div class="ap-held-plan">${heldPlan(p)}.</div></details>`;
         };
-        const sorted = plans.slice().sort((x, y) => String(y.boughtAt).localeCompare(String(x.boughtAt))), shown = sorted.slice(0, 8), older = sorted.slice(8);
+        const sorted = plans.filter(p => !p.theme).sort((x, y) => String(y.boughtAt).localeCompare(String(x.boughtAt))), shown = sorted.slice(0, 8), older = sorted.slice(8);
         const held = plans.length
             ? `<div>Holding now: ${plans.length}, newest first. A row opens to its plan: when it is sold at the latest, its limits and its own stop.</div><div class="ap-held">${shown.map(heldRow).join('')}${older.length ? `<details class="ap-held-rest"><summary>and ${older.length} bought earlier</summary>${older.map(heldRow).join('')}</details>` : ''}</div>`
             : `<div>Holding nothing right now.</div>`;
@@ -662,6 +673,28 @@
     // ---------------------------------------------------------------- progress, a batch of finished trades at a time
     // After every batch (20) the function compares it with the batch before; if it did no better it looks into why and acts
     // within its own rules. This shows each batch, the verdict, and what it did.
+    // The themes part (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's weekly calls
+    function themesHtml() {
+        const t = data.themes;
+        if (!t) return '';
+        if (!t.on) return data.settings.enabled ? `<div class="ap-section"><h4>Themes part <span class="ap-sub">a trial</span></h4><div style="font-size: 0.85rem;">It runs while "Try changes to its own rules" is on and at least one share screener is ticked: ${Math.round(t.share * 100)}% of the budget is then held in the ${t.count} strongest of 14 sector and theme funds, changed once a month.</div></div>` : '';
+        const box = (key, title, inner) => `<details data-ap-fold="${esc(key)}" ${openDetails[key] ? 'open' : ''} style="margin-top: 6px;"><summary>${esc(title)}</summary>${inner}</details>`;
+        const names = (t.ranking || []).reduce((o, r) => (o[r.symbol] = r, o), {});
+        const held = t.held.length ? t.held.map(h => `<strong style="color: var(--text-primary);">${esc(h.symbol)}</strong> ${esc(h.name)} (${usd0(h.cost)}${names[h.symbol] ? `, ${pc(names[h.symbol].trend)} over the past year` : ''})`).join(' · ') : 'nothing yet: it buys at the first check-in while the US market is open';
+        const r = t.trades || {}, done = r.n ? `${r.n} fund${r.n === 1 ? '' : 's'} sold so far, ${usd2(r.usd)} in all, ${pc(r.avg)} each${r.vs !== null && r.vs !== undefined ? `, ${pc(r.vs)} against an S&P 500 fund over the same days` : ''}.` : 'No fund sold yet: its first result comes with the first monthly change.';
+        const ai = t.ai || {}, calls = (ai.recent || []).filter(c => c.view);
+        const aiLine = ai.at ? `Its last read (${esc(when(ai.at))})${ai.theme ? `: “${esc(String(ai.theme).replace(/[.\s]+$/, ''))}”` : ''}. ${ai.scored ? `${ai.right} of ${ai.scored} of its calls scored so far were right` : 'None of its calls has been scored yet'}${ai.scored < 30 ? ' (too few to read under 30)' : ''}.` : 'It has not read the news yet: it does so once a week while the US market is open.';
+        const table = (t.ranking || []).length ? box('themes-rank', 'The 14 funds by their past year, as last ranked', `<table class="ap-bd" style="width: 100%;"><tr><th style="text-align: left;">Fund</th><th>Past year (less the last month)</th><th>3 months</th></tr>${t.ranking.map((x, i) => `<tr><td style="text-align: left;">${i < t.count ? '<strong>' : ''}${esc(x.symbol)} ${esc(x.name)}${i < t.count ? '</strong>' : ''}</td><td>${pc(x.trend)}</td><td>${pc(x.m3)}</td></tr>`).join('')}</table>`) : '';
+        const callList = calls.length ? box('themes-calls', 'Its latest calls', `<ul style="margin: 4px 0 0 18px; padding: 0;">${calls.map(c => `<li>${esc(when(c.at))}: ${esc(c.symbol)} ${c.view === 'better' ? 'better' : 'worse'} than an S&P 500 fund over the week (${esc(c.why)})${typeof c.rel === 'number' ? `: it was ${c.rel >= 0 ? 'ahead' : 'behind'} by ${Math.abs(c.rel).toFixed(1)}%, ${c.right ? 'right' : 'wrong'}` : ', not scored yet'}</li>`).join('')}</ul>`) : '';
+        return `<div class="ap-section" id="ap-themes"><h4>Themes part <span class="ap-sub">a trial: ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)})</span></h4>
+            <div style="font-size: 0.85rem; margin-bottom: 6px;">A theme in the news (chips and AI, oil, inflation, gold) shows up first as a whole sector moving. So this part holds the ${t.count} strongest of 14 sector and theme funds by their rise over the past year (the last month left out), and changes them once a month. On five years of past prices it was ahead of an S&P 500 fund in both halves, mostly through the chip fund, so it is tested here for over a year before anything is concluded.</div>
+            <div>Holds: ${held}.</div>
+            ${t.next ? `<div style="margin-top: 4px;">Next monthly change ${until(t.next)} <span class="ap-sub">(${esc(when(t.next))})</span>.</div>` : ''}
+            <div style="margin-top: 4px;">${done}</div>
+            <div style="margin-top: 8px;"><strong style="color: var(--text-primary); font-size: 0.9rem;">The AI model's weekly read of the news</strong> <span class="ap-sub">recorded and scored, not acted on</span><div style="margin-top: 2px;">Once a week the AI model reads the market's headlines and says which funds it expects to do better or worse than an S&P 500 fund over the next week. A week later each call is scored. Only if its calls prove right far more often than chance (from 30 calls) would it be allowed to act. ${aiLine}</div>${callList}</div>
+            ${table}
+        </div>`;
+    }
     function progressHtml() {
         const p = data.progress;
         if (!p || !Array.isArray(p.batches)) return '';
@@ -855,6 +888,7 @@
                 <div id="ap-pane-activity" class="ap-pane" style="${part === 'activity' ? '' : 'display: none;'}">
                 ${comingHtml()}
                 ${recordHtml()}
+                ${themesHtml()}
                 ${progressHtml()}
                 ${tuneHtml()}
                 <div class="ap-section" id="ap-done"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><label class="ap-mini" title="On: only its buys and sells are listed. Off: its check-ins and notes too. Remembered in this browser."><input id="ap-tradesonly" type="checkbox" ${tradesOnly ? 'checked' : ''}><span class="ap-dot"></span>Buys and sells only</label></span></h4>
@@ -1049,7 +1083,7 @@
     // practice-portfolio.js marks the autopilot's holdings with when and at what they will be sold
     function sharePlans() { if (data && data.allowed && window.practicePortfolio && window.practicePortfolio.setPlans) window.practicePortfolio.setPlans(data.plans || [], { realizedUsd: data.realizedUsd }); }
     // What changes when the autopilot acts: its activity list and what it holds
-    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck, r.improvements]);      // improvements: a new one shows at the next refresh (17 Oct 2026)
+    const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck, r.improvements, r.themes]);      // improvements: a new one shows at the next refresh (17 Oct 2026)
     // Ask again without disturbing anything: not while a change is being typed, saved or run
     async function refresh(byHand) {
         if (!data || !data.allowed || refreshing || working || saving || saveTimer || isDirty() || (editing() && !byHand)) return;
@@ -1220,7 +1254,8 @@
         if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${andList(data.nextCheck.markets)} market.`);
         (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
         lines.push('Needs the user: ' + ((data.needs || []).map(n => cut(n.text, 200)).join(' | ') || 'nothing') + '.');
-        (data.plans || []).slice(0, 8).forEach(p => lines.push(`Holds ${p.label}: sold at the latest ${when(p.sellBy)}, sooner at ${p.stop}% or +${p.take}%${p.closed ? '; its market is closed now' : ''}.`));
+        if (data.themes && data.themes.on) { const t = data.themes; lines.push(`Themes part (a trial since 18 Oct 2026): ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)}) in the ${t.count} strongest of 14 sector and theme funds by their past year, changed monthly; holds ${t.held.map(h => h.symbol + ' ' + h.name).join(', ') || 'nothing yet'}; next change ${t.next ? when(t.next) : 'at the next US check-in'}; ${t.trades && t.trades.n ? `${t.trades.n} sold, ${usd2(t.trades.usd)}` : 'none sold yet'}. The AI model's weekly news calls are recorded and scored, not acted on: ${t.ai && t.ai.scored ? `${t.ai.right} of ${t.ai.scored} right` : 'none scored yet'}.`); }
+        (data.plans || []).filter(p => !p.theme).slice(0, 8).forEach(p => lines.push(`Holds ${p.label}: sold at the latest ${when(p.sellBy)}, sooner at ${p.stop}% or +${p.take}%${p.closed ? '; its market is closed now' : ''}.`));
         const c = data.scorecard, m = data.month && data.month.last30;
         if (c && c.n) lines.push(`Finished trades: ${c.n} (${c.up} up), average ${pc(c.avg)} each${m ? `; last 30 days ${usd2(m.usd)}` : ''}. Too few to judge under ${data.minSample || 8}.`);
         else lines.push('Finished trades: none yet.');

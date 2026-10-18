@@ -204,6 +204,7 @@
     function planLine(h, plan) {
         if (h.by !== 'ai') return 'Bought by you: it stays until you sell it.';
         if (!plan) return '🤖 Bought by the autopilot.';
+        if (plan.theme) return `🤖 Autopilot, themes part (a trial): one of the 3 strongest of 14 sector and theme funds by their past year. It is kept until the monthly change${plan.sellBy ? ` around ${when(plan.sellBy)}` : ''}, and sold then only if it is no longer among the 3.`;
         if (!plan.auto) return '🤖 Bought by the autopilot, which is switched off: it stays until you sell it or switch the autopilot back on.';
         const up = (n) => (n >= 0 ? '+' : '') + n;
         // Written so that the point where the stop starts cannot be read as a selling price: rising is never a reason to sell
