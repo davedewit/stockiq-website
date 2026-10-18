@@ -844,7 +844,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += `• Scored: ${scoredWords(allResults.length, 100)}\n`;
     }
     
-    output += `\n✅ Real-time UK FTSE 100 complete!`;
+    output += `\n✅ UK FTSE 100 complete!`;
     
     const htmlOutput = `<pre style="white-space: pre-wrap; font-family: monospace;">${output}</pre>`;
     
@@ -1329,11 +1329,11 @@ Analysis Date: ${apiData.timestamp}
     if (!hasComprehensiveAnalysis) {
         output += `
 
-✅ Real-time analysis complete!
+✅ Analysis complete!
 
 💡 PROFESSIONAL ANALYSIS FEATURES:
 • Multi-section detailed reports
-• Real-time technical indicators
+• Technical indicators from the latest prices
 • Support and resistance levels
 • Volume analysis and momentum indicators
 • Professional scoring system
@@ -1991,7 +1991,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += 'No results available\n';
     }
     
-    output += `\n✅ Real-time ${titles[subOption]} stock screening complete!`;
+    output += `\n✅ ${titles[subOption]} stock screening complete!`;
     
     return { type: `option_3${subOption}_screener`, data: output };
 }
@@ -2087,7 +2087,7 @@ Analysis Date: ${new Date().toLocaleString()}
         output += 'No results available\n';
     }
     
-    output += `\n✅ Real-time ${titles[subOption]} complete!`;
+    output += `\n✅ ${titles[subOption]} complete!`;
     
     return { type: `option_4${subOption}_screener`, data: output };
 }
@@ -3071,7 +3071,7 @@ Analysis Date: ${new Date().toLocaleString()}
     } else {
         output += 'No results available\n';
     }
-    output += `\n\u2705 Real-time ${r.done} complete!`;
+    output += `\n\u2705 ${r.done} complete!`;
     const htmlOutput = `<pre style="white-space: pre-wrap; font-family: monospace;">${output}</pre>`;
     return { type: r.type, data: htmlOutput };
 }
