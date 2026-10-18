@@ -120,6 +120,29 @@
         else window.switchToTab(t.getAttribute('data-tab'));
     });
 
+    // ---- which tab the panel opens on: the market that is trading now (18 Oct 2026, the owner's yes: "sure that would be great").
+    // Each market on its own clock (summer time included), Monday to Friday; public holidays are not known. The US first when two
+    // overlap, then Europe, then Asia; at a weekend only coins trade; when nothing trades (late in the US evening), the US.
+    var SESSIONS = [['us', [['America/New_York', 570, 960]]],
+                    ['europe', [['Europe/London', 480, 990]]],                                   // London 8:00-16:30 = Frankfurt and Paris 9:00-17:30
+                    ['asia', [['Asia/Tokyo', 540, 930], ['Asia/Hong_Kong', 570, 960], ['Australia/Sydney', 600, 960], ['Asia/Kolkata', 555, 930]]]];
+    function local(tz, d) {
+        var p = {}; new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+        return { day: p.weekday, min: parseInt(p.hour, 10) % 24 * 60 + parseInt(p.minute, 10) };
+    }
+    function openTab(d) {
+        d = d || new Date();
+        try {
+            for (var i = 0; i < SESSIONS.length; i++) {
+                var open = SESSIONS[i][1].some(function (s) { var l = local(s[0], d); return l.day !== 'Sat' && l.day !== 'Sun' && l.min >= s[1] && l.min < s[2]; });
+                if (open) return SESSIONS[i][0];
+            }
+            var ny = local('America/New_York', d), tk = local('Asia/Tokyo', d);
+            var weekend = (ny.day === 'Sat' || (ny.day === 'Fri' && ny.min >= 1020) || ny.day === 'Sun') && tk.day !== 'Mon';
+            return weekend ? 'cryptocurrencies' : 'us';
+        } catch (e) { return 'us'; }
+    }
+
     // ---- the US market countdown
     window.updateMarketCountdownSidebar = function () {
         var ny = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })), day = ny.getDay();
@@ -207,6 +230,8 @@
     function start() {
         var np = document.getElementById('news-panel');
         if (np && !np.hasAttribute('data-desk-style')) np.setAttribute('data-desk-style', np.getAttribute('style') || '');   // put back after the phone sidebar
+        var first = openTab();                                        // the tab of the market trading now (a tab picked later stays)
+        if (first !== window.currentTabSidebar) window.switchToTab(first);
         scrollHint(); renderLists(); window.fetchMarketDataSidebar(true); window.fetchSidebarTickers();
         window.updateMarketCountdownSidebar(); setInterval(window.updateMarketCountdownSidebar, 60000);
         setInterval(function () { if (inUse()) { window.fetchMarketDataSidebar(); window.fetchSidebarTickers(); } }, EVERY);
@@ -216,6 +241,6 @@
     window.addEventListener('storage', function (e) {                // another tab of the site fetched newer figures
         if (e.key === 'marketDataSidebar' && e.newValue) { try { window.marketDataSidebar = JSON.parse(e.newValue); window.renderMarketDataSidebar(window.currentTabSidebar); } catch (x) { } }
     });
-    window.marketPanel = { version: 1, refresh: refresh, renderLists: renderLists, deskStyle: function (np) { return np.getAttribute('data-desk-style'); } };
+    window.marketPanel = { version: 2, openTab: openTab, refresh: refresh, renderLists: renderLists, deskStyle: function (np) { return np.getAttribute('data-desk-style'); } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
