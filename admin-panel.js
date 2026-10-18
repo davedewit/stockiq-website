@@ -97,9 +97,18 @@
     function liveAccount() {
         try { const f = window.practicePortfolio && window.practicePortfolio.figures && window.practicePortfolio.figures(); return f && isFinite(f.accountValue) ? f : null; } catch (e) { return null; }
     }
+    // The function's estimate showed for a second before the live figure replaced it ($99,411, then $99,642): the owner took it
+    // for a fault. So for the first seconds "…" is shown while the Practice tab gets its prices; the estimate, said to be one,
+    // only if they do not come.
+    const LIVE_WAIT_MS = 8000, shownAt = Date.now();
+    let waitTimer = null;
     function withLive(g) {
         const f = liveAccount();
-        return !g ? g : f ? Object.assign({}, g, { value: f.accountValue, live: true }) : Object.assign({}, g, { live: false });
+        if (!g) return g;
+        if (f) return Object.assign({}, g, { value: f.accountValue, live: true });
+        const waiting = Date.now() - shownAt < LIVE_WAIT_MS;
+        if (waiting && !waitTimer) waitTimer = setTimeout(() => { if (data) render(); }, LIVE_WAIT_MS - (Date.now() - shownAt) + 50);
+        return Object.assign({}, g, { live: false, waiting });
     }
 
     function tilesHtml(d) {
@@ -108,7 +117,7 @@
         const out = [];
         if (g) {
             const gain = g.value - 100000;
-            out.push(tile(gain >= 0 ? 'good' : 'bad', 'Practice account', usd(g.value), `${money(gain)} since the start${g.live ? '' : ' (an estimate until the prices are in)'}`));
+            out.push(g.waiting ? tile('', 'Practice account', '…', 'getting the latest prices') : tile(gain >= 0 ? 'good' : 'bad', 'Practice account', usd(g.value), `${money(gain)} since the start${g.live ? '' : ' (an estimate: the latest prices did not come in)'}`));
             const met = [g.trades >= g.tradesGoal, g.n > 0 && g.avg > g.avgGoal, g.value >= g.valueGoal].filter(Boolean).length;
             out.push(tile(met === 3 ? 'good' : met ? 'warn' : 'bad', esc(g.name), `${met} of 3 met`, `${g.daysLeft} days left (due ${esc(g.due)})`));
         }
@@ -130,7 +139,7 @@
         return `<div class="ad-card goal"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft} days left</span></span>
             ${row('Finished trades in all', String(g.trades), g.tradesGoal, g.trades >= g.tradesGoal, g.trades / g.tradesGoal * 100)}
             ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(${g.n} trades; the real average is probably between ${signed(g.avg - 2 * g.se, 2)}% and ${signed(g.avg + 2 * g.se, 2)}%)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
-            ${row(g.live ? 'The practice account, at the latest prices' : 'The practice account, about (an estimate until the prices are in)', `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.value / g.valueGoal * 100)}
+            ${row(g.live ? 'The practice account, at the latest prices' : g.waiting ? 'The practice account (getting the latest prices)' : 'The practice account, about (an estimate: the latest prices did not come in)', g.waiting ? '…' : `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.value / g.valueGoal * 100)}
             <div class="ad-sub" style="margin-top: 8px;">Fake money. These targets are what would count as progress, set on 12 Oct before the results were in; they are not forecasts.</div></div>`;
     }
 

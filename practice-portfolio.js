@@ -130,10 +130,10 @@
 
     function summarize(state, quotes) {
         const spy = quotes[BENCHMARK] ? quotes[BENCHMARK].price : null;
-        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0, level = 0, dayUsd = 0, dayOf = 0, dayCount = 0;
+        let holdingsValue = 0, cost = 0, marketValue = 0, marketCost = 0, unpriced = 0, compared = 0, ahead = 0, level = 0, dayUsd = 0, dayOf = 0, dayCount = 0, dayLive = 0, dayLast = 0;
         state.holdings.forEach(h => {
             const v = valueOf(h, quotes), d = dayMove(h, quotes);
-            if (d) { dayUsd += d.usd; dayOf += v.valueUsd - d.usd; dayCount++; }
+            if (d) { dayUsd += d.usd; dayOf += v.valueUsd - d.usd; dayCount++; const q = quotes[h.symbol]; if (!closedFor(h.symbol, q)) dayLive++; if (q && q.time > dayLast) dayLast = q.time; }
             holdingsValue += v.valueUsd; cost += h.costUsd;
             if (!v.priced) unpriced++;
             if (spy > 0 && h.spyAtBuy > 0) {
@@ -147,6 +147,8 @@
             cash: state.cash, holdingsValue, cost, accountValue, unpriced, compared, ahead, level,
             // today, for what is held now: the sum of each holding's own day (dayMove); null when no holding has one
             dayUsd: dayCount ? dayUsd : null, dayPct: dayCount && dayOf > 0 ? dayUsd / dayOf * 100 : null, dayCount,
+            // every market it holds is closed (a weekend, a night): the figure is each holding's last session, not today's
+            dayClosed: dayCount > 0 && dayLive === 0, dayLast: dayLast ? dayLast * 1000 : null,
             gainUsd: accountValue - state.startingCash, gainPct: (accountValue / state.startingCash - 1) * 100,
             openGainUsd: holdingsValue - cost, openGainPct: cost > 0 ? (holdingsValue / cost - 1) * 100 : null,
             // the same dollars put into the S&P 500 fund on the same days
@@ -757,7 +759,7 @@
         el.innerHTML = `
             <div class="pp-top">
                 ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start · fake money, it started with ${usd(state.startingCash)}`, s.gainUsd)}
-                ${card('Today', s.dayUsd === null ? '–' : big(s.dayUsd), s.dayUsd === null ? 'nothing held' : share(dayOfAccount) + ' of the account · what it holds now', s.dayUsd === null ? 0 : s.dayUsd)}
+                ${card(s.dayClosed ? 'Last trading day' : 'Today', s.dayUsd === null ? '–' : big(s.dayUsd), s.dayUsd === null ? 'nothing held' : share(dayOfAccount) + ' of the account · ' + (s.dayClosed ? `its markets are closed now: each holding's last session${s.dayLast ? ' (latest prices ' + esc(when(new Date(s.dayLast).toISOString())) + ')' : ''}` : 'what it holds now'), s.dayUsd === null ? 0 : s.dayUsd)}
                 ${fundCard}
             </div>
             <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
@@ -1056,7 +1058,7 @@
         const s = summarize(state, quotes), mine = state.holdings.filter(h => h.by !== 'ai'), its = state.holdings.filter(h => h.by === 'ai');
         const one = (h) => { const v = valueOf(h, quotes); return `${h.label || h.symbol} ${usd(v.valueUsd)} (${v.priced ? moved(v.gainUsd) : 'no price now'})`; };
         const vs = state.holdings.length || state.closed.length ? versusStart(state, quotes, Date.now()) : null;
-        return ['PRACTICE PORTFOLIO (fake money): ' + (s.dayUsd === null ? '' : 'today (what it holds now, each holding since its market\'s previous close) ' + moved(s.dayUsd) + '; ') + 'account value ' + usd(s.accountValue) + ', ' + moved(s.gainUsd) + ' since the start of ' + usd(STARTING_CASH) + '; practice cash left ' + usd(state.cash) + '.',
+        return ['PRACTICE PORTFOLIO (fake money): ' + (s.dayUsd === null ? '' : (s.dayClosed ? 'last trading day (its markets are closed now; each holding\'s last session) ' : 'today (what it holds now, each holding since its market\'s previous close) ') + moved(s.dayUsd) + '; ') + 'account value ' + usd(s.accountValue) + ', ' + moved(s.gainUsd) + ' since the start of ' + usd(STARTING_CASH) + '; practice cash left ' + usd(state.cash) + '.',
             'Bought by the user (' + mine.length + '): ' + (mine.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Bought by the autopilot and still held (' + its.length + '): ' + (its.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Sold so far: ' + state.closed.length + '.']
