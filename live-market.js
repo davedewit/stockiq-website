@@ -15,14 +15,15 @@
  */
 (function () {
     'use strict';
-    var VERSION = 1;
+    var VERSION = 2;
     if (window.liveMarket && window.liveMarket.version >= VERSION) return;
     var PRICES = 'https://2vl4la6od3vfgbkv6ycbj7ewry0yxvck.lambda-url.us-east-1.on.aws/';
     var T = window.LIVE_MARKET_TEST || {};               // a browser test may shorten the times
     var FAST = T.fast || [6000, 10000], SLOW = T.slow || 60000, IDLE = T.idle || 90000, MAX = 40;
     var KINDS = [['trend', 'trendingTickersList', 'trendingTickerPrices'], ['gainer', 'gainersTickersList', 'gainersTickerPrices'],
                  ['loser', 'losersTickersList', 'losersTickerPrices'], ['active', 'activeTickersList', 'activeTickerPrices']];
-    var lastInput = Date.now(), gap = FAST[0], timer = null, busy = false, rounds = 0, changed = 0, sparks = {}, lastErr = null;
+    var lastInput = Date.now(), gap = FAST[0], timer = null, busy = false, rounds = 0, changed = 0, sparks = {}, lastErr = null, allAt = 0;
+    var SPARK_KEEP = 20 * 60 * 1000, ALL_EVERY = 5 * 60 * 1000;   // the lines are kept in the browser 20 minutes; every tab's fetched every 5
 
     function read(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
     function write(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { } }
@@ -102,10 +103,10 @@
             cache[m.sym] = { name: q.name || m.sym, price: q.price, change: q.change, changePercent: q.changePercent };
         });
         Object.keys(saved).forEach(function (k) { write(k, saved[k]); });
-        var store = read('marketDataSidebar'), touched = false;
+        var store = read('marketDataSidebar'), touched = false, sparked = false;
         panelRows().forEach(function (r) {
             var q = answer[r.sym]; if (!q || q.error) return;
-            if (q.spark) { sparks[r.sym] = { spark: q.spark, prev: q.prev }; drawSpark(r.row, sparks[r.sym]); }
+            if (q.spark) { sparks[r.sym] = { spark: q.spark, prev: q.prev, at: Date.now() }; drawSpark(r.row, sparks[r.sym]); sparked = true; }
             var valEl = r.row.querySelector('.market-item-sidebar-value'), chEl = r.row.querySelector('.market-item-sidebar-change');
             var text = panelValue(q.price, r.cat);
             if (valEl && valEl.textContent.trim() !== text) {
@@ -120,6 +121,7 @@
             }
         });
         if (touched) write('marketDataSidebar', store);
+        if (sparked) saveSparks();
         return moved;
     }
 
@@ -136,6 +138,7 @@
                 var moved = j && j.success && j.data ? apply(j.data) : 0;
                 changed += moved;
                 gap = moved ? FAST[0] : Math.min(SLOW, Math.round(gap * 1.5));
+                if (watching()) setTimeout(fetchAllSparks, 800);
             })
             .catch(function (e) { lastErr = String(e && e.message || e); gap = Math.min(SLOW, gap * 2); })
             .then(function () { busy = false; schedule(); });
@@ -166,7 +169,32 @@
         }
     }
 
-    function start() { style(); watchPanel(); setTimeout(watchPanel, 3000); timer = setTimeout(round, 1500); }
+    function loadSparks() {
+        var kept = read('lmSparks') || {}, now = Date.now();
+        Object.keys(kept).forEach(function (k) { if (kept[k] && now - kept[k].at < SPARK_KEEP) sparks[k] = kept[k]; });
+    }
+    function saveSparks() { write('lmSparks', sparks); }
+    // Every tab's lines in one request in the background (the tab on show comes first in each round), so that a tab chosen
+    // later shows its line at once: on 18 Oct 2026 the owner saw lines appear only seconds after he opened a tab
+    function fetchAllSparks() {
+        if (Date.now() - allAt < ALL_EVERY) return;
+        allAt = Date.now();
+        var data = read('marketDataSidebar') || {}, syms = [];
+        Object.keys(data).forEach(function (cat) { var d = data[cat]; if (d && typeof d === 'object') Object.keys(d).slice(0, 6).forEach(function (n) { var sy = d[n] && d[n].symbol; if (sy && syms.indexOf(sy) < 0) syms.push(sy); }); });
+        syms = syms.filter(function (sy) { return !sparks[sy] || Date.now() - sparks[sy].at > ALL_EVERY; });
+        for (var i = 0; i < syms.length; i += MAX) {
+            fetch(PRICES, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tickers: syms.slice(i, i + MAX), spark: true }) })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    if (!j || !j.data) return;
+                    Object.keys(j.data).forEach(function (sy) { var q = j.data[sy]; if (q && q.spark) sparks[sy] = { spark: q.spark, prev: q.prev, at: Date.now() }; });
+                    saveSparks();
+                    panelRows().forEach(function (r) { if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); });
+                }).catch(function () { allAt = 0; });
+        }
+    }
+
+    function start() { loadSparks(); style(); watchPanel(); panelRows().forEach(function (r) { if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); }); setTimeout(watchPanel, 3000); timer = setTimeout(round, 1500); }
     window.liveMarket = { version: VERSION, round: round, apply: apply, movers: movers, panelRows: panelRows, sparkPoints: sparkPoints,
         state: function () { return { gap: gap, rounds: rounds, changed: changed, watching: watching(), busy: busy, lastErr: lastErr }; } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
