@@ -481,8 +481,8 @@ mobileDashboardSection.style.display = 'block';
 <button id="nav-right-sidebar" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; touch-action: manipulation;">›</button>
 </div>
 
-<div id="loading-sidebar" style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 12px;">
-Loading...
+<div id="loading-sidebar" style="padding: 20px;" aria-label="Getting the market data">
+<div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto;"></div>
 </div>
 </div>
 
@@ -733,13 +733,13 @@ setInterval(continuousScroll, 50);
 <div class="index-card" onclick="window.location.href='analysis.html?option=3&subOption=3&autorun=true'" style="cursor: pointer;" title="Run Screener">
 <div class="index-info">
 <h3>S&P 500</h3>
-<div class="index-value" id="sp500-value">Loading...</div>
-<div class="index-change" id="sp500-change">Loading...</div>
+<div class="index-value" id="sp500-value">–</div>
+<div class="index-change" id="sp500-change">&nbsp;</div>
 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.8;">🔍 Run Screener</div>
 </div>
 <div class="index-chart">
 <svg width="60" height="30" viewBox="0 0 60 30" id="sp500-chart">
-<polyline points="0,15 8,12 16,18 24,20 32,22 40,24 48,26 56,28" stroke="#ef4444" stroke-width="2" fill="none"/>
+<polyline points="" stroke="#9ca3af" stroke-width="2" fill="none"/>
 </svg>
 </div>
 </div>
@@ -747,13 +747,13 @@ setInterval(continuousScroll, 50);
 <div class="index-card" onclick="window.location.href='analysis.html?option=3&subOption=8&autorun=true'" style="cursor: pointer;" title="Run Screener">
 <div class="index-info">
 <h3>Dow Jones</h3>
-<div class="index-value" id="dow-value">Loading...</div>
-<div class="index-change" id="dow-change">Loading...</div>
+<div class="index-value" id="dow-value">–</div>
+<div class="index-change" id="dow-change">&nbsp;</div>
 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.8;">🔍 Run Screener</div>
 </div>
 <div class="index-chart">
 <svg width="60" height="30" viewBox="0 0 60 30" id="dow-chart">
-<polyline points="0,15 8,12 16,18 24,20 32,22 40,24 48,26 56,28" stroke="#ef4444" stroke-width="2" fill="none"/>
+<polyline points="" stroke="#9ca3af" stroke-width="2" fill="none"/>
 </svg>
 </div>
 </div>
@@ -761,13 +761,13 @@ setInterval(continuousScroll, 50);
 <div class="index-card" onclick="window.location.href='analysis.html?option=3&subOption=7&autorun=true'" style="cursor: pointer;" title="Run Screener">
 <div class="index-info">
 <h3>Nasdaq</h3>
-<div class="index-value" id="nasdaq-value">Loading...</div>
-<div class="index-change" id="nasdaq-change">Loading...</div>
+<div class="index-value" id="nasdaq-value">–</div>
+<div class="index-change" id="nasdaq-change">&nbsp;</div>
 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.8;">🔍 Run Screener</div>
 </div>
 <div class="index-chart">
 <svg width="60" height="30" viewBox="0 0 60 30" id="nasdaq-chart">
-<polyline points="0,15 8,12 16,18 24,20 32,22 40,24 48,26 56,28" stroke="#ef4444" stroke-width="2" fill="none"/>
+<polyline points="" stroke="#9ca3af" stroke-width="2" fill="none"/>
 </svg>
 </div>
 </div>
@@ -775,13 +775,13 @@ setInterval(continuousScroll, 50);
 <div class="index-card" onclick="window.location.href='analysis.html?option=3&subOption=6&autorun=true'" style="cursor: pointer;" title="Run Screener">
 <div class="index-info">
 <h3>Russell 2000</h3>
-<div class="index-value" id="russell-value">Loading...</div>
-<div class="index-change" id="russell-change">Loading...</div>
+<div class="index-value" id="russell-value">–</div>
+<div class="index-change" id="russell-change">&nbsp;</div>
 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.8;">🔍 Run Screener</div>
 </div>
 <div class="index-chart">
 <svg width="60" height="30" viewBox="0 0 60 30" id="russell-chart">
-<polyline points="0,15 8,12 16,18 24,20 32,22 40,24 48,26 56,28" stroke="#ef4444" stroke-width="2" fill="none"/>
+<polyline points="" stroke="#9ca3af" stroke-width="2" fill="none"/>
 </svg>
 </div>
 </div>
@@ -1063,16 +1063,7 @@ changeEl.className = className;
 if (!window.marketDataCache) window.marketDataCache = {};
 window.marketDataCache[id] = { value: valueText, change: changeText, className: className };
 
-const chart = document.getElementById(`${id}-chart`);
-const polyline = chart.querySelector('polyline');
-if (indexData.change >= 0) {
-polyline.setAttribute('stroke', '#22c55e');
-polyline.setAttribute('points', '0,28 8,26 16,24 24,20 32,18 40,15 48,12 56,8');
-} else {
-polyline.setAttribute('stroke', '#ef4444');
-polyline.setAttribute('points', '0,8 8,12 16,15 24,18 32,20 40,24 48,26 56,28');
-}
-polyline.style.display = 'block';
+// The small chart is today's real line, drawn by live-market.js (it was a fixed up or down line until 18 Oct 2026)
 });
 
 // Save cached data to localStorage
@@ -1081,14 +1072,18 @@ localStorage.setItem('marketData', JSON.stringify(window.marketDataCache));
 }
 }
 
+// When the market data cannot be had, say so (until 18 Oct 2026 the cards showed figures from January 2024 as if they were
+// today's). live-market.js asks the price function for the four indexes as well, and fills the cards when it answers.
+function noIndexFigures() {
+['sp500', 'dow', 'nasdaq', 'russell'].forEach(id => {
+const v = document.getElementById(`${id}-value`), c = document.getElementById(`${id}-change`);
+if (v && !/\d/.test(v.textContent)) v.textContent = '–';
+if (c && !/\d/.test(c.textContent)) { c.textContent = 'Not available just now'; c.className = 'index-change'; }
+});
+}
+
 // Fetch live market data
 async function fetchMarketData() {
-['sp500', 'dow', 'nasdaq', 'russell'].forEach(id => {
-const chart = document.getElementById(`${id}-chart`);
-const polyline = chart.querySelector('polyline');
-polyline.style.display = 'none';
-});
-
 // First try to use sidebar's cached data for consistency
 const sidebarData = localStorage.getItem('marketDataSidebar');
 if (sidebarData) {
@@ -1109,49 +1104,11 @@ if (result.us) {
 updateTopCardsFromData(result.us);
 } else {
 console.error('Market data API failed:', result.error);
-// Show text data but keep charts hidden
-const fallbackData = {
-sp500: { price: 4783.45, change: 12.34, changePercent: 0.26 },
-dow: { price: 37863.80, change: 156.89, changePercent: 0.42 },
-nasdaq: { price: 15310.97, change: -45.12, changePercent: -0.29 },
-russell: { price: 2089.17, change: 8.45, changePercent: 0.41 }
-};
-
-Object.keys(fallbackData).forEach(id => {
-const data = fallbackData[id];
-document.getElementById(`${id}-value`).textContent = data.price.toLocaleString('en-US', {
-minimumFractionDigits: 2,
-maximumFractionDigits: 2
-});
-const changeEl = document.getElementById(`${id}-change`);
-const changeText = `${data.change >= 0 ? '+' : ''}${data.change} (${data.changePercent >= 0 ? '+' : ''}${data.changePercent}%)`;
-changeEl.textContent = changeText;
-changeEl.className = `index-change ${data.change >= 0 ? 'positive' : 'negative'}`;
-// Charts remain hidden for fallback data
-});
+noIndexFigures();
 }
 } catch (error) {
 console.error('Market data fetch failed:', error);
-// Show text data but keep charts hidden
-const fallbackData = {
-sp500: { price: 4783.45, change: 12.34, changePercent: 0.26 },
-dow: { price: 37863.80, change: 156.89, changePercent: 0.42 },
-nasdaq: { price: 15310.97, change: -45.12, changePercent: -0.29 },
-russell: { price: 2089.17, change: 8.45, changePercent: 0.41 }
-};
-
-Object.keys(fallbackData).forEach(id => {
-const data = fallbackData[id];
-document.getElementById(`${id}-value`).textContent = data.price.toLocaleString('en-US', {
-minimumFractionDigits: 2,
-maximumFractionDigits: 2
-});
-const changeEl = document.getElementById(`${id}-change`);
-const changeText = `${data.change >= 0 ? '+' : ''}${data.change} (${data.changePercent >= 0 ? '+' : ''}${data.changePercent}%)`;
-changeEl.textContent = changeText;
-changeEl.className = `index-change ${data.change >= 0 ? 'positive' : 'negative'}`;
-// Charts remain hidden for fallback data
-});
+noIndexFigures();
 }
 }
 

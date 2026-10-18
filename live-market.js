@@ -12,10 +12,13 @@
  * delay). Only while the tab is on screen and someone has moved, scrolled, typed or touched in the last 90 seconds. When a round
  * changes nothing (a market that is closed) the gap grows by half each time, up to a minute; the first change brings it back.
  * About 6 requests a minute while someone is watching, none while nobody is.
+ *
+ * Version 3 (18 Oct 2026): the home page's four index cards (S&P 500, Dow Jones, Nasdaq, Russell 2000: `<id>-value`, `<id>-change`,
+ * `#<id>-chart`) are kept fresh the same way, and their small charts are today's real line (they were a fixed up or down line).
  */
 (function () {
     'use strict';
-    var VERSION = 2;
+    var VERSION = 3;
     if (window.liveMarket && window.liveMarket.version >= VERSION) return;
     var PRICES = 'https://2vl4la6od3vfgbkv6ycbj7ewry0yxvck.lambda-url.us-east-1.on.aws/';
     var T = window.LIVE_MARKET_TEST || {};               // a browser test may shorten the times
@@ -30,6 +33,7 @@
     function idOf(sym) { return String(sym).toLowerCase().replace(/[^a-z0-9]/g, ''); }
     function money(n) { return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function changeText(c, p) { var s = p >= 0 ? '+' : ''; return s + Number(c).toFixed(2) + ' (' + s + Number(p).toFixed(2) + '%)'; }
+    var CARDS = [['sp500', '^GSPC'], ['dow', '^DJI'], ['nasdaq', '^IXIC'], ['russell', '^RUT']];
     function watching() { return !document.hidden && Date.now() - lastInput < IDLE; }
 
     function style() {
@@ -37,7 +41,7 @@
         var s = document.createElement('style'); s.id = 'lm-style';
         s.textContent = '@keyframes lmUp{0%{background:rgba(34,197,94,.35)}100%{background:transparent}}@keyframes lmDown{0%{background:rgba(239,68,68,.35)}100%{background:transparent}}'
             + '.lm-up{animation:lmUp 1.2s ease-out;border-radius:3px}.lm-down{animation:lmDown 1.2s ease-out;border-radius:3px}'
-            + '.market-item-sidebar-chart polyline:not([data-lm]){opacity:0}';      // the page's own lines are random: hidden until today's real one is in
+            + '.market-item-sidebar-chart polyline:not([data-lm]),.index-chart polyline:not([data-lm]){opacity:0}';      // the page's own lines are random: hidden until today's real one is in
         (document.head || document.documentElement).appendChild(s);
     }
     function flash(el, up) {
@@ -71,12 +75,32 @@
         return out;
     }
 
+    function cards() {                                  // the home page's four index cards, where the page has them
+        var out = [];
+        CARDS.forEach(function (c) {
+            var v = document.getElementById(c[0] + '-value');
+            if (v) out.push({ id: c[0], sym: c[1], value: v, change: document.getElementById(c[0] + '-change'), line: document.querySelector('#' + c[0] + '-chart polyline') });
+        });
+        return out;
+    }
+    function drawCard(c, s) {
+        if (!c.line || !s || !s.spark || s.spark.length < 2) return;
+        c.line.setAttribute('points', sparkPoints(s.spark, s.prev, 58));
+        c.line.setAttribute('data-lm', '1');
+        c.line.setAttribute('stroke', s.spark[s.spark.length - 1] >= (s.prev || s.spark[0]) ? '#22c55e' : '#ef4444');
+        var svg = c.line.parentNode; if (svg && svg.setAttribute) svg.setAttribute('aria-label', 'today so far');
+    }
+    function drawAll() {
+        panelRows().forEach(function (r) { if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); });
+        cards().forEach(function (c) { if (sparks[c.sym]) drawCard(c, sparks[c.sym]); });
+    }
+
     function panelValue(v, cat) {
         return cat === 'cryptocurrencies' && v < 1000 ? Number(v).toFixed(4) : money(v);
     }
-    function sparkPoints(list, prev) {
-        var all = list.concat(prev ? [prev] : []), lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), span = hi - lo || 1;
-        return list.map(function (p, i) { return (i / (list.length - 1) * 100).toFixed(1) + ',' + (28 - (p - lo) / span * 26).toFixed(1); }).join(' ');
+    function sparkPoints(list, prev, width) {
+        var all = list.concat(prev ? [prev] : []), lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), span = hi - lo || 1, w = width || 100;
+        return list.map(function (p, i) { return (i / (list.length - 1) * w).toFixed(1) + ',' + (28 - (p - lo) / span * 26).toFixed(1); }).join(' ');
     }
     function drawSpark(row, s) {
         var line = row.querySelector('.market-item-sidebar-chart polyline');
@@ -121,6 +145,19 @@
             }
         });
         if (touched) write('marketDataSidebar', store);
+        cards().forEach(function (c) {
+            var q = answer[c.sym]; if (!q || q.error) return;
+            if (q.spark) { sparks[c.sym] = { spark: q.spark, prev: q.prev, at: Date.now() }; drawCard(c, sparks[c.sym]); sparked = true; }
+            var text = money(q.price);
+            if (c.value.textContent.trim() !== text) {
+                var was = parseFloat(c.value.textContent.replace(/,/g, '')), up = isNaN(was) ? q.change >= 0 : q.price >= was, el = c.value, ch = c.change, first = isNaN(was);
+                moved++;
+                later(function () {
+                    el.textContent = text; if (!first) flash(el, up);
+                    if (ch) { ch.textContent = changeText(q.change, q.changePercent); ch.className = 'index-change ' + (q.change >= 0 ? 'positive' : 'negative'); if (!first) flash(ch, up); }
+                });
+            }
+        });
         if (sparked) saveSparks();
         return moved;
     }
@@ -128,7 +165,7 @@
     function round() {
         timer = null;
         if (!watching()) return schedule();           // looked at again at the next input or return to the tab
-        var syms = movers().map(function (m) { return m.sym; }).concat(panelRows().map(function (r) { return r.sym; }));
+        var syms = movers().map(function (m) { return m.sym; }).concat(panelRows().map(function (r) { return r.sym; }), cards().map(function (c) { return c.sym; }));
         syms = syms.filter(function (s, i) { return syms.indexOf(s) === i; }).slice(0, MAX);
         if (!syms.length || busy) return schedule();
         busy = true; rounds++;
@@ -163,7 +200,7 @@
         for (var i = 0; i < boxes.length; i++) {
             if (boxes[i].__lm) continue; boxes[i].__lm = true;
             new MutationObserver(function () {
-                panelRows().forEach(function (r) { if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); });
+                drawAll();
                 if (!timer || gap > FAST[0]) { gap = FAST[0]; if (timer) clearTimeout(timer); timer = setTimeout(round, 600); }
             }).observe(boxes[i], { childList: true });
         }
@@ -181,6 +218,7 @@
         allAt = Date.now();
         var data = read('marketDataSidebar') || {}, syms = [];
         Object.keys(data).forEach(function (cat) { var d = data[cat]; if (d && typeof d === 'object') Object.keys(d).slice(0, 6).forEach(function (n) { var sy = d[n] && d[n].symbol; if (sy && syms.indexOf(sy) < 0) syms.push(sy); }); });
+        cards().forEach(function (c) { if (syms.indexOf(c.sym) < 0) syms.push(c.sym); });
         syms = syms.filter(function (sy) { return !sparks[sy] || Date.now() - sparks[sy].at > ALL_EVERY; });
         for (var i = 0; i < syms.length; i += MAX) {
             fetch(PRICES, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tickers: syms.slice(i, i + MAX), spark: true }) })
@@ -189,13 +227,13 @@
                     if (!j || !j.data) return;
                     Object.keys(j.data).forEach(function (sy) { var q = j.data[sy]; if (q && q.spark) sparks[sy] = { spark: q.spark, prev: q.prev, at: Date.now() }; });
                     saveSparks();
-                    panelRows().forEach(function (r) { if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); });
+                    drawAll();
                 }).catch(function () { allAt = 0; });
         }
     }
 
-    function start() { loadSparks(); style(); watchPanel(); panelRows().forEach(function (r) { if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); }); setTimeout(watchPanel, 3000); timer = setTimeout(round, 1500); }
-    window.liveMarket = { version: VERSION, round: round, apply: apply, movers: movers, panelRows: panelRows, sparkPoints: sparkPoints,
+    function start() { loadSparks(); style(); watchPanel(); drawAll(); setTimeout(watchPanel, 3000); timer = setTimeout(round, 1500); }
+    window.liveMarket = { version: VERSION, round: round, apply: apply, movers: movers, panelRows: panelRows, cards: cards, sparkPoints: sparkPoints,
         state: function () { return { gap: gap, rounds: rounds, changed: changed, watching: watching(), busy: busy, lastErr: lastErr }; } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
