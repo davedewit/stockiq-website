@@ -791,7 +791,7 @@ function formatFTSEResult(apiData) {
     const allResults = apiData.results;
     let output = `
 ============================================================
-🇬🇧 UK FTSE 100 RESULTS (REAL-TIME DATA)
+🇬🇧 UK FTSE 100 RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 
 Screening Universe: 100 FTSE stocks
@@ -1276,7 +1276,7 @@ async function formatOption11Result(apiData) {
     if (!hasComprehensiveAnalysis) {
         output = `
 ============================================================
-📝 CUSTOM STOCK ANALYSIS RESULTS (REAL-TIME DATA)
+📝 CUSTOM STOCK ANALYSIS RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 
 Analysis Type: Custom Symbols
@@ -1868,7 +1868,7 @@ function formatOption2Result(apiData) {
     const notFound = Array.isArray(apiData.not_found) ? apiData.not_found : [];
     let output = `
 ============================================================
-⚡ TRADING SIGNALS GENERATOR RESULTS (REAL-TIME DATA)
+⚡ TRADING SIGNALS GENERATOR RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 
 Signals Generated: ${apiData.symbols_analyzed}
@@ -1891,7 +1891,7 @@ function formatOption22Result(apiData) {
     const strongest = Array.isArray(apiData.top_performers) ? apiData.top_performers : signals.map(s => s.symbol);
     let output = `
 ============================================================
-⚡ AUTO-DETECT TRADING SIGNALS RESULTS (REAL-TIME DATA)
+⚡ AUTO-DETECT TRADING SIGNALS RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 
 Methodology: ${reportText(apiData.methodology)}
@@ -1931,7 +1931,7 @@ function formatOption3Result(apiData, subOption) {
     
     let output = `
 ============================================================
-🎯 ${titles[subOption]} STOCK SCREENER RESULTS (REAL-TIME DATA)
+🎯 ${titles[subOption]} STOCK SCREENER RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 
 Screening Universe: ${universeSize[subOption]} ${titles[subOption]} stocks
@@ -2000,204 +2000,6 @@ Analysis Date: ${new Date().toLocaleString()}
 // Keep in step with COINS in the stockiq-option-7-1-orchestrator Lambda.
 const CRYPTO_TICKER_MAP = {"HYPE":"HYPE32196","CC":"CC37263","UNI":"UNI7083","SUI":"SUI20947","BTW":"BTW39158","TAO":"TAO22974","PUMP":"PUMP36507","WLFI":"WLFI33251","MORPHO":"MORPHO34104","PEPE":"PEPE24478","ARB":"ARB11841","VVV":"VVV35509","LIT":"LIT39125","AERO":"AERO29270","ZRO":"ZRO26997","STX":"STX4847","APT":"APT21794","DRV":"DRV35014","KAU":"KAU24382","TRUMP":"TRUMP35336","PENGU":"PENGU34466","GRASS":"GRASS32956","HASH":"HASH19960","FF":"FF38482","UB":"UB38339","SPX":"SPX28081","BP":"BP39686","APEPE":"APEPE27048","GRT":"GRT6719","CARDS":"CARDS38283","MET":"MET38353","USELESS":"USELESS36828","NPC":"NPC27960","XCN":"XCN18679","IMX":"IMX10603","SENT":"SENT38868","BR":"BR36063","ZK":"ZK24091","SUPER":"SUPER8290","JPYC":"JPYC40123","META":"META38146","ATH":"ATH30083","EDGE":"EDGE39720","BC":"BC35067","SKR":"SKR39377","DBR":"DBR31528","OPEN":"OPEN37456","DOG":"DOG30933","MELANIA":"MELANIA35347","AI":"AI40925","WAL":"WAL36119","COW":"COW19269","UAI":"UAI38841","RED":"RED21707","ESP":"ESP39548","OMI":"OMI19075","FT":"FT38544","TAG":"TAG34958","DATA":"DATA35626","GAL":"GAL11877","BABY":"BABY32198","AXL":"AXL17799","BAN":"BAN33881","METAL":"METAL21769","ARC":"ARC34926","IO":"IO29835","BIO":"BIO34812","SNEK":"SNEK25264","PC":"PC36834","EDU":"EDU24613","ID":"ID21846","COAI":"COAI38489","ARX":"ARX39970","ALT":"ALT29073","CX":"CX35735","BRETT":"BRETT29743","DEEP":"DEEP33391","RAVE":"RAVE38967","HOLO":"HOLO38309","MEGA":"MEGA38770","MASK":"MASK8536","ACU":"ACU36492","NIL":"NIL35702","ME":"ME32197","FB":"FB32941","LION":"LION35954","ONG":"ONG3217","SYN":"SYN12147","MEW":"MEW30126","MOODENG":"MOODENG33093","MOCA":"MOCA31526","UP":"UP39665","BFC":"BFC7817","MOOLAH":"MOOLAH36818","GIGGLE":"GIGGLE38470","NEIRO":"NEIRO32521","BULLA":"BULLA36769","AT":"AT38757","BNKR":"BNKR37545","BEAT":"BEAT38837","ZORA":"ZORA35931","ACX":"ACX22620","DIME":"DIME39656","GPT":"GPT36614","TRUTH":"TRUTH38178","XP":"XP36056","SPACE":"SPACE38136","EDEL":"EDEL38966","EDEN":"EDEN38513","TIG":"TIG34102","EV":"EV39394","BUCK":"BUCK31225","ZBT":"ZBT38427","CYS":"CYS39071","BSB":"BSB38889","TAKE":"TAKE38175","HYPER":"HYPER36281","BROCCOLI":"BROCCOLI35749","AIC":"AIC32968","BILL":"BILL39545","BURN":"BURN30460","BANK":"BANK36296","ACE":"ACE28674","SHARE":"SHARE39955","SBC":"SBC26456"};
 
-function formatCoinSpotResult(results, processingTime, workerDetails = []) {
-    let output = `
-============================================================
-₿ CRYPTO SCREENER RESULTS (TOP COINS BY MARKET CAP)
-============================================================
-
-Screening Universe: CoinSpot Australia
-Coins Analyzed: ${results.length}
-Processing Time: ${processingTime.toFixed(2)}s
-Analysis Date: ${new Date().toLocaleString()}
-📈 Technical Analysis: MACD, RSI, Bollinger Bands, Stochastic, Volume, Momentum
-
-`;
-    
-    if (results && results.length > 0) {
-        const sortedResults = [...results].sort((a, b) => (b.score || 0) - (a.score || 0));
-        
-        output += '🔥 TOP 10 CRYPTO BY SCORE:\n';
-        sortedResults.slice(0, 10).forEach((coin, i) => {
-            const symbol = (coin.symbol || 'N/A').padEnd(8);
-            const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            const recommendation = signalLabel(coin.recommendation);
-            const score = coin.score >= 0 ? `+${coin.score}` : `${coin.score}`;
-            output += `${(i+1).toString().padStart(2)}. ${symbol} ${price.padStart(12)} | ${recommendation.padEnd(17)} | Score: ${score}\n`;
-        });
-        
-        output += '\n';
-        
-        // Detailed analysis for top 5
-        output += '\n🎯 TOP 5 DETAILED ANALYSIS:\n';
-        output += '==================================================\n';
-        sortedResults.slice(0, 5).forEach((coin, i) => {
-            const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            output += `${i+1}. ${coin.symbol.toUpperCase()}: ${price} | ${signalLabel(coin.recommendation)} | ${horizonLabel(coin.timeframe)} | Score: ${coin.score >= 0 ? '+' : ''}${coin.score}\n`;
-            output += '\n';
-            
-            // Performance section
-            output += '📊 Performance:\n';
-            output += `   24h: ${coin.change_24h >= 0 ? '+' : ''}${coin.change_24h.toFixed(1)}% | 7d: ${coin.change_7d >= 0 ? '+' : ''}${coin.change_7d.toFixed(1)}% | 30d: ${coin.change_30d >= 0 ? '+' : ''}${coin.change_30d.toFixed(1)}%\n`;
-            output += '\n';
-            
-            // Indicators section
-            if (coin.macd_signal || coin.rsi_signal || coin.bb_signal) {
-                output += '📈 Indicators:\n';
-                if (coin.macd_signal) output += `   MACD: ${coin.macd_signal}\n`;
-                if (coin.rsi && coin.rsi_signal) output += `   RSI: ${coin.rsi.toFixed(1)} - ${coin.rsi_signal.split(' - ')[0]}\n`;
-                if (coin.bb_signal) output += `   Bollinger Bands: ${coin.bb_signal}\n`;
-                if (coin.momentum_signal) output += `   Momentum: ${coin.momentum_signal}\n`;
-                output += '\n';
-            }
-            
-            // Confidence section
-            if (coin.confidence || coin.profit_probability) {
-                output += '🔄 Confidence:\n';
-                if (coin.confidence) output += `   Confidence: ${coin.confidence}\n`;
-                if (coin.profit_probability) output += `   Model probability estimate: ${coin.profit_probability.toFixed(0)}%\n`;
-                output += '\n';
-            }
-            
-            // Confidence factors section (matching 7.2 format)
-            if (coin.confidence_factors && coin.confidence_factors.length > 0) {
-                output += '🎯 CONFIDENCE FACTORS:\n';
-                coin.confidence_factors.forEach(factor => {
-                    output += `• ${factor}\n`;
-                });
-                output += '\n';
-            }
-            
-            // Risk Management section
-            if (coin.stop_loss && coin.take_profit) {
-                const stopStr = coin.stop_loss >= 1 ? `$${coin.stop_loss.toFixed(2)}` : `$${coin.stop_loss.toFixed(6)}`;
-                const tpStr = coin.take_profit >= 1 ? `$${coin.take_profit.toFixed(2)}` : `$${coin.take_profit.toFixed(6)}`;
-                output += '📏 Reference levels (calculated automatically, not instructions):\n';
-                output += `   Lower reference level: ${stopStr}\n`;
-                output += `   Upper reference level: ${tpStr}\n`;
-                if (coin.buy_limit) {
-                    const buyLimitStr = coin.buy_limit >= 1 ? `$${coin.buy_limit.toFixed(2)}` : `$${coin.buy_limit.toFixed(6)}`;
-                    output += `   Pullback level: ${buyLimitStr}\n`;
-                }
-                if (coin.buy_stop) {
-                    const buyStopStr = coin.buy_stop >= 1 ? `$${coin.buy_stop.toFixed(2)}` : `$${coin.buy_stop.toFixed(6)}`;
-                    output += `   Breakout level: ${buyStopStr}\n`;
-                }
-                if (coin.support && coin.resistance) {
-                    const supportStr = coin.support >= 1 ? `$${coin.support.toFixed(2)}` : `$${coin.support.toFixed(6)}`;
-                    const resistanceStr = coin.resistance >= 1 ? `$${coin.resistance.toFixed(2)}` : `$${coin.resistance.toFixed(6)}`;
-                    output += `   Support: ${supportStr}\n`;
-                    output += `   Resistance: ${resistanceStr}\n`;
-                }
-                output += '\n';
-            }
-            
-            // Score breakdown
-            if (coin.score_breakdown && coin.score_breakdown.length > 0) {
-                output += '📊 Score Breakdown:\n';
-                coin.score_breakdown.forEach(breakdown => {
-                    if (breakdown.includes(': ')) {
-                        const [component, value] = breakdown.split(': ');
-                        output += `   ${component}: ${value}\n`;
-                    }
-                });
-                output += `\n🧮 Total Score: ${coin.score >= 0 ? '+' : ''}${coin.score}\n\n`;
-                output += '📊 SCORE RANGES:\n';
-                output += '   +7 and above: Strongly positive\n';
-                output += '   +4 to +6: Positive\n';
-                output += '   +2 to +3: Slightly positive\n';
-                output += '   -1 to +1: Mixed\n';
-                output += '   -3 to -2: Slightly negative\n';
-                output += '   -5 to -4: Negative\n';
-                output += '   Below -5: Strongly negative\n';
-            }
-            
-            output += '\n' + '-'.repeat(50) + '\n\n';
-        });
-        
-        const buyRecommendations = sortedResults.filter(c => c.recommendation === 'BUY' || c.recommendation === 'STRONG BUY').length;
-        const holdRecommendations = sortedResults.filter(c => c.recommendation === 'HOLD' || c.recommendation === 'CONSIDER').length;
-        const avoidRecommendations = sortedResults.filter(c => c.recommendation === 'AVOID' || c.recommendation === 'SELL').length;
-        
-        output += '📊 MARKET OVERVIEW\n';
-        output += '==============================\n';
-        output += `Positive signals: ${buyRecommendations} | Mixed: ${holdRecommendations} | Negative: ${avoidRecommendations}\n`;
-        const marketSentiment = buyRecommendations > avoidRecommendations ? 'BULLISH' : avoidRecommendations > buyRecommendations ? 'BEARISH' : 'NEUTRAL';
-        output += `Market Sentiment: ${marketSentiment}\n\n`;
-        
-        // Best performers (7d)
-        const bestPerformers = sortedResults.sort((a, b) => (b.change_7d || 0) - (a.change_7d || 0)).slice(0, 5);
-        output += '🏆 BEST PERFORMERS (7D)\n';
-        output += '==============================\n';
-        bestPerformers.forEach((coin, i) => {
-            const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            output += `${i+1}. ${coin.symbol.toUpperCase().padEnd(12)} ${(coin.change_7d || 0) >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(1)}% (${price}) - ${signalLabel(coin.recommendation)}\n`;
-        });
-        output += '\n';
-        
-        // Worst performers (7d)
-        const worstPerformers = sortedResults.sort((a, b) => (a.change_7d || 0) - (b.change_7d || 0)).slice(0, 5);
-        output += '📉 WORST PERFORMERS (7D)\n';
-        output += '==============================\n';
-        worstPerformers.forEach((coin, i) => {
-            const price = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(6)}`;
-            output += `${i+1}. ${coin.symbol.toUpperCase().padEnd(12)} ${(coin.change_7d || 0) >= 0 ? '+' : ''}${(coin.change_7d || 0).toFixed(1)}% (${price}) - ${signalLabel(coin.recommendation)}\n`;
-        });
-        output += '\n';
-        
-        // Technical analysis summary
-        output += '🔬 TECHNICAL ANALYSIS SUMMARY\n';
-        output += '==============================\n';
-        output += 'Indicators Used:\n';
-        output += '• MACD (12,26,9) - Trend and momentum\n';
-        output += '• RSI (14) - Overbought/oversold conditions\n';
-        output += '• Bollinger Bands (20,2) - Volatility and mean reversion\n';
-        output += '• Stochastic (14) - Price momentum\n';
-        output += '• Volume Analysis - Confirmation of moves\n';
-        output += '• Momentum (5d/10d) - Short-term trend strength\n\n';
-        
-        // Top 5 recommendations table
-        output += '🎯 TOP 5 BY SCORE\n';
-        output += '=================================================================\n';
-        output += `${'#'.padEnd(3)} ${'COIN'.padEnd(6)} ${'PRICE'.padEnd(10)} ${'LOWER LVL'.padEnd(10)} ${'UPPER LVL'.padEnd(12)} ${'SIGNAL'.padEnd(10)}\n`;
-        output += '-----------------------------------------------------------------\n';
-        sortedResults.slice(0, 5).forEach((coin, i) => {
-            const priceStr = coin.price >= 1 ? `$${coin.price.toFixed(2)}` : `$${coin.price.toFixed(4)}`;
-            const stopStr = coin.stop_loss >= 1 ? `$${coin.stop_loss.toFixed(2)}` : `$${coin.stop_loss.toFixed(4)}`;
-            const tpStr = coin.take_profit >= 1 ? `$${coin.take_profit.toFixed(2)}` : `$${coin.take_profit.toFixed(4)}`;
-            output += `${(i+1).toString().padEnd(3)} ${coin.symbol.toUpperCase().padEnd(6)} ${priceStr.padEnd(10)} ${stopStr.padEnd(10)} ${tpStr.padEnd(12)} ${signalLabel(coin.recommendation)}\n`;
-        });
-        output += '\n';
-        
-        // Disclaimer
-        output += '⚠️ DISCLAIMER\n';
-        output += '==============================\n';
-        output += 'This analysis is automated, general information only. It is not financial advice\n';
-        output += 'and not a recommendation to buy or sell. StockIQ is not a licensed financial adviser.\n';
-        output += 'Always do your own research before investing.\n';
-        output += 'Cryptocurrency trading involves significant risk.\n\n';
-        
-        output += '📊 ANALYSIS SUMMARY:\n';
-        output += `• Total coins analyzed: ${sortedResults.length}\n`;
-        if (workerDetails.length > 0) {
-            workerDetails.forEach(worker => {
-                output += `• Worker ${worker.worker}: ${worker.coins} coins\n`;
-            });
-        }
-        output += `• Positive signals: ${buyRecommendations}\n`;
-        output += `• Mixed signals: ${holdRecommendations}\n`;
-        output += `• Negative signals: ${avoidRecommendations}\n`;
-        output += `• Processing time: ${processingTime.toFixed(2)} seconds\n`;
-    } else {
-        output += 'No results available\n';
-    }
-    
-    output += `\n✅ Real-time CoinSpot comprehensive crypto analysis complete!`;
-    
-    const htmlOutput = `<pre style="white-space: pre-wrap; font-family: monospace;">${output}</pre>`;
-    
-    return { type: 'coinspot_screener', data: htmlOutput };
-}
 
 function formatSingleCoinResult(apiData, coinSymbol) {
     // The report comes ready-made from the single-stock report function (its coin form): chart, 0-100 score, the
@@ -2225,7 +2027,7 @@ function formatASXResult(apiData, subOption) {
     
     let output = `
 ============================================================
-🇦🇺 ${titles[subOption]} RESULTS (REAL-TIME DATA)
+🇦🇺 ${titles[subOption]} RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 
 Screening Universe: ${universeSize[subOption]} ASX stocks
@@ -3217,7 +3019,7 @@ const NIKKEI_COMPANY_NAMES = {
 function formatMarketResult(apiData, r, universeSize) {
     let output = `
 ============================================================
-${r.heading} RESULTS (REAL-TIME DATA)
+${r.heading} RESULTS (LATEST AVAILABLE PRICES)
 ============================================================
 Screening Universe: ${universeSize} ${r.stocks}
 Market Type: ${r.exchange}

@@ -259,7 +259,12 @@
     function answeredHtml(list) {
         if (!list.length) return '';
         const word = { done: ['done', 'good'], yes: ['yes: for the next session', 'info'], no: ['not now', 'warn'] };
-        return `<details class="ad-card"><summary class="ad-label" style="cursor: pointer; margin: 0;">Answered <span class="ad-sub">${list.length}</span></summary><ul class="ad-plain">${list.map(p => { const w = word[p.status] || [p.status, 'info']; return `<li>${esc(p.title)} <span class="ad-pill ${w[1]}">${esc(w[0])}</span> <span class="ad-sub">${p.answered ? esc(day(p.answered)) : ''}</span></li>`; }).join('')}</ul></details>`;
+        // Straight under "Decisions for you" (18 Oct 2026, the owner: "so i can easily see without having to scroll down"):
+        // the latest three on show, the rest folded
+        const li = p => { const w = word[p.status] || [p.status, 'info']; return `<li>${esc(p.title)} <span class="ad-pill ${w[1]}">${esc(w[0])}</span> <span class="ad-sub">${p.answered ? esc(day(p.answered)) : ''}</span></li>`; };
+        const recent = list.slice(0, 3), older = list.slice(3);
+        return `<div class="ad-card" id="ad-answered"><span class="ad-label">Answered <span class="ad-sub">${list.length}</span></span><ul class="ad-plain">${recent.map(li).join('')}</ul>`
+            + (older.length ? `<details><summary class="ad-sub" style="cursor: pointer;">${older.length} earlier</summary><ul class="ad-plain">${older.map(li).join('')}</ul></details>` : '') + '</div>';
     }
 
     function render() {
@@ -273,7 +278,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${propsHtml(data.open || [])}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}${answeredHtml(data.answered || [])}`;
+            ${tilesHtml(data)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
     }
 
     function reveal() {
