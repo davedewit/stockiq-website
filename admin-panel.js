@@ -172,14 +172,13 @@
     // AWS this month (17 Oct 2026): the bill so far and Lambda's calls against the free million, read once a day by the function
     function usageMessage(u) {
         if (!u) return 'Not done: the figures could not be read.';
-        const fresh = u.costAt && Date.now() - Date.parse(u.costAt) < 120000;
-        if (u.costError) return 'AWS figures read just now: the calls. The bill could not be read just now; the figure shown is the last one read.';
-        return 'AWS figures read just now: the calls' + (fresh ? ' and the bill.' : u.costAt ? `. The bill was read ${ago(u.costAt)}, under 6 hours ago, so it was not read again (each reading costs $0.01).` : '.');
+        return u.costError ? 'Read just now: the calls. The bill could not be read just now; the figure shown is the last one read.' : 'Read just now, free: the calls and the bill (as AWS last updated it).';
     }
     function usageHtml(u) {
         if (!u) return '<div class="ad-sub" style="margin-top: 10px;">AWS this month: not read yet (the scheduled run reads it once a day).</div>';
         const chips = [];
-        if (u.cost !== undefined) chips.push(`<span class="ad-pill ${u.cost < 1 ? 'good' : u.cost < 1.5 ? 'warn' : 'bad'}">AWS bill this month so far: $${Number(u.cost).toFixed(2)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
+        if (u.costForecast) chips.push(`<span class="ad-pill ${u.costForecast < 1 ? 'good' : u.costForecast < 1.5 ? 'warn' : 'bad'}">AWS forecasts about $${Number(u.costForecast).toFixed(2)} for the month</span>`);
+        if (u.cost !== undefined) chips.unshift(`<span class="ad-pill ${u.cost < 1 ? 'good' : u.cost < 1.5 ? 'warn' : 'bad'}">AWS bill this month so far: $${Number(u.cost).toFixed(2)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
         if (u.calls !== undefined) {
             const share = u.calls / (u.free || 1000000), f = u.forecast ? u.forecast / (u.free || 1000000) : share;
             chips.push(`<span class="ad-pill ${f < 0.7 ? 'good' : f < 1 ? 'warn' : 'bad'}">Lambda calls: ${Number(u.calls).toLocaleString('en-US')} of ${(u.free || 1000000).toLocaleString('en-US')} free (${Math.round(share * 100)}%)</span>`);
@@ -188,10 +187,10 @@
         }
         const err = u.costError || u.callsError ? ` <span class="ad-sub">(${u.costError ? 'the bill could not be read' : ''}${u.costError && u.callsError ? '; ' : ''}${u.callsError ? 'the calls could not be read' : ''})</span>` : '';
         // each figure with its own age (17 Oct 2026: one "read 6 h ago" was the calls' age, while the bill could be 3 days old)
-        const ages = [u.calls !== undefined ? `calls read ${esc(ago(u.at))}` : '', u.cost !== undefined && u.costAt ? `bill read ${esc(ago(u.costAt))}` : ''].filter(Boolean).join(' · ');
+        const ages = [u.calls !== undefined ? `calls read ${esc(ago(u.at))}` : '', u.cost !== undefined && u.costAt ? `bill as AWS last updated it, ${esc(ago(u.costAt))}` : ''].filter(Boolean).join(' · ');
         return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month (${ages}):</span><div class="ad-chips">${chips.join('')}</div>${err}
             <button type="button" class="ad-btn" data-ad="usage" ${busy ? 'disabled' : ''}>${busy === 'usage' ? 'Reading…' : '↻ Refresh now'}</button>
-            <div class="ad-sub" style="margin-top: 4px;">By itself it reads the calls about once a day and the bill every 3 days. Refresh now reads the calls at once (free), and the bill too if it was read more than 6 hours ago: each reading of the bill costs $0.01, and AWS itself updates that figure only a few times a day.</div></div>`;
+            <div class="ad-sub" style="margin-top: 4px;">By itself it reads both about once a day; Refresh now reads them at once. Both are free to read: the bill comes from your AWS budget, which AWS updates a few times a day, and the calls from CloudWatch.</div></div>`;
     }
 
     // The improvements (17 Oct 2026; the owner: "put the list of future improvements to track them so i know which was run which is
