@@ -339,6 +339,25 @@
     // "Do you need to check in?" (19 Oct 2026, the owner: "something like do i need to check in with you AI or are we good ... then i
     // can go there on my phone see if you need me"). One answer from what the page already knows: the last session (its latest line in
     // "What changed lately"), the full check, decisions waiting, the scheduled runs, the site check, the bill.
+    // What comes next, soonest first (19 Oct 2026, the owner: "where do i see where things are at eg whats happening next when i need to
+    // check in with you"): his next check-in, the next full check and weekly review, the next trials decided, the month's goal, the
+    // real-money decision.
+    function comingUp(d, needNow, last) {
+        const plan = d.plan || {}, now = Date.now(), DAY = 86400000, at = (iso) => Date.parse(iso.length === 10 ? iso + 'T12:00:00Z' : iso);
+        const fmt = (t) => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+        const items = [];
+        if (needNow) items.push([now, '<b>Your next check-in: now</b> (see above)']);
+        else if (last) items.push([at(last.at) + 7 * DAY, '<b>Your next check-in</b>: say hi by then (7 days after the last session)']);
+        if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The next full check of the site, by itself (with the daily update), emailed to you']);
+        if (d.nextReview) items.push([at(d.nextReview), "The autopilot's next weekly review, by itself"]);
+        (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
+            .forEach(x => items.push([at(x.decide), 'Decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80))]));
+        if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
+        items.push([at(JUDGE_ON), 'Real money: the decision']);
+        const rows = items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).slice(0, 7);
+        return `<div style="margin-top: 10px; font-weight: 600; font-size: 0.9rem;">Coming up</div><ul style="list-style: none; margin: 2px 0 0; padding: 0; line-height: 1.55; font-size: 0.88rem;">`
+            + rows.map(([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${t <= now ? 'Now' : esc(fmt(t))}</span> ${text}</li>`).join('') + '</ul>';
+    }
     function needMeHtml(d) {
         const plan = d.plan || {}, now = Date.now(), daysSince = (iso) => iso ? Math.floor((now - Date.parse(iso)) / 86400000) : null;
         const urgent = [], soon = [], good = [];
@@ -365,7 +384,8 @@
         const why = (urgent.length ? urgent : soon.length ? soon : good);
         return `<div class="ad-card run${tone === 'bad' ? ' bad' : ''}" style="padding-top: 12px; padding-bottom: 12px;"><span class="ad-label">🤖 Do you need to check in?</span>
             <div style="margin-top: 4px;"><span class="${tone === 'good' ? 'ok' : tone === 'bad' ? 'red' : ''}" style="font-weight: 800; font-size: 1.15rem;${tone === 'warn' ? ' color: var(--ad-amber);' : ''}">${word}</span></div>
-            <div class="ad-sub" style="margin-top: 4px;">${say}${esc(why.join('; '))}.${(urgent.length || soon.length) && good.length ? ' Otherwise ' + esc(good.join(', ')) + '.' : ''}</div></div>`;
+            <div class="ad-sub" style="margin-top: 4px;">${say}${esc(why.join('; '))}.${(urgent.length || soon.length) && good.length ? ' Otherwise ' + esc(good.join(', ')) + '.' : ''}</div>
+            ${comingUp(d, urgent.length || soon.length, last)}</div>`;
     }
     // The Overview, since 19 Oct 2026 (the owner: "are things overlapping and just gone crazy ... i just want the site fucking good and to
     // see progress"): his two questions first (do you need me; how is it doing: the real-money card with the dial, the month's goal),
@@ -383,13 +403,32 @@
             + adRow('audit', a ? `🔎 <b>Site check</b>: <span class="${probs ? 'red' : 'ok'}">${probs ? probs + ' problem' + (probs === 1 ? '' : 's') : 'no problems'}</span> <span class="ad-sub">${esc(day2(a.at))}, with the daily update</span>` : '', auditHtml(a))
             + adRow('answered', `✅ <b>Decisions you answered</b> <span class="ad-sub">${(d.answered || []).length}</span>`, answeredHtml(d.answered || []))
             + adRow('review', `📋 <b>Weekly review</b> <span class="ad-sub">${d.review ? esc(day2(d.review.at)) : 'not written yet'}</span>`, reviewHtml(d.review, d.nextReview))
+            + adRow('selfrun', '🔁 <b>What runs by itself</b>, and when each last ran', selfRunHtml(d))
             + adRow('health', '⚙️ <b>How it is running, and the settings in force</b>', healthHtml(d.health, d.settings, d.screeners || []));
     }
     if (document.addEventListener) document.addEventListener('toggle', (e) => { const k = e.target && e.target.getAttribute && e.target.getAttribute('data-ad-row'); if (k) { if (e.target.open) adOpen.add(k); else adOpen.delete(k); } }, true);
+    // What runs without anyone (19 Oct 2026, the owner: "so i know whats going on where its at"): each job, how often, and when it
+    // last ran, with a green or red dot by whether that is as recent as it should be.
+    function selfRunHtml(d) {
+        const plan = d.plan || {}, now = Date.now(), h = d.health, w = plan.weekly, a = plan.audit, r = d.review;
+        const ago = (iso) => { if (!iso) return 'not yet'; const m = (now - Date.parse(iso)) / 60000; return m < 90 ? Math.max(1, Math.round(m)) + ' min ago' : m < 48 * 60 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+        const fresh = (iso, hours) => iso && now - Date.parse(iso) <= hours * 3600000;
+        const trials = ((plan.items || []).filter(x => x.status === 'running')).length;
+        const jobs = [
+            [fresh(h && h.at, 2), 'The autopilot: trades, with the half-hourly stop watch; its budget follows its results', 'every 30 minutes', h && h.at],
+            [fresh(a && a.at, 4 * 24), 'The site check: links, search basics, stale pages, made-up figures', 'with every daily update (Mon to Sat, while your Mac is on)', a && a.at],
+            [fresh(plan.dailyReview ? plan.dailyReview + 'T23:59:00Z' : null, 4 * 24), 'The daily review by Claude: reads the site, puts proposals here', 'once a day, after the daily update', plan.dailyReview ? plan.dailyReview + 'T12:00:00Z' : null],
+            [fresh(w && w.at, 9 * 24) && w && w.passed === w.total, 'The full check of the site: test suites, figures across pages, a rotating set of buttons; emailed to you', 'every 7 days, with the daily update', w && w.at],
+            [fresh(r && r.at, 8 * 24), 'The autopilot\'s weekly review: written by itself, shown in the row above', 'every 7 days', r && r.at],
+            [true, `Its trials and improvements: ${trials} being tested now (the Improvements tab)`, 'each decided on its day', null]];
+        return `<div class="ad-card"><span class="ad-label">🔁 What runs by itself</span><ul style="list-style: none; margin: 4px 0 0; padding: 0; line-height: 1.6;">`
+            + jobs.map(([ok, what, how, at]) => `<li><span style="color: ${ok ? 'var(--ad-green)' : 'var(--ad-red)'};">●</span> ${esc(what)} <span class="ad-sub">· ${esc(how)}${at ? ' · last ' + esc(ago(at)) : ''}</span></li>`).join('')
+            + `</ul><div class="ad-sub" style="margin-top: 6px;">"Do you need to check in?" at the top turns amber or red when one of these fails or is late, when a decision waits, or when 7 days pass without a session. Nothing changes the site's code by itself: fixes and improvements are made in a session, when you say hi.</div></div>`;
+    }
     function weeklyHtml(w) {
         if (!w) return '';
         const age = (Date.now() - Date.parse(w.at)) / 86400000, ok = w.passed === w.total, late = age > 8;
-        const groupName = { '1': 'Test suites on the live code', '2': 'The figures agree across the site', '3': 'Every analysis button, end to end', '4': 'The background run, visitors\' limits and your live pages' };
+        const groupName = { '1': 'Test suites on the live code', '2': 'The figures agree across the site', '3': 'Analysis buttons, end to end (six screeners in turn)', '4': 'The background run, visitors\' limits and your live pages' };
         const items = w.items || [], groups = {};
         items.forEach(([g, name, pass]) => { (groups[g] = groups[g] || []).push([name, pass]); });
         const list = Object.keys(groups).sort().map(g => `<div style="margin-top: 8px; font-weight: 600; color: var(--text-primary);">${esc(groupName[g] || g)} <span class="ad-sub">${groups[g].filter(x => x[1]).length} of ${groups[g].length}</span></div>`
