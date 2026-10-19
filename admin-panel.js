@@ -177,6 +177,18 @@
     // 90% or more, a lead over the S&P 500 fund of at least 5% a year (the owner's bar), and still ahead with its three largest gains
     // taken out. Before the day: how each check stands now. Never more than a small trial; never financial advice.
     const JUDGE_ON = '2027-10-11', JUDGE_WORDS = '11 Oct 2027', LEAD_A_YEAR = 5;
+    // Claude's own estimate (19 Oct 2026, the owner: "it tells me through the site"): the chance the account is ahead of an S&P 500 fund
+    // after a year, written at every weekly session with the reason (admin.py estimate), and how it has moved.
+    function estimateHtml() {
+        const list = ((data && data.plan) || {}).estimates || [];
+        if (!list.length) return '';
+        const last = list[list.length - 1], prev = list.length > 1 ? list[list.length - 2] : null;
+        const move = prev ? (last.pct > prev.pct ? ` <span class="ok">▲ from ${prev.pct}%</span>` : last.pct < prev.pct ? ` <span class="red">▼ from ${prev.pct}%</span>` : ` <span class="ad-sub">unchanged</span>`) : '';
+        const when = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        return `<div style="margin-top: 8px;"><b>Claude's estimate:</b> <span style="font-size: 1.1rem; font-weight: 800;">${last.pct}%</span> chance the account is ahead of an S&P 500 fund after a year${move} <span class="ad-sub">(${esc(when(last.at))}; updated every weekly session)</span>
+            <div class="ad-sub" style="margin-top: 2px;">${esc(last.why)}</div>
+            ${list.length > 1 ? `<div class="ad-sub" style="margin-top: 2px;">Earlier: ${list.slice(0, -1).reverse().slice(0, 6).map(e => `${esc(when(e.at))} ${e.pct}%`).join(' · ')}</div>` : ''}</div>`;
+    }
     function decisionHtml() {
         const f = liveAccount();
         if (!f || !f.versus || !(f.fundValue > 0) || !f.createdAt) return '';
@@ -199,6 +211,7 @@
             <div class="ad-sub" style="margin-top: 4px;">${verdict[2]}</div>
             <ul style="list-style: none; padding: 0; margin: 8px 0 0; line-height: 1.7;">${checks.map(row).join('')}</ul>
             <div style="margin-top: 6px;"><b>The money it needs on the day:</b> at least what the same $100,000 in an S&P 500 fund is worth then, plus ${LEAD_A_YEAR}%. If the day were today: the fund ${usd(f.fundValue)} → at least <b>${usd(f.fundValue * (1 + LEAD_A_YEAR / 100))}</b>; the account is <span class="${f.accountValue >= f.fundValue * (1 + LEAD_A_YEAR / 100) ? 'ok' : 'red'}">${usd(f.accountValue)}</span>. <span class="ad-sub">In a year the S&P rises 10%, that is about $115,500.</span></div>
+            ${estimateHtml()}
             ${confidenceHtml(f.versus)}
             <div class="ad-sub" style="margin-top: 6px;">Fixed in advance on 19 Oct 2026, so a lucky stretch cannot decide it. Practice money cannot show real fills, fees, currency costs or tax; a licensed adviser is worth a short session before real money. Not financial advice.</div></div>`;
     }
