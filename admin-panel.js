@@ -63,6 +63,15 @@
         #admin-panel .ad-bar.met > span { background: var(--ad-green); }
         #admin-panel .ad-pill { display: inline-block; font-size: 0.78rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
         #admin-panel .ad-pill.good { background: var(--ad-green-bg); color: var(--ad-green); } #admin-panel .ad-pill.warn { background: var(--ad-amber-bg); color: var(--ad-amber); }
+        #admin-panel .ad-rows { margin-top: 14px; }
+        #admin-panel .ad-row { border-top: 1px solid var(--border-color); }
+        #admin-panel .ad-rows .ad-row:last-child { border-bottom: 1px solid var(--border-color); }
+        #admin-panel .ad-row > summary { cursor: pointer; list-style: none; padding: 11px 2px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+        #admin-panel .ad-row > summary::-webkit-details-marker { display: none; }
+        #admin-panel .ad-row > summary::before { content: "\\25B8"; color: var(--text-secondary); }
+        #admin-panel .ad-row[open] > summary::before { content: "\\25BE"; }
+        #admin-panel .ad-row-body > .ad-card { margin-top: 0; }
+        #admin-panel .ad-row-body > .ad-card > .ad-label:first-child { display: none; }
         #admin-panel .ad-dial { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 6px 0; }
         #admin-panel .ad-dial-side { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--text-secondary); max-width: 260px; }
         #admin-panel .ad-pill.bad { background: var(--ad-red-bg); color: var(--ad-red); } #admin-panel .ad-pill.info { background: var(--ad-blue-bg); color: var(--ad-blue); }
@@ -113,23 +122,6 @@
         return Object.assign({}, g, { live: false, waiting });
     }
 
-    function tilesHtml(d) {
-        const g = withLive(d.goal), h = d.health, open = (d.open || []).length;
-        const tile = (kind, label, value, sub) => `<div class="ad-tile ${kind}"><div class="ad-tile-label">${label}</div><div class="ad-tile-value">${value}</div><div class="ad-tile-sub">${sub}</div></div>`;
-        const out = [];
-        if (g) {
-            const gain = g.value - 100000;
-            out.push(g.waiting ? tile('', 'Practice account', '…', 'getting the latest prices') : tile(gain >= 0 ? 'good' : 'bad', 'Practice account', usd(g.value), `${money(gain)} since the start${g.live ? '' : ' (an estimate: the latest prices did not come in)'}`));
-            const met = [g.trades >= g.tradesGoal, g.n > 0 && g.avg > g.avgGoal, g.value >= g.valueGoal].filter(Boolean).length;
-            out.push(tile(met === 3 ? 'good' : met ? 'warn' : 'bad', esc(g.name), `${met} of 3 met`, `${g.daysLeft} days left (due ${esc(g.due)})`));
-        }
-        out.push(tile(open ? 'warn' : 'good', 'Decisions for you', open ? String(open) : '✓ None', open ? 'see below and answer' : 'nothing waiting'));
-        if (h) {
-            const late = Date.now() - Date.parse(h.at) > 70 * 60000;
-            out.push(tile(h.failed ? 'bad' : late ? 'warn' : 'good', 'Running', h.failed ? `${h.failed} error${h.failed === 1 ? '' : 's'}` : late ? 'Late' : '✓ OK', `last run ${esc(ago(h.at))}`));
-        } else out.push(tile('warn', 'Running', 'Not yet', 'no scheduled run recorded'));
-        return `<div class="ad-tiles">${out.join('')}</div>`;
-    }
 
     // How sure the record is that the account has been ahead of an S&P 500 fund SO FAR (19 Oct 2026, agreed with the owner): from the
     // daily gap between the account and the fund since it began (the Practice portfolio's own sums). Nothing under 30 trading days:
@@ -206,6 +198,7 @@
             <div class="ad-goal-head" style="margin-top: 6px;"><span class="ad-goal-now">${verdict[0]}</span> <span class="ad-pill ${verdict[1]}">${due ? 'decided ' + JUDGE_WORDS : met + ' of 4 so far'}</span></div>
             <div class="ad-sub" style="margin-top: 4px;">${verdict[2]}</div>
             <ul style="list-style: none; padding: 0; margin: 8px 0 0; line-height: 1.7;">${checks.map(row).join('')}</ul>
+            ${confidenceHtml(f.versus)}
             <div class="ad-sub" style="margin-top: 6px;">Fixed in advance on 19 Oct 2026, so a lucky stretch cannot decide it. Practice money cannot show real fills, fees, currency costs or tax; a licensed adviser is worth a short session before real money. Not financial advice.</div></div>`;
     }
     function goalHtml(g) {
@@ -220,7 +213,6 @@
             ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(${g.n} trades; the real average is probably between ${signed(g.avg - 2 * g.se, 2)}% and ${signed(g.avg + 2 * g.se, 2)}%)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
             ${row(g.live ? 'The practice account, at the latest prices' : g.waiting ? 'The practice account (getting the latest prices)' : 'The practice account, about (an estimate: the latest prices did not come in)', g.waiting ? '…' : `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.waiting ? null : Math.max(0, (g.value - START) / (g.valueGoal - START) * 100))}
             ${g.waiting ? '' : `<div class="ad-sub" style="margin: -4px 0 6px;">${g.value >= START ? `${usd(g.value - START)} above the ${usd(START)} it started with` : `<span class="red">${usd(START - g.value)} below the ${usd(START)} it started with</span>`}${g.value < g.valueGoal ? ` · ${usd(g.valueGoal - g.value)} to go` : ' · target reached'}. The bar runs from the start to the target.</div>`}
-            ${confidenceHtml(g.versus)}
             <div class="ad-sub" style="margin-top: 8px;">Fake money. These targets are what would count as progress, set on 12 Oct before the results were in; they are not forecasts.</div></div>`;
     }
 
@@ -339,17 +331,6 @@
     }
 
     // The short version for the Overview: how many, what is being tested (soonest decision first) and the latest three done
-    function planSummaryHtml(pl) {
-        if (!pl || !pl.items) return '';
-        const items = pl.items, by = (st) => items.filter(e => e.status === st);
-        const running = by('running').sort((a, b) => (a.decide || '').localeCompare(b.decide || ''));
-        const done = items.filter(e => e.status === 'kept' || e.status === 'removed').sort((a, b) => (b.decided || '').localeCompare(a.decided || ''));
-        const left = (e) => { const b = Date.parse(e.decide); if (!b) return ''; const d = Math.ceil((b - Date.now()) / 86400000); return d <= 0 ? 'decide now' : d + ' day' + (d === 1 ? '' : 's'); };
-        return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${by('idea').length} next · ${by('kept').length} kept · ${by('removed').length} taken out</span></span>
-            <ul class="ad-lines">${running.slice(0, 3).map(e => `<li><b>Testing:</b> ${esc(e.what)} <span class="ad-pill info">${esc(left(e))}</span></li>`).join('')}
-            ${done.slice(0, 3).map(e => `<li class="${e.status === 'kept' ? 'good' : ''}"><b>${e.status === 'kept' ? '✓ Kept' : 'Taken out'}:</b> ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span></li>`).join('')}</ul>
-            <button type="button" class="ad-btn" data-ad-view="improvements">See every improvement: what is next and the history →</button></div>`;
-    }
 
     // The site checked every night (check-tools/site_audit.py, run by the daily deploy; 18 Oct 2026, the owner: "why can't you
     // actively do this every 24+ hours"). Problems first; each new since the night before is marked. A session works through them.
@@ -386,6 +367,25 @@
             <div style="margin-top: 4px;"><span class="${tone === 'good' ? 'ok' : tone === 'bad' ? 'red' : ''}" style="font-weight: 800; font-size: 1.15rem;${tone === 'warn' ? ' color: var(--ad-amber);' : ''}">${word}</span></div>
             <div class="ad-sub" style="margin-top: 4px;">${say}${esc(why.join('; '))}.${(urgent.length || soon.length) && good.length ? ' Otherwise ' + esc(good.join(', ')) + '.' : ''}</div></div>`;
     }
+    // The Overview, since 19 Oct 2026 (the owner: "are things overlapping and just gone crazy ... i just want the site fucking good and to
+    // see progress"): his two questions first (do you need me; how is it doing: the real-money card with the dial, the month's goal),
+    // decisions only when there are some, what changed; the rest one row each that opens in place. The four tiles (they repeated the
+    // goal and the check-in answer) and the improvements summary (it repeated the Improvements tab) went.
+    const adOpen = new Set();
+    function adRow(key, summary, inner, open) {
+        if (!inner) return '';
+        return `<details class="ad-row" data-ad-row="${key}" ${adOpen.has(key) || open ? 'open' : ''}><summary>${summary}</summary><div class="ad-row-body">${inner}</div></details>`;
+    }
+    function rowsHtml(d) {
+        const plan = d.plan || {}, w = plan.weekly, a = plan.audit, day2 = (iso) => { const x = new Date(iso); return isNaN(x) ? '' : x.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+        const wOk = w && w.passed === w.total, probs = a ? (a.findings || []).filter(f => f.level === 'problem').length : 0;
+        return adRow('weekly', w ? `🧪 <b>Full check of the site</b>: <span class="${wOk ? 'ok' : 'red'}">${wOk ? 'all ' + w.total + ' passed' : (w.total - w.passed) + ' of ' + w.total + ' failed'}</span> <span class="ad-sub">${esc(day2(w.at))}, every 7 days</span>` : '🧪 <b>Full check of the site</b>: not run yet', weeklyHtml(w), w && !wOk)
+            + adRow('audit', a ? `🔎 <b>Site check</b>: <span class="${probs ? 'red' : 'ok'}">${probs ? probs + ' problem' + (probs === 1 ? '' : 's') : 'no problems'}</span> <span class="ad-sub">${esc(day2(a.at))}, every night</span>` : '', auditHtml(a))
+            + adRow('answered', `✅ <b>Decisions you answered</b> <span class="ad-sub">${(d.answered || []).length}</span>`, answeredHtml(d.answered || []))
+            + adRow('review', `📋 <b>Weekly review</b> <span class="ad-sub">${d.review ? esc(day2(d.review.at)) : 'not written yet'}</span>`, reviewHtml(d.review, d.nextReview))
+            + adRow('health', '⚙️ <b>How it is running, and the settings in force</b>', healthHtml(d.health, d.settings, d.screeners || []));
+    }
+    if (document.addEventListener) document.addEventListener('toggle', (e) => { const k = e.target && e.target.getAttribute && e.target.getAttribute('data-ad-row'); if (k) { if (e.target.open) adOpen.add(k); else adOpen.delete(k); } }, true);
     function weeklyHtml(w) {
         if (!w) return '';
         const age = (Date.now() - Date.parse(w.at)) / 86400000, ok = w.passed === w.total, late = age > 8;
@@ -433,7 +433,8 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${needMeHtml(data)}${tilesHtml(data)}${decisionHtml()}${goalHtml(data.goal)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${weeklyHtml((data.plan || {}).weekly)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
+            ${needMeHtml(data)}${decisionHtml()}${goalHtml(data.goal)}${(data.open || []).length ? propsHtml(data.open) : ''}${changesHtml((data.plan || {}).changes)}
+            <div class="ad-rows">${rowsHtml(data)}</div>`;
     }
 
     function reveal() {
