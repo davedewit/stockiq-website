@@ -218,7 +218,7 @@
         const shut = plan.closed ? ` The ${plan.market} market is closed now, so nothing happens to it until it opens${plan.opens ? ` (around ${when(plan.opens)})` : ''}.` : '';
         return `🤖 Autopilot: it sells this by itself, at the check-in around ${when(plan.sellBy)} at the latest, sooner if it falls to ${plan.stop}% or reaches +${plan.take}%.` + stop
             + (plan.trial ? ' Part of a trial of one of its own rules.' : '')
-            + (plan.patient ? ' A patient share, part of a trial: it is not sold because its screener signal turns, and the AI model does not review it.' : ' The AI model also reviews it at every check-in and may sell it earlier.') + shut;
+            + (plan.patient ? ' A patient share, part of a trial: it is not sold because its screener signal turns or it slips down the ranking.' : ' It is also sold if its screener signal turns negative or it slips far down the ranking.') + shut;
     }
 
     // ---------------------------------------------------------------- the account over time (no page, no network)
@@ -461,6 +461,8 @@
         #practice-portfolio #pp-more > summary:hover { color: var(--text-primary); }
         #practice-portfolio .pp-plan { font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px; margin-top: 2px; }
         #practice-portfolio .pp-plan > summary { cursor: pointer; list-style: none; }
+        #practice-portfolio .pp-tags { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; max-width: 420px; }
+        #practice-portfolio .pp-tags > span { font-size: 0.72rem; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 1px 7px; white-space: normal; }
         #practice-portfolio .pp-plan > summary::-webkit-details-marker { display: none; }
         #practice-portfolio .pp-plan > summary::after { content: " \\25B8"; }
         #practice-portfolio .pp-plan[open] > summary::after { content: " \\25BE"; }
@@ -541,7 +543,7 @@
     // The holdings table shows the latest 10, the rest behind a link (17 Oct 2026, the owner: 39 holdings were one long list;
     // as "What it has done" on the autopilot tab). Kept while the page is open, not remembered.
     const HELD_SHOWN = 10;
-    let allHeld = false;
+    let allHeld = false, heldOpenOnly = false;       // "Can be sold now": only the holdings whose market is open (19 Oct 2026, the owner)
     let moreOpen = false;                         // whether the breakdown under the three figures is unfolded (kept across redraws)
     let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
@@ -708,11 +710,27 @@
         const showAll = `<a href="#" data-pp="chart-key" data-id="value" style="color: #007bff; white-space: nowrap;">Show all</a>`;
         const partLine = part && state.holdings.length ? `<div id="pp-part" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">${held.length ? `Showing <strong style="color: var(--text-primary);">${whose}</strong>: ${held.length} of ${state.holdings.length} holdings.` : `None of the ${state.holdings.length} holdings ${state.holdings.length === 1 ? 'is' : 'are'} ${chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys'}.`} ${showAll}</div>` : '';
 
-        const rowList = held.slice().reverse().map(h => {
+        // what is particular to an autopilot holding now, visible without opening its plan (moved here from the autopilot tab's
+        // "Holding now", which listed the same holdings a second time: 19 Oct 2026)
+        const tags = (p) => {
+            if (!p || !p.auto || p.theme) return '';
+            const t = [];
+            if (p.closed) t.push(`${esc(p.market)} market closed${p.opens ? ' until ' + esc(when(p.opens)) : ''}`);
+            if (p.mode === 'full' && typeof p.floor === 'number' && !(p.peak >= p.arm)) t.push(`trailing stop at ${(p.floor >= 0 ? '+' : '') + p.floor}%`);
+            else if (typeof p.floor === 'number') t.push(`has been up ${(p.peak >= 0 ? '+' : '') + p.peak}%: sold if it falls back to ${(p.floor >= 0 ? '+' : '') + p.floor}%`);
+            if (p.patient) t.push('patient share (trial)');
+            return t.length ? `<div class="pp-tags">${t.map(x => `<span>${x}</span>`).join('')}</div>` : '';
+        };
+        const openNow = held.filter(h => !closedFor(h.symbol, quotes[h.symbol]));
+        if (heldOpenOnly && (!openNow.length || openNow.length === held.length)) heldOpenOnly = false;
+        const listed = heldOpenOnly ? openNow : held;
+        const filterLine = held.length > 1 && openNow.length && openNow.length < held.length
+            ? `<div id="pp-held-filter" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">Show: <a href="#" data-pp="held-filter" data-id="all" style="color: ${heldOpenOnly ? '#007bff' : 'var(--text-primary)'}; font-weight: ${heldOpenOnly ? 400 : 600};">All ${held.length}</a> · <a href="#" data-pp="held-filter" data-id="open" style="color: ${heldOpenOnly ? 'var(--text-primary)' : '#007bff'}; font-weight: ${heldOpenOnly ? 600 : 400};">Can be sold now ${openNow.length}</a> <span style="opacity: 0.8;">(their market is open)</span></div>` : '';
+        const rowList = listed.slice().reverse().map(h => {
             const v = valueOf(h, quotes), today = dayMove(h, quotes), shut = closedFor(h.symbol, quotes[h.symbol]);
             return `<tr>
                 <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
-                    ? `<details class="pp-plan" data-id="${esc(h.id)}"${openPlans.has(h.id) ? ' open' : ''}><summary>🤖 Autopilot: its plan for this${plans[h.id].patient ? ' · patient share (trial)' : ''}${plans[h.id].closed ? ' · market closed' : ''}</summary><div>${esc(planLine(h, plans[h.id]))}</div></details>`
+                    ? `${tags(plans[h.id])}<details class="pp-plan" data-id="${esc(h.id)}"${openPlans.has(h.id) ? ' open' : ''}><summary>🤖 Autopilot: its plan for this</summary><div>${esc(planLine(h, plans[h.id]))}</div></details>`
                     : `<div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div>`}</td>
                 <td data-label="Bought" style="${cell}">${esc(when(h.boughtAt))}</td>
                 <td data-label="Price then" style="${cell}">${money(h.buyPrice, h.currency)}</td>
@@ -779,7 +797,7 @@
                 <button data-pp="buy" class="pp-btn big${busy === 'buy' ? ' busy' : ''}" ${working ? 'disabled' : ''}>${busy === 'buy' ? 'Buying…' : 'Practice buy'}</button>
             </div>
             <div id="pp-notice" style="min-height: 1.2em; font-size: 0.85rem; margin-bottom: 10px; color: ${notice && notice.bad ? '#ef4444' : 'var(--text-secondary)'};">${notice ? esc(notice.text) : 'Enter practice US dollars or a quantity: the other is worked out from the latest price. A buy is recorded at the latest traded price.'}</div>
-            ${partLine}${held.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${count(held.length, state.holdings.length)})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>${heldMore}` : state.holdings.length ? '' : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
+            ${partLine}${held.length ? `${filterLine}<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th(`Holding (${count(held.length, state.holdings.length)})`, 'left')}${th('Bought')}${th('Price then')}${th('Price now')}${th('Value')}${th('Today')}${th('Since bought')}${th('')}</tr>${rows}</table></div>${heldMore}` : state.holdings.length ? '' : '<p style="color: var(--text-secondary); margin: 6px 0 10px;">Nothing held yet. Enter a stock above, or use “Practice buy” on a line of a screener’s Top 10 Performance (🎯).</p>'}
             ${state.closed.length ? `<details id="pp-sold" ${soldOpen ? 'open' : ''} style="margin-top: 12px;"><summary style="cursor: pointer; color: var(--text-primary);">Sold (${count(soldOnes.length, state.closed.length)})</summary>${soldOnes.length ? `<div style="overflow-x: auto;"><table class="pp-stack" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-secondary);"><tr class="pp-head">${th('Holding', 'left')}${th('Held')}${th('Price')}${th('Value')}${th('Result')}${th('')}</tr>${closed}</table></div>` : `<p style="margin: 8px 0 0; font-size: 0.85rem; color: var(--text-secondary);">None of the ${state.closed.length} sold ${state.closed.length === 1 ? 'is' : 'are'} ${whose}. ${showAll}</p>`}<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);"><span>${soldLine}</span>${part ? '' : `<button data-pp="clearsold" class="pp-btn ghost${busy === 'clearsold' ? ' busy' : ''}" title="Empties the sold list. Your practice cash and account value stay as they are" ${working ? 'disabled' : ''}>${busy === 'clearsold' ? 'Clearing…' : 'Clear sold list'}</button>`}</div></details>` : ''}
             ${beside ? '' : `<div id="pp-tools" style="margin-top: 12px;">${toolsHtml()}</div>`}
             <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
@@ -943,6 +961,7 @@
         const action = t.getAttribute('data-pp');
         if (t.tagName === 'A') e.preventDefault();
         if (action === 'held-all') { allHeld = !allHeld; redraw(); return; }
+        if (action === 'held-filter') { heldOpenOnly = t.getAttribute('data-id') === 'open'; redraw(); return; }
         if (action === 'chart-key' || action === 'chart-range') {
             if (action === 'chart-key') { chartKey = t.getAttribute('data-id'); redraw(); return; }      // the lists follow the graph
             chartRange = t.getAttribute('data-id');
