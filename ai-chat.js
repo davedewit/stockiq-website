@@ -7,7 +7,7 @@
         <style>
         @media (min-width: 769px) {
             #ai-chat-widget { right: 20px !important; }
-            #ai-chat-window { right: 0 !important; height: 600px !important; width: 380px !important; }
+            #ai-chat-window { right: 0 !important; height: min(600px, calc(100vh - 120px)) !important; height: min(600px, calc(100dvh - 120px)) !important; width: 380px !important; }
         }
         /* The right-hand news panel only exists on some pages and only shows from 1401px wide:
            move the chat clear of it there, and nowhere else */
@@ -16,7 +16,7 @@
         }
         @media (max-width: 768px) {
             #ai-chat-widget { right: 20px !important; }
-            #ai-chat-window { right: 0 !important; width: calc(100vw - 40px) !important; max-width: 350px !important; height: 500px !important; }
+            #ai-chat-window { right: 0 !important; width: calc(100vw - 40px) !important; max-width: 350px !important; height: min(500px, calc(100vh - 120px)) !important; height: min(500px, calc(100dvh - 120px)) !important; }
         }
         </style>
         <div id="ai-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">

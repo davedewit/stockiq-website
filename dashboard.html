@@ -4372,7 +4372,7 @@ ${analysis.report}
     <style>
         @media (max-width: 768px) {
             #quick-analysis-panel, #news-panel { display: none !important; }
-            #mobile-sidebar-toggle { display: flex !important; }
+            #mobile-sidebar-toggle { display: flex !important; bottom: 90px !important; }   /* above the AI chat button (19 Oct 2026: it was hidden under it) */
         }
         @media (min-width: 769px) {
             #mobile-sidebar-toggle { display: none !important; }
@@ -4397,7 +4397,7 @@ ${analysis.report}
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
     <script src="practice-autopilot.js?v=61"></script>
     <script src="admin-panel.js?v=17"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
-    <script src="ai-chat.js?v=2"></script>
+    <script src="ai-chat.js?v=3"></script>
     <script src="js/timezone-converter.js"></script>
     <script>
     // Side panel symbol suggestions
