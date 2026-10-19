@@ -344,10 +344,11 @@
     // real-money decision.
     function comingUp(d, needNow, last) {
         const plan = d.plan || {}, now = Date.now(), DAY = 86400000, at = (iso) => Date.parse(iso.length === 10 ? iso + 'T12:00:00Z' : iso);
-        const fmt = (t) => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+        const fmt = (t) => new Date(t).toLocaleDateString(undefined, Object.assign({ weekday: 'short', day: 'numeric', month: 'short' }, new Date(t).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}));
         const items = [];
-        if (needNow) items.push([now, '<b>Your next check-in: now</b> (see above)']);
-        else if (last) items.push([at(last.at) + 7 * DAY, '<b>Your next check-in</b>: say hi by then (7 days after the last session)']);
+        if (needNow === 'urgent') items.push([now, '<b>Your next check-in: now</b> (see above)']);
+        else if (last) items.push([Math.max(now, at(last.at) + 7 * DAY), needNow ? '<b>Your next check-in</b>: when you can, by this day at the latest (see above)' : '<b>Your next check-in</b>: say hi by then (7 days after the last session)']);
+        else items.push([now, '<b>Your next check-in</b>: when you can']);
         if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The next full check of the site, by itself (with the daily update), emailed to you']);
         if (d.nextReview) items.push([at(d.nextReview), "The autopilot's next weekly review, by itself"]);
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
@@ -356,7 +357,7 @@
         items.push([at(JUDGE_ON), 'Real money: the decision']);
         const rows = items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).slice(0, 7);
         return `<div style="margin-top: 10px; font-weight: 600; font-size: 0.9rem;">Coming up</div><ul style="list-style: none; margin: 2px 0 0; padding: 0; line-height: 1.55; font-size: 0.88rem;">`
-            + rows.map(([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${t <= now ? 'Now' : esc(fmt(t))}</span> ${text}</li>`).join('') + '</ul>';
+            + rows.map(([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${t <= now ? 'Today' : esc(fmt(t))}</span> ${text}</li>`).join('') + '</ul>';
     }
     function needMeHtml(d) {
         const plan = d.plan || {}, now = Date.now(), daysSince = (iso) => iso ? Math.floor((now - Date.parse(iso)) / 86400000) : null;
@@ -385,7 +386,7 @@
         return `<div class="ad-card run${tone === 'bad' ? ' bad' : ''}" style="padding-top: 12px; padding-bottom: 12px;"><span class="ad-label">🤖 Do you need to check in?</span>
             <div style="margin-top: 4px;"><span class="${tone === 'good' ? 'ok' : tone === 'bad' ? 'red' : ''}" style="font-weight: 800; font-size: 1.15rem;${tone === 'warn' ? ' color: var(--ad-amber);' : ''}">${word}</span></div>
             <div class="ad-sub" style="margin-top: 4px;">${say}${esc(why.join('; '))}.${(urgent.length || soon.length) && good.length ? ' Otherwise ' + esc(good.join(', ')) + '.' : ''}</div>
-            ${comingUp(d, urgent.length || soon.length, last)}</div>`;
+            ${comingUp(d, urgent.length ? 'urgent' : soon.length ? 'soon' : '', last)}</div>`;
     }
     // The Overview, since 19 Oct 2026 (the owner: "are things overlapping and just gone crazy ... i just want the site fucking good and to
     // see progress"): his two questions first (do you need me; how is it doing: the real-money card with the dial, the month's goal),
