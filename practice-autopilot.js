@@ -951,6 +951,7 @@
                         <div><label class="ap-label" for="ap-hold">Keeps a holding at most${tag('maxHoldDays')}</label><div class="ap-input">${select('ap-hold', 'maxHoldDays', o.holdDays, d.maxHoldDays, holdText)}</div></div>
                     </div>
                     <div id="ap-budget-hint" class="ap-help">${budgetHint(d)}</div>
+                    ${'compound' in data.settings ? `<label class="ap-help" style="display: block; cursor: pointer;"><input type="checkbox" id="ap-compound" ${d.compound !== false ? 'checked' : ''}> Add its profits to the budget, and take its losses off (after each sale; never more than the practice money there is)</label>` : ''}
                     ${'holdings' in data.settings ? `<div id="ap-holdings-hint" class="ap-help">${holdingsHint(d)}</div>` : ''}
                     ${lvl ? `<div class="ap-help">The last three follow the risk level while they are left on automatic (an empty box, or "Automatic" in a menu): move the slider and they move with it. Set one yourself and it stays where you put it.${(d.auto || []).length < 3 ? ' <a href="#" data-ap="autopace">Let the risk level set all three</a>' : ''}</div>` : ''}
                     <div id="ap-plan" class="ap-help">${esc(planText(d))}</div>
@@ -1012,7 +1013,8 @@
             everyHours: pace('ap-every', 'everyHours', parseFloat, NaN), maxHoldDays: pace('ap-hold', 'maxHoldDays', parseFloat, NaN),
             screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')).sort(),
             aiSell: false, selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
-            stopPct: ownLimit('ap-stop', 'stopPct'), takePct: ownLimit('ap-take', 'takePct')
+            stopPct: ownLimit('ap-stop', 'stopPct'), takePct: ownLimit('ap-take', 'takePct'),
+            ...('compound' in data.settings ? { compound: may('ap-compound', 'compound') } : {})    // in the function's order (DEFAULTS): the two are compared as text
         };
         if ('holdings' in data.settings) {                 // the user's own number of holdings; an empty box leaves it to the level
             const box = byId('ap-holdings'), n = box ? parseInt(box.value, 10) : NaN, bound = data.options.holdings || { min: 2, max: 50 };
@@ -1279,7 +1281,7 @@
         const level = ((o.risk || {})[String(s.risk)] || {}).positions, own = s.holdings > 0 ? `, the number the user set in "Number of holdings" (it uses ${s.holdings}, not the level's own ${level})` : '';
         lines.push(`AI AUTOPILOT (Beta, fake money): switched ${s.enabled ? 'ON' : 'OFF'}. Risk level ${r.name || s.risk} (up to ${r.positions} holdings${own}; loss limit ${data.rules ? data.rules.stop : r.stop}%, gain mark +${data.rules ? data.rules.take : r.take}%). Budget ${usd0(s.budgetUsd)}; built up over ${s.periodDays} day${s.periodDays === 1 ? '' : 's'}${auto('periodDays')}; checks in ${everyText(s.everyHours)}${auto('everyHours')}; keeps a holding at most ${holdText(s.maxHoldDays)}${auto('maxHoldDays')}. Trailing stop: ${(TRAILS[trailOf(s)] || {}).name || 'default'}.`);
         lines.push('Screeners ticked: ' + (s.screeners.map(k => (o.screeners[k] || {}).name || k).join(', ') || 'none') + '.' + (sharesOn() ? ' ' + cut(splitText(s).split(' On automatic')[0], 320) : ''));
-        lines.push(`May by itself (selling early on the AI review was taken out on 17 Oct 2026): try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.`);
+        lines.push(`May by itself (selling early on the AI review was taken out on 17 Oct 2026): try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.` + ('compound' in s ? ` The budget follows its results (profits added, losses taken off after each sale): ${s.compound !== false ? 'yes' : 'no'}.` : ''));
         if (data.money) lines.push(`Practice money it can use: ${usd0(data.money.reach)} (${usd0(data.money.cash)} cash, ${usd0(data.money.invested)} it has invested).`);
         if (data.nextCheck && data.nextCheck.at) lines.push(`Next check-in: ${when(data.nextCheck.at)} (${leftText(data.nextCheck.at)}), ${andList(data.nextCheck.markets)} market.`);
         (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
