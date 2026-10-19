@@ -186,8 +186,23 @@
     function usageHtml(u) {
         if (!u) return '<div class="ad-sub" style="margin-top: 10px;">AWS this month: not read yet (the scheduled run reads it once a day).</div>';
         const chips = [];
-        if (u.costForecast) chips.push(`<span class="ad-pill ${u.costForecast < 1 ? 'good' : u.costForecast < 1.5 ? 'warn' : 'bad'}">AWS forecasts about $${Number(u.costForecast).toFixed(2)} for the month</span>`);
-        if (u.cost !== undefined) chips.unshift(`<span class="ad-pill ${u.cost < 1 ? 'good' : u.cost < 1.5 ? 'warn' : 'bad'}">AWS bill this month so far: $${Number(u.cost).toFixed(2)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
+        const money = v => '$' + Number(v).toFixed(2), tone = v => v < 1 ? 'good' : v < 1.5 ? 'warn' : 'bad';
+        let billNote = '';
+        if (u.costStockiq !== undefined) {
+            // 19 Oct 2026: what StockIQ costs to run leads; the whole bill also holds the other projects and the one-off
+            // Cost Explorer charge of 17 Oct, which made it read $3.24 in red while StockIQ itself cost $0.48
+            chips.push(`<span class="ad-pill ${tone(u.costStockiq)}">StockIQ's AWS cost this month so far: ${money(u.costStockiq)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
+            if (u.costStockiqForecast) chips.push(`<span class="ad-pill ${tone(u.costStockiqForecast)}">on course for about ${money(u.costStockiqForecast)} for the month</span>`);
+            const extra = (u.costExplorer || 0) - (u.costExplorerKnown || 0);
+            if (extra > 0.02) chips.push(`<span class="ad-pill bad">Cost Explorer is being asked again: ${money(extra)} more this month. A session will find what asks it.</span>`);
+            const parts = [];
+            if (u.costExplorer >= 0.01) parts.push(`${money(u.costExplorer)} for Cost Explorer` + (u.costExplorerKnown ? ' (a session\'s test runs on 17 Oct, stopped that evening; nothing asks it now)' : ''));
+            if (u.costOther >= 0.01) parts.push(`${money(u.costOther)} for your other projects' storage`);
+            if (u.cost !== undefined && parts.length) billNote = `<div class="ad-sub" style="margin-top: 4px;">The whole AWS bill this month is ${money(u.cost)}: StockIQ's ${money(u.costStockiq)}, plus ${parts.join(', plus ')}.</div>`;
+        } else {
+            if (u.costForecast) chips.push(`<span class="ad-pill ${tone(u.costForecast)}">AWS forecasts about ${money(u.costForecast)} for the month</span>`);
+            if (u.cost !== undefined) chips.unshift(`<span class="ad-pill ${tone(u.cost)}">AWS bill this month so far: ${money(u.cost)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
+        }
         if (u.calls !== undefined) {
             const share = u.calls / (u.free || 1000000), f = u.forecast ? u.forecast / (u.free || 1000000) : share;
             chips.push(`<span class="ad-pill ${f < 0.7 ? 'good' : f < 1 ? 'warn' : 'bad'}">Lambda calls: ${Number(u.calls).toLocaleString('en-US')} of ${(u.free || 1000000).toLocaleString('en-US')} free (${Math.round(share * 100)}%)</span>`);
@@ -197,7 +212,7 @@
         const err = u.costError || u.callsError ? ` <span class="ad-sub">(${u.costError ? 'the bill could not be read' : ''}${u.costError && u.callsError ? '; ' : ''}${u.callsError ? 'the calls could not be read' : ''})</span>` : '';
         // each figure with its own age (17 Oct 2026: one "read 6 h ago" was the calls' age, while the bill could be 3 days old)
         const ages = [u.calls !== undefined ? `calls read ${esc(ago(u.at))}` : '', u.cost !== undefined && u.costAt ? `bill as AWS last updated it, ${esc(ago(u.costAt))}` : ''].filter(Boolean).join(' · ');
-        return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month (${ages}):</span><div class="ad-chips">${chips.join('')}</div>${err}
+        return `<div style="margin-top: 12px;"><span class="ad-sub">AWS this month (${ages}):</span><div class="ad-chips">${chips.join('')}</div>${billNote}${err}
             <button type="button" class="ad-btn" data-ad="usage" ${busy ? 'disabled' : ''}>${busy === 'usage' ? 'Reading…' : '↻ Refresh now'}</button>
             <div class="ad-sub" style="margin-top: 4px;">By itself it reads both about once a day; Refresh now reads them at once. Both are free to read: the bill comes from your AWS budget, which AWS updates a few times a day, and the calls from CloudWatch.</div></div>`;
     }
