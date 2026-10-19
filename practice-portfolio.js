@@ -279,6 +279,20 @@
         knots.push([Math.max(now, start + 1), cash * q.price / base]);
         return knots;
     }
+    // Day by day, the account against the S&P 500 fund (19 Oct 2026, for the confidence line on the owner's Admin page): at each of
+    // the fund's daily closes since the account began, the account's change and the fund's, from the graph's own sums. Returns
+    // { days, ahead, avg, se } of the daily gap in percentage points (account less fund), or null without the fund's prices.
+    function versusDays(state, quotes, now, autoRealized) {
+        const fund = fundKnots(state, quotes, now);
+        if (!fund) return null;
+        const series = valueSeries(state, quotes, now, autoRealized, 0), at = new Map(series.points.map(p => [p.t, p]));
+        const closes = fund.slice(1, -1).map(k => at.get(k[0])).filter(p => p && p.value > 0 && p.fund > 0);
+        const gaps = [];
+        for (let i = 1; i < closes.length; i++) gaps.push(((closes[i].value / closes[i - 1].value) - (closes[i].fund / closes[i - 1].fund)) * 100);
+        const n = gaps.length, avg = n ? gaps.reduce((a, b) => a + b, 0) / n : 0;
+        const se = n > 1 ? Math.sqrt(gaps.reduce((a, b) => a + (b - avg) ** 2, 0) / (n - 1) / n) : 0;
+        return { days: n, ahead: gaps.filter(g => g > 0).length, avg, se };
+    }
     // The account against that fund right now: what the fund would be worth, and how far the account is ahead of it
     // (gapUsd above zero) or behind it. Null when the fund cannot be worked out.
     function versusStart(state, quotes, now) {
@@ -400,7 +414,7 @@
             + `A practice ${verb === 'sold' ? 'sale' : 'buy'} is made only at a price that has traded in the last ${FRESH_HOURS} hours, as the autopilot's are, so that it is a price someone could really have traded at. Try again once its market is open.`;
     }
 
-    const pure = { closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart };
+    const pure = { closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart, versusDays };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -1088,7 +1102,9 @@
     function figures() {
         if (!state || !loaded) return null;
         const s = summarize(state, quotes);
-        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now() };
+        let versus = null;
+        try { versus = versusDays(state, quotes, Date.now(), autoRealized); } catch (e) { versus = null; }
+        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now(), versus };
     }
     window.practicePortfolio = { reload: load, setPlans, summary, figures };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();

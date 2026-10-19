@@ -105,7 +105,7 @@
     function withLive(g) {
         const f = liveAccount();
         if (!g) return g;
-        if (f) return Object.assign({}, g, { value: f.accountValue, live: true });
+        if (f) return Object.assign({}, g, { value: f.accountValue, live: true, versus: f.versus || null });
         const waiting = Date.now() - shownAt < LIVE_WAIT_MS;
         if (waiting && !waitTimer) waitTimer = setTimeout(() => { if (data) render(); }, LIVE_WAIT_MS - (Date.now() - shownAt) + 50);
         return Object.assign({}, g, { live: false, waiting });
@@ -129,6 +129,22 @@
         return `<div class="ad-tiles">${out.join('')}</div>`;
     }
 
+    // How sure the record is that the account has been ahead of an S&P 500 fund SO FAR (19 Oct 2026, agreed with the owner): from the
+    // daily gap between the account and the fund since it began (the Practice portfolio's own sums). Nothing under 30 trading days:
+    // a few days swing it wildly. Never a forecast: owner only, and it says "so far".
+    const CONFIDENCE_DAYS = 30;
+    const sureOf = (t) => 1 / (1 + Math.exp(-1.702 * t));     // the chance the true daily gap is above zero, from its t (a close fit to the normal curve)
+    function confidenceHtml(v) {
+        if (!v || !(v.days >= 0)) return '';
+        const head = 'Ahead of an S&P 500 fund so far: how sure the record is';
+        if (v.days < CONFIDENCE_DAYS) return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">Too early to tell</span> <span class="ad-pill info">${v.days} of ${CONFIDENCE_DAYS} trading days</span></span></div><div class="ad-sub">So far it has been ahead of the fund on ${v.ahead} of ${v.days} days. A few days say almost nothing; this gives a reading from ${CONFIDENCE_DAYS}.</div></div>`;
+        const p = v.se > 0 ? sureOf(v.avg / v.se) : (v.avg > 0 ? 1 : 0), pct = Math.round(p * 100);
+        const level = p >= 0.9 ? ['High', 'good'] : p >= 0.7 ? ['Medium', 'warn'] : ['Low', 'bad'];
+        return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">${level[0]}</span> <span class="ad-pill ${level[1]}">${pct}%</span></span></div>
+            <div class="ad-bar${p >= 0.9 ? ' met' : ''}"><span style="width: ${Math.max(2, pct)}%;"></span></div>
+            <div class="ad-sub">Ahead of the fund on ${v.ahead} of ${v.days} trading days, by ${signed(v.avg, 2)}% a day on average (give or take ${v.se.toFixed(2)}%). ${pct}% is how sure these days make it that the lead is real so far, not luck: under 70% low, 70 to 90% medium, 90% or more high. About the past only, not a forecast.</div></div>`;
+    }
+
     function goalHtml(g) {
         g = withLive(g);
         if (!g) return '';
@@ -140,6 +156,7 @@
             ${row('Finished trades in all', String(g.trades), g.tradesGoal, g.trades >= g.tradesGoal, g.trades / g.tradesGoal * 100)}
             ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(${g.n} trades; the real average is probably between ${signed(g.avg - 2 * g.se, 2)}% and ${signed(g.avg + 2 * g.se, 2)}%)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
             ${row(g.live ? 'The practice account, at the latest prices' : g.waiting ? 'The practice account (getting the latest prices)' : 'The practice account, about (an estimate: the latest prices did not come in)', g.waiting ? '…' : `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.value / g.valueGoal * 100)}
+            ${confidenceHtml(g.versus)}
             <div class="ad-sub" style="margin-top: 8px;">Fake money. These targets are what would count as progress, set on 12 Oct before the results were in; they are not forecasts.</div></div>`;
     }
 
