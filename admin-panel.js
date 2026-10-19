@@ -333,7 +333,7 @@
     // The short version for the Overview: how many, what is being tested (soonest decision first) and the latest three done
 
     // The site checked every night (check-tools/site_audit.py, run by the daily deploy; 18 Oct 2026, the owner: "why can't you
-    // actively do this every 24+ hours"). Problems first; each new since the night before is marked. A session works through them.
+    // actively do this every 24+ hours"). Problems first; each new since the last run is marked. A session works through them.
     // The full check of the site, every 7 days or more (weekly_check.py; 19 Oct 2026, the owner: "consistency and confidence everything
     // is good"): every test suite on the live code, the figures agreeing across pages, real buttons. One line; the failures if any.
     // "Do you need to check in?" (19 Oct 2026, the owner: "something like do i need to check in with you AI or are we good ... then i
@@ -357,7 +357,7 @@
         const open = (d.open || []).length;
         if (open) soon.push(`${open} decision${open === 1 ? '' : 's'} waiting for your yes or no below`);
         const a = plan.audit;
-        if (a && a.problems) soon.push(`the nightly site check has ${a.problems} problem${a.problems === 1 ? '' : 's'}`);
+        if (a && a.problems) soon.push(`the site check has ${a.problems} problem${a.problems === 1 ? '' : 's'}`);
         const last = (plan.changes || [])[0], since = last ? daysSince(last.at) : null;
         if (since === null || since >= 7) soon.push(since === null ? 'no session has made a change yet' : `the last session was ${since} days ago: the weekly review and new improvements are due`);
         else good.push(`the last session was ${since === 0 ? 'today' : since + ' day' + (since === 1 ? '' : 's') + ' ago'}`);
@@ -374,13 +374,13 @@
     const adOpen = new Set();
     function adRow(key, summary, inner, open) {
         if (!inner) return '';
-        return `<details class="ad-row" data-ad-row="${key}" ${adOpen.has(key) || open ? 'open' : ''}><summary>${summary}</summary><div class="ad-row-body">${inner}</div></details>`;
+        return `<details class="ad-row" data-ad-row="${key}" ${adOpen.has(key) || open ? 'open' : ''}><summary><span>${summary}</span></summary><div class="ad-row-body">${inner}</div></details>`;
     }
     function rowsHtml(d) {
         const plan = d.plan || {}, w = plan.weekly, a = plan.audit, day2 = (iso) => { const x = new Date(iso); return isNaN(x) ? '' : x.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
         const wOk = w && w.passed === w.total, probs = a ? (a.findings || []).filter(f => f.level === 'problem').length : 0;
         return adRow('weekly', w ? `🧪 <b>Full check of the site</b>: <span class="${wOk ? 'ok' : 'red'}">${wOk ? 'all ' + w.total + ' passed' : (w.total - w.passed) + ' of ' + w.total + ' failed'}</span> <span class="ad-sub">${esc(day2(w.at))}, every 7 days</span>` : '🧪 <b>Full check of the site</b>: not run yet', weeklyHtml(w), w && !wOk)
-            + adRow('audit', a ? `🔎 <b>Site check</b>: <span class="${probs ? 'red' : 'ok'}">${probs ? probs + ' problem' + (probs === 1 ? '' : 's') : 'no problems'}</span> <span class="ad-sub">${esc(day2(a.at))}, every night</span>` : '', auditHtml(a))
+            + adRow('audit', a ? `🔎 <b>Site check</b>: <span class="${probs ? 'red' : 'ok'}">${probs ? probs + ' problem' + (probs === 1 ? '' : 's') : 'no problems'}</span> <span class="ad-sub">${esc(day2(a.at))}, with the daily update</span>` : '', auditHtml(a))
             + adRow('answered', `✅ <b>Decisions you answered</b> <span class="ad-sub">${(d.answered || []).length}</span>`, answeredHtml(d.answered || []))
             + adRow('review', `📋 <b>Weekly review</b> <span class="ad-sub">${d.review ? esc(day2(d.review.at)) : 'not written yet'}</span>`, reviewHtml(d.review, d.nextReview))
             + adRow('health', '⚙️ <b>How it is running, and the settings in force</b>', healthHtml(d.health, d.settings, d.screeners || []));
@@ -397,7 +397,7 @@
         if (!a || !a.findings) return '';
         const row = (f) => `<li style="margin: 4px 0;"><span class="ad-pill ${f.level === 'problem' ? 'bad' : 'info'}" style="margin-right: 6px;">${f.level === 'problem' ? 'problem' : 'idea'}</span>${f.new ? '<strong style="color: var(--ad-amber);">new</strong> ' : ''}${esc(f.text)}${f.where ? ` <span class="ad-sub">${esc(f.where)}</span>` : ''}</li>`;
         const probs = a.findings.filter(f => f.level === 'problem'), ideas = a.findings.filter(f => f.level !== 'problem');
-        return `<div class="ad-card${probs.length ? ' run bad' : ' run'}"><span class="ad-label">🔎 Site check <span class="ad-sub">every night, by itself · last ${esc(day(a.at))} · ${probs.length} problem${probs.length === 1 ? '' : 's'}, ${ideas.length} idea${ideas.length === 1 ? '' : 's'}${a.new ? ` · ${a.new} new` : ''}${a.gone ? ` · ${a.gone} put right` : ''}</span></span>
+        return `<div class="ad-card${probs.length ? ' run bad' : ' run'}"><span class="ad-label">🔎 Site check <span class="ad-sub">with the daily update (Mon to Sat, while your Mac is on) · last ${esc(day(a.at))} · ${probs.length} problem${probs.length === 1 ? '' : 's'}, ${ideas.length} idea${ideas.length === 1 ? '' : 's'}${a.new ? ` · ${a.new} new` : ''}${a.gone ? ` · ${a.gone} put right` : ''}</span></span>
             <div class="ad-sub" style="margin: 4px 0 6px;">The site's pages and scripts tested for faults a person would otherwise have to spot: links, search basics, copied code, made-up visuals, pages that grew heavy. A session works through these; nothing here changes the site by itself.</div>
             ${probs.length ? `<ul style="margin: 0; padding-left: 18px;">${probs.map(row).join('')}</ul>` : '<div>✓ No problems found.</div>'}
             ${ideas.length ? `<details style="margin-top: 6px;"><summary class="ad-sub" style="cursor: pointer;">${ideas.length} idea${ideas.length === 1 ? '' : 's'}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${ideas.map(row).join('')}</ul></details>` : ''}</div>`;
