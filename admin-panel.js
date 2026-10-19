@@ -353,6 +353,46 @@
 
     // The site checked every night (check-tools/site_audit.py, run by the daily deploy; 18 Oct 2026, the owner: "why can't you
     // actively do this every 24+ hours"). Problems first; each new since the night before is marked. A session works through them.
+    // The full check of the site, every 7 days or more (weekly_check.py; 19 Oct 2026, the owner: "consistency and confidence everything
+    // is good"): every test suite on the live code, the figures agreeing across pages, real buttons. One line; the failures if any.
+    // "Do you need to check in?" (19 Oct 2026, the owner: "something like do i need to check in with you AI or are we good ... then i
+    // can go there on my phone see if you need me"). One answer from what the page already knows: the last session (its latest line in
+    // "What changed lately"), the full check, decisions waiting, the scheduled runs, the site check, the bill.
+    function needMeHtml(d) {
+        const plan = d.plan || {}, now = Date.now(), daysSince = (iso) => iso ? Math.floor((now - Date.parse(iso)) / 86400000) : null;
+        const urgent = [], soon = [], good = [];
+        const h = d.health, late = h && now - Date.parse(h.at) > 2 * 3600000;
+        if (h && h.failed) urgent.push(`the autopilot's last scheduled run had ${h.failed} failed check-in${h.failed === 1 ? '' : 's'}`);
+        else if (late) urgent.push(`the autopilot has not run for ${Math.round((now - Date.parse(h.at)) / 3600000)} hours`);
+        else if (h) good.push('the autopilot is running normally');
+        const w = plan.weekly, wAge = w ? daysSince(w.at) : null;
+        if (w && w.passed < w.total) urgent.push(`the full check found ${w.total - w.passed} problem${w.total - w.passed === 1 ? '' : 's'}`);
+        else if (w && wAge > 8) soon.push(`the full check is ${wAge} days old (it runs by itself when the daily update runs: is the laptop on?)`);
+        else if (w) good.push(`the full check passed all ${w.total} (${wAge === 0 ? 'today' : wAge + ' day' + (wAge === 1 ? '' : 's') + ' ago'})`);
+        else soon.push('the full check has not run yet');
+        const u = d.usage || {};
+        if (u.costStockiq >= 1.5 || ((u.costExplorer || 0) - (u.costExplorerKnown || 0)) > 0.02) urgent.push('the AWS bill needs a look');
+        else if (typeof u.costStockiq === 'number') good.push(`the bill is in order ($${Number(u.costStockiq).toFixed(2)} this month)`);
+        const open = (d.open || []).length;
+        if (open) soon.push(`${open} decision${open === 1 ? '' : 's'} waiting for your yes or no below`);
+        const a = plan.audit;
+        if (a && a.problems) soon.push(`the nightly site check has ${a.problems} problem${a.problems === 1 ? '' : 's'}`);
+        const last = (plan.changes || [])[0], since = last ? daysSince(last.at) : null;
+        if (since === null || since >= 7) soon.push(since === null ? 'no session has made a change yet' : `the last session was ${since} days ago: the weekly review and new improvements are due`);
+        else good.push(`the last session was ${since === 0 ? 'today' : since + ' day' + (since === 1 ? '' : 's') + ' ago'}`);
+        const [word, tone, say] = urgent.length ? ['Yes, please check in', 'bad', 'Open a session and say hi: '] : soon.length ? ['When you can', 'warn', 'Nothing is broken, but a session would help: '] : ['No, all good', 'good', 'Nothing needs you: '];
+        const why = (urgent.length ? urgent : soon.length ? soon : good);
+        return `<div class="ad-card run${tone === 'bad' ? ' bad' : ''}" style="padding-top: 12px; padding-bottom: 12px;"><span class="ad-label">🤖 Do you need to check in?</span>
+            <div style="margin-top: 4px;"><span class="${tone === 'good' ? 'ok' : tone === 'bad' ? 'red' : ''}" style="font-weight: 800; font-size: 1.15rem;${tone === 'warn' ? ' color: var(--ad-amber);' : ''}">${word}</span></div>
+            <div class="ad-sub" style="margin-top: 4px;">${say}${esc(why.join('; '))}.${(urgent.length || soon.length) && good.length ? ' Otherwise ' + esc(good.join(', ')) + '.' : ''}</div></div>`;
+    }
+    function weeklyHtml(w) {
+        if (!w) return '';
+        const age = (Date.now() - Date.parse(w.at)) / 86400000, ok = w.passed === w.total, late = age > 8;
+        return `<div class="ad-card ${ok && !late ? 'run' : 'run bad'}" style="padding-top: 10px; padding-bottom: 10px;"><span class="ad-label">🧪 Full check of the site</span>
+            <div style="margin-top: 4px;"><span class="${ok ? 'ok' : 'red'}" style="font-weight: 700;">${ok ? '✓ All ' + w.total + ' checks passed' : (w.total - w.passed) + ' of ' + w.total + ' checks failed'}</span> <span class="ad-sub">${esc(new Date(w.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))}${late ? ' · due again: it runs every 7 days' : ' · next in about ' + Math.max(1, Math.round(7 - age)) + ' days'}</span></div>
+            ${ok ? '<div class="ad-sub">Every test suite on the live code, the figures agreeing across the pages (account, holdings, trades, bill, sitemap), and real screener buttons.</div>' : `<ul style="margin: 6px 0 0 18px; padding: 0;">${(w.failed || []).map(f => `<li>${esc(f)}</li>`).join('')}</ul><div class="ad-sub">A session fixes these first.</div>`}</div>`;
+    }
     function auditHtml(a) {
         if (!a || !a.findings) return '';
         const row = (f) => `<li style="margin: 4px 0;"><span class="ad-pill ${f.level === 'problem' ? 'bad' : 'info'}" style="margin-right: 6px;">${f.level === 'problem' ? 'problem' : 'idea'}</span>${f.new ? '<strong style="color: var(--ad-amber);">new</strong> ' : ''}${esc(f.text)}${f.where ? ` <span class="ad-sub">${esc(f.where)}</span>` : ''}</li>`;
@@ -393,7 +433,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${decisionHtml()}${goalHtml(data.goal)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
+            ${needMeHtml(data)}${tilesHtml(data)}${decisionHtml()}${goalHtml(data.goal)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${weeklyHtml((data.plan || {}).weekly)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
     }
 
     function reveal() {
