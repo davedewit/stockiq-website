@@ -389,9 +389,16 @@
     function weeklyHtml(w) {
         if (!w) return '';
         const age = (Date.now() - Date.parse(w.at)) / 86400000, ok = w.passed === w.total, late = age > 8;
+        const groupName = { '1': 'Test suites on the live code', '2': 'The figures agree across the site', '3': 'Every analysis button, end to end', '4': 'The background run, visitors\' limits and your live pages' };
+        const items = w.items || [], groups = {};
+        items.forEach(([g, name, pass]) => { (groups[g] = groups[g] || []).push([name, pass]); });
+        const list = Object.keys(groups).sort().map(g => `<div style="margin-top: 8px; font-weight: 600; color: var(--text-primary);">${esc(groupName[g] || g)} <span class="ad-sub">${groups[g].filter(x => x[1]).length} of ${groups[g].length}</span></div>`
+            + `<ul style="list-style: none; margin: 2px 0 0; padding: 0; line-height: 1.55;">${groups[g].map(([n, p]) => `<li><span class="${p ? 'ok' : 'red'}" style="font-weight: 700;">${p ? '✓' : '✗'}</span> ${esc(n)}</li>`).join('')}</ul>`).join('');
         return `<div class="ad-card ${ok && !late ? 'run' : 'run bad'}" style="padding-top: 10px; padding-bottom: 10px;"><span class="ad-label">🧪 Full check of the site</span>
-            <div style="margin-top: 4px;"><span class="${ok ? 'ok' : 'red'}" style="font-weight: 700;">${ok ? '✓ All ' + w.total + ' checks passed' : (w.total - w.passed) + ' of ' + w.total + ' checks failed'}</span> <span class="ad-sub">${esc(new Date(w.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))}${late ? ' · due again: it runs every 7 days' : ' · next in about ' + Math.max(1, Math.round(7 - age)) + ' days'}</span></div>
-            ${ok ? '<div class="ad-sub">Every test suite on the live code, the figures agreeing across the pages (account, holdings, trades, bill, sitemap), and real screener buttons.</div>' : `<ul style="margin: 6px 0 0 18px; padding: 0;">${(w.failed || []).map(f => `<li>${esc(f)}</li>`).join('')}</ul><div class="ad-sub">A session fixes these first.</div>`}</div>`;
+            <div style="margin-top: 4px;"><span class="${ok ? 'ok' : 'red'}" style="font-weight: 700;">${ok ? '✓ All ' + w.total + ' checks passed' : (w.total - w.passed) + ' of ' + w.total + ' checks failed'}</span> <span class="ad-sub">${esc(new Date(w.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))}${late ? ' · due again: it runs every 7 days with the daily update' : ' · runs by itself every 7 days, with the daily update'}</span></div>
+            ${w.covered ? `<div class="ad-sub" style="margin-top: 4px;">It covers ${w.covered} of the ${w.parts} parts of the site. Left to a person: ${esc((w.uncovered || []).join('; '))}.</div>` : ''}
+            ${!ok && !items.length ? `<ul style="margin: 6px 0 0 18px; padding: 0;">${(w.failed || []).map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
+            ${list}</div>`;
     }
     function auditHtml(a) {
         if (!a || !a.findings) return '';
