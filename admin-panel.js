@@ -63,6 +63,8 @@
         #admin-panel .ad-bar.met > span { background: var(--ad-green); }
         #admin-panel .ad-pill { display: inline-block; font-size: 0.78rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
         #admin-panel .ad-pill.good { background: var(--ad-green-bg); color: var(--ad-green); } #admin-panel .ad-pill.warn { background: var(--ad-amber-bg); color: var(--ad-amber); }
+        #admin-panel .ad-dial { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 6px 0; }
+        #admin-panel .ad-dial-side { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--text-secondary); max-width: 260px; }
         #admin-panel .ad-pill.bad { background: var(--ad-red-bg); color: var(--ad-red); } #admin-panel .ad-pill.info { background: var(--ad-blue-bg); color: var(--ad-blue); }
         #admin-panel .ok { color: var(--ad-green); font-weight: 700; } #admin-panel .no { color: var(--ad-amber); font-weight: 700; } #admin-panel .red { color: var(--ad-red); font-weight: 700; }
         #admin-panel .ad-prop { border-top: 1px solid var(--border-color); padding: 12px 0; } #admin-panel .ad-prop:first-of-type { border-top: none; padding-top: 4px; }
@@ -134,17 +136,49 @@
     // a few days swing it wildly. Never a forecast: owner only, and it says "so far".
     const CONFIDENCE_DAYS = 30;
     const sureOf = (t) => 1 / (1 + Math.exp(-1.702 * t));     // the chance the true daily gap is above zero, from its t (a close fit to the normal curve)
+    // The chance the lead is real, from a list of daily gaps (their average over its margin of error)
+    function sureFrom(gaps) {
+        const n = gaps.length; if (n < 2) return null;
+        const avg = gaps.reduce((a, x) => a + x, 0) / n, se = Math.sqrt(gaps.reduce((a, x) => a + (x - avg) ** 2, 0) / (n - 1) / n);
+        return se > 0 ? sureOf(avg / se) : (avg > 0 ? 1 : 0);
+    }
+    // A dial like a fire-danger sign (19 Oct 2026, the owner: "i like seeing a visual ... i just want to see your confidence grow or
+    // fall"): red under 50% (a coin flip), yellow to 90%, green from 90%; the needle at the chance the lead over the fund is real so far. Faded, with a
+    // grey needle, until 30 trading days: an early reading. Under it, how the reading has moved day by day.
+    function dialSvg(p, early) {
+        const cx = 110, cy = 100, r = 80, pt = (q, rad) => [cx + rad * Math.cos(Math.PI * (1 - q)), cy - rad * Math.sin(Math.PI * (1 - q))];
+        const arc = (q1, q2, color) => { const [x1, y1] = pt(q1, r), [x2, y2] = pt(q2, r); return `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 0 1 ${x2.toFixed(1)},${y2.toFixed(1)}" stroke="${color}" stroke-width="18" fill="none"/>`; };
+        const [nx, ny] = pt(Math.max(0, Math.min(1, p)), r - 22), op = early ? 0.35 : 1, needle = early ? 'var(--text-secondary)' : 'var(--text-primary)';
+        return `<svg viewBox="0 0 220 136" width="220" height="136" role="img" aria-label="Confidence ${Math.round(p * 100)}%${early ? ', an early reading' : ''}">
+            <g opacity="${op}">${arc(0, 0.5, 'var(--ad-red)')}${arc(0.5, 0.9, 'var(--ad-amber)')}${arc(0.9, 1, 'var(--ad-green)')}</g>
+            <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="${needle}" stroke-width="4" stroke-linecap="round"${early ? ' stroke-dasharray="6 4"' : ''}/>
+            <circle cx="${cx}" cy="${cy}" r="6" fill="${needle}"/>
+            <text x="30" y="116" font-size="11" fill="var(--text-secondary)" text-anchor="middle">Low</text><text x="190" y="116" font-size="11" fill="var(--text-secondary)" text-anchor="middle">High</text>
+            <text x="${cx}" y="130" font-size="20" font-weight="700" text-anchor="middle" fill="${early ? 'var(--text-secondary)' : 'var(--text-primary)'}">${Math.round(p * 100)}%</text></svg>`;
+    }
+    function trailSvg(gaps) {
+        const pts = []; for (let i = 2; i <= gaps.length; i++) { const q = sureFrom(gaps.slice(0, i)); if (q !== null) pts.push(q); }
+        if (pts.length < 2) return '';
+        const w = 220, h = 46, x = (i) => 4 + i * (w - 8) / (pts.length - 1), y = (q) => h - 4 - q * (h - 8);
+        return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="How the confidence has moved, day by day">
+            <line x1="4" x2="${w - 4}" y1="${y(0.9).toFixed(1)}" y2="${y(0.9).toFixed(1)}" stroke="var(--ad-green)" stroke-dasharray="3 3" opacity="0.6"/>
+            <line x1="4" x2="${w - 4}" y1="${y(0.5).toFixed(1)}" y2="${y(0.5).toFixed(1)}" stroke="var(--ad-amber)" stroke-dasharray="3 3" opacity="0.6"/>
+            <polyline points="${pts.map((q, i) => x(i).toFixed(1) + ',' + y(q).toFixed(1)).join(' ')}" fill="none" stroke="var(--ad-blue)" stroke-width="2"/></svg>`;
+    }
     function confidenceHtml(v) {
         if (!v || !(v.days >= 0)) return '';
         const head = 'Confidence it has been ahead of an S&P 500 fund so far';
-        if (v.days < CONFIDENCE_DAYS) return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">Too early to tell</span> <span class="ad-pill info">${v.days} of ${CONFIDENCE_DAYS} trading days</span></span></div><div class="ad-sub">So far it has been ahead of the fund on ${v.ahead} of ${v.days} days. A few days say almost nothing; this gives a reading from ${CONFIDENCE_DAYS}.</div></div>`;
-        const p = v.se > 0 ? sureOf(v.avg / v.se) : (v.avg > 0 ? 1 : 0), pct = Math.round(p * 100);
-        const level = p >= 0.9 ? ['High', 'good'] : p >= 0.7 ? ['Medium', 'warn'] : ['Low', 'bad'];
-        return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">${level[0]}</span> <span class="ad-pill ${level[1]}">${pct}%</span></span></div>
-            <div class="ad-bar${p >= 0.9 ? ' met' : ''}"><span style="width: ${Math.max(2, pct)}%;"></span></div>
-            <div class="ad-sub">Ahead of the fund on ${v.ahead} of ${v.days} trading days, by ${signed(v.avg, 2)}% a day on average (give or take ${v.se.toFixed(2)}%). ${pct}% is how sure these days make it that the lead is real so far, not luck: under 70% low, 70 to 90% medium, 90% or more high. About the past only, not a forecast.</div></div>`;
+        const gaps = Array.isArray(v.gaps) ? v.gaps : null;
+        const p = gaps ? sureFrom(gaps) : (v.se > 0 ? sureOf(v.avg / v.se) : null);
+        const early = v.days < CONFIDENCE_DAYS;
+        const level = p === null ? null : p >= 0.9 ? ['Clearly ahead', 'good'] : p >= 0.5 ? ['Leaning ahead', 'warn'] : ['More likely behind', 'bad'];   // 50% is a coin flip (the owner, 19 Oct 2026)
+        const word = early ? 'Too early to tell' : level ? level[0] : '…';
+        const pill = early ? `<span class="ad-pill info">${v.days} of ${CONFIDENCE_DAYS} trading days</span>` : level ? `<span class="ad-pill ${level[1]}">${Math.round(p * 100)}%</span>` : '';
+        const visual = p === null ? '' : `<div class="ad-dial">${dialSvg(p, early)}<div class="ad-dial-side">${early ? `<div><strong>Early reading</strong>: needs ${CONFIDENCE_DAYS - v.days} more trading day${CONFIDENCE_DAYS - v.days === 1 ? '' : 's'} before it counts.</div>` : ''}${gaps ? trailSvg(gaps) : ''}${gaps && gaps.length > 2 ? '<div class="ad-sub">How it has moved, day by day (dashed: 50%, a coin flip, and 90%).</div>' : ''}</div></div>`;
+        const why = early ? `So far it has been ahead of the fund on ${v.ahead} of ${v.days} days. A few days say almost nothing; the reading counts from ${CONFIDENCE_DAYS}.`
+            : `Ahead of the fund on ${v.ahead} of ${v.days} trading days, by ${signed(v.avg, 2)}% a day on average (give or take ${v.se.toFixed(2)}%). ${Math.round(p * 100)}% is how sure these days make it that the lead is real so far, not luck: under 50% more likely behind than ahead (red), 50 to 90% leaning ahead (yellow), 90% or more clearly ahead (green). About the past only, not a forecast.`;
+        return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">${word}</span> ${pill}</span></div>${visual}<div class="ad-sub">${why}</div></div>`;
     }
-
     const START = 100000;      // the practice account's starting money: the account's bar runs from here to the target (19 Oct 2026; it ran from 0 and looked 99% done)
     function goalHtml(g) {
         g = withLive(g);

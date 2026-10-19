@@ -291,7 +291,7 @@
         for (let i = 1; i < closes.length; i++) gaps.push(((closes[i].value / closes[i - 1].value) - (closes[i].fund / closes[i - 1].fund)) * 100);
         const n = gaps.length, avg = n ? gaps.reduce((a, b) => a + b, 0) / n : 0;
         const se = n > 1 ? Math.sqrt(gaps.reduce((a, b) => a + (b - avg) ** 2, 0) / (n - 1) / n) : 0;
-        return { days: n, ahead: gaps.filter(g => g > 0).length, avg, se };
+        return { days: n, ahead: gaps.filter(g => g > 0).length, avg, se, gaps: gaps.map(g => Math.round(g * 1000) / 1000) };     // gaps: each day's, for the dial's line
     }
     // The account against that fund right now: what the fund would be worth, and how far the account is ahead of it
     // (gapUsd above zero) or behind it. Null when the fund cannot be worked out.
