@@ -206,7 +206,7 @@
             const free = svc.filter(([, v]) => v < 0.01).map(([k]) => (svcName[k] || k).replace(/ \(.*\)$/, ''));
             const lines = [];
             if (u.cost !== undefined) lines.push(`<b>Whole bill ${money(u.cost)}</b> = StockIQ ${money(stockiqAll)} + your other projects ${money(u.costOther || 0)}${u.costOther >= 0.01 ? ' (their storage, on another AWS account)' : ''}.`);
-            if (u.costExplorer >= 0.01) lines.push(`<b>StockIQ ${money(stockiqAll)}</b> = ${money(u.costExplorer)} for Cost Explorer${u.costExplorerKnown ? ' (a one-off: a session\'s test runs on 17 Oct asked it 253 times at $0.01 each; stopped that evening, nothing asks it now)' : ''} + ${money(u.costStockiq)} to run the site.`);
+            if (u.costExplorer >= 0.01) lines.push(`<b>StockIQ ${money(stockiqAll)}</b> = ${money(u.costExplorer)} for Cost Explorer${u.costExplorerKnown ? ' (a one-off: about 265 questions at $0.01 each on 17 Oct, nearly all from a session\'s test runs; stopped that evening, nothing asks it now)' : ''} + ${money(u.costStockiq)} to run the site.`);
             lines.push(`<b>Running the site ${money(u.costStockiq)}</b>: ${paid.length ? paid.join(', ') : 'nothing yet'}${free.length ? `; still inside the free allowances: ${free.join(', ')}` : ''}.`);
             billNote = `<div class="ad-sub" style="margin-top: 6px; line-height: 1.5;">${lines.join('<br>')}</div>`;
         } else {
