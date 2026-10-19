@@ -92,6 +92,16 @@
         #practice-autopilot .ap-note.good { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.4); }
         #practice-autopilot .ap-note.bad { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); }
         #practice-autopilot .ap-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); }
+        #practice-autopilot .ap-part { margin-top: 0; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary); }
+        #practice-autopilot .ap-part:first-of-type { margin-top: 18px; }
+        #practice-autopilot .ap-part > summary { cursor: pointer; list-style: none; padding: 10px 0; display: flex; gap: 8px; align-items: baseline; }
+        #practice-autopilot .ap-part > summary::-webkit-details-marker { display: none; }
+        #practice-autopilot .ap-part > summary::before { content: "\\25B8"; color: var(--text-secondary); flex: none; }
+        #practice-autopilot .ap-part[open] > summary::before { content: "\\25BE"; }
+        #practice-autopilot .ap-part > summary strong { color: var(--text-primary); }
+        #practice-autopilot .ap-part-body { padding: 0 0 12px 16px; border-left: 2px solid var(--border-color); margin: 0 0 12px 4px; }
+        #practice-autopilot .ap-part-body > .ap-section { margin-top: 0; padding-top: 0; border-top: 0; }
+        #practice-autopilot .ap-part-body > .ap-section > h4:first-child { display: none; }
         #practice-autopilot .ap-section h4 { margin: 0 0 6px; font-size: 0.95rem; color: var(--text-primary); }
         #practice-autopilot .ap-log { padding: 8px 0; border-bottom: 1px solid var(--border-color); line-height: 1.45; }
         #practice-autopilot .ap-log time { white-space: nowrap; margin-right: 6px; }
@@ -653,11 +663,28 @@
     // within its own rules. This shows each batch, the verdict, and what it did.
     // The themes part (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's daily calls
     // One line on the themes part in the summary; the section itself is under "More detail"
+    // The one-line summary of the themes part: the row that opens to its detail (19 Oct 2026: it was a line with a link that opened
+    // one large fold of four different parts and jumped into the middle of it)
     function themesLine() {
         const t = data.themes;
         if (!t || !t.on) return '';
         const held = t.held && t.held.length ? 'holds ' + t.held.map(h => esc(h.symbol)).join(', ') : 'buys its first funds at the next check-in while the US market is open';
-        return `<div class="ap-section ap-themes-line"><strong>Themes part</strong> <span class="ap-sub">a trial, ${Math.round(t.share * 100)}% of the budget</span>: ${held}${t.next && t.held && t.held.length ? `; next monthly change ${esc(when(t.next))}` : ''}. <a href="#ap-themes" data-ap-part="activity" data-ap-goto="ap-themes">Its detail</a></div>`;
+        return `<strong>Themes part</strong> <span class="ap-sub">a trial, ${Math.round(t.share * 100)}% of the budget</span>: ${held}${t.next && t.held && t.held.length ? `; next monthly change ${esc(when(t.next))}` : ''}`;
+    }
+    // Each of the four parts below "How it is doing" is a row of its own that opens and closes in place (19 Oct 2026)
+    function partRow(key, summary, inner) {
+        if (!inner) return '';
+        return `<details class="ap-part" data-ap-fold="${key}" ${openDetails[key] ? 'open' : ''}><summary>${summary || ''}</summary><div class="ap-part-body">${inner}</div></details>`;
+    }
+    function barLine() {
+        const b = data.bar;
+        return b ? `<strong>The bar its results must clear</strong>: ${b.n} of ${b.need} finished trades${b.met ? ', cleared for now' : ''}` : '';
+    }
+    function progressLine() {
+        const p = data.progress;
+        if (!p || !Array.isArray(p.batches)) return '';
+        const size = p.batch || 20, full = p.batches.filter(x => x.full).length, last = p.batches.reduce((a, x) => Math.max(a, x.last || 0), 0);
+        return `<strong>Progress, ${size} finished trades at a time</strong>: ${full ? `${full} report${full === 1 ? '' : 's'} so far` : `the first report after ${size} (${last} so far)`}`;
     }
     function themesHtml() {
         const t = data.themes;
@@ -874,13 +901,10 @@
                 ${gaugeHtml()}
                 ${comingHtml()}
                 ${recordHtml()}
-                ${themesLine()}
-                <details class="ap-more-all" data-ap-fold="more-all" ${openDetails['more-all'] ? 'open' : ''}><summary>More detail: the bar its results must clear, the themes part in full, progress every 20 trades, how it is improving</summary>
-                ${barHtml()}
-                ${themesHtml()}
-                ${progressHtml()}
-                ${tuneHtml()}
-                </details>
+                ${partRow('part-themes', themesLine(), themesHtml())}
+                ${partRow('part-bar', barLine(), barHtml())}
+                ${partRow('part-progress', progressLine(), progressHtml())}
+                ${partRow('part-tune', '<strong>How it is improving</strong>: what is being tested, what was kept, what comes next', tuneHtml())}
                 <div class="ap-section" id="ap-done"><h4>What it has done <span class="ap-fresh"><span id="ap-fresh">${loadedAt ? 'Up to date at ' + esc(clock(loadedAt)) + '. Refreshes by itself every minute.' : ''}</span><a href="#" data-ap="refresh">↻ Refresh now</a><label class="ap-mini" title="On: only its buys and sells are listed. Off: its check-ins and notes too. Remembered in this browser."><input id="ap-tradesonly" type="checkbox" ${tradesOnly ? 'checked' : ''}><span class="ap-dot"></span>Buys and sells only</label></span></h4>
                     ${latest ? `<div class="ap-log"><time>${icons.note} ${esc(when(latest.t))}</time> Latest check-in: ${esc(latest.text.replace(/^Checked in\. /, ''))}${latest.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${latest.n} check-ins in a row)</span>` : ''}</div>` : ''}
                     ${log.length ? shown.map(e => `<div class="ap-log"><time>${icons[e.type] || ''} ${esc(when(e.t))}</time> ${e.type === 'buy' ? `<strong style="color: var(--text-primary);">Bought ${esc(e.symbol)}</strong> with ${usd0(e.usd)}. ` : e.type === 'sell' ? `<strong style="color: var(--text-primary);">Sold ${esc(e.symbol)}</strong>${gainOf(e) !== null ? ' ' + deltaHtml(gainOf(e), e.pct) : typeof e.pct === 'number' ? ` <span style="color: ${tint(e.pct)}; font-weight: 600;">${pc(e.pct)}</span>` : ''}. ` : ''}${esc(e.text)}${e.n > 1 ? ` <span style="font-size: 0.8rem;">(the same at ${e.n} check-ins in a row, since ${esc(when(e.first))})</span>` : ''}${fold(e.type + e.t + e.symbol, e.type === 'sell' ? 'Why, and the details' : 'The plan for it', e.detail)}</div>`).join('') : `<div>${tradesOnly && all.length ? 'No buys or sells yet.' : 'Nothing yet. Its buys, sells and check-ins will be listed here.'}</div>`}
