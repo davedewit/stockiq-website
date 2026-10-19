@@ -329,7 +329,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${goalHtml(data.goal)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
+            ${tilesHtml(data)}${goalHtml(data.goal)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
     }
 
     function reveal() {
