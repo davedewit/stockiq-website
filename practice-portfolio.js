@@ -1104,7 +1104,12 @@
         const s = summarize(state, quotes);
         let versus = null;
         try { versus = versusDays(state, quotes, Date.now(), autoRealized); } catch (e) { versus = null; }
-        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now(), versus };
+        // for the real-money decision on the Admin page: the same money in the S&P 500 fund now, when the account began, and the
+        // three largest gains among its sales (is the lead carried by a few lucky trades?)
+        let fundValue = null;
+        try { const vs = versusStart(state, quotes, Date.now()); fundValue = vs ? vs.value : null; } catch (e) { fundValue = null; }
+        const topGains = (state.closed || []).map(h => (h.proceedsUsd || 0) - (h.costUsd || 0)).filter(g => g > 0).sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0);
+        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now(), versus, fundValue, createdAt: state.createdAt, topGains };
     }
     window.practicePortfolio = { reload: load, setPlans, summary, figures };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();

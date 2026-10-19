@@ -180,6 +180,34 @@
         return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">${word}</span> ${pill}</span></div>${visual}<div class="ad-sub">${why}</div></div>`;
     }
     const START = 100000;      // the practice account's starting money: the account's bar runs from here to the target (19 Oct 2026; it ran from 0 and looked 99% done)
+    // Real money: the decision (19 Oct 2026, the owner: "i need something to make a decision ... a combination"). One verdict from four
+    // checks, judged on a day fixed in advance so that nobody acts on a lucky reading: a full year of results, the confidence dial at
+    // 90% or more, a lead over the S&P 500 fund of at least 5% a year (the owner's bar), and still ahead with its three largest gains
+    // taken out. Before the day: how each check stands now. Never more than a small trial; never financial advice.
+    const JUDGE_ON = '2027-10-11', JUDGE_WORDS = '11 Oct 2027', LEAD_A_YEAR = 5;
+    function decisionHtml() {
+        const f = liveAccount();
+        if (!f || !f.versus || !(f.fundValue > 0) || !f.createdAt) return '';
+        const now = Date.now(), days = (now - Date.parse(f.createdAt)) / 86400000, due = now >= Date.parse(JUDGE_ON + 'T00:00:00Z');
+        const p = Array.isArray(f.versus.gaps) ? sureFrom(f.versus.gaps) : null;
+        const ratio = f.accountValue / f.fundValue, yearly = days >= 30 ? (Math.pow(ratio, 365 / days) - 1) * 100 : null;
+        const gap = f.accountValue - f.fundValue, without = gap - (f.topGains || 0);
+        const checks = [
+            [days >= 365, 'A full year of results', `${Math.floor(days)} of 365 days`],
+            [p !== null && p >= 0.9 && f.versus.days >= CONFIDENCE_DAYS, 'Confidence dial at 90% or more', p === null ? 'no reading yet' : `${Math.round(p * 100)}%${f.versus.days < CONFIDENCE_DAYS ? ', early reading' : ''}`],
+            [yearly !== null && yearly >= LEAD_A_YEAR, `Ahead of the S&P 500 fund by ${LEAD_A_YEAR}% a year or more`, yearly === null ? `${gap >= 0 ? 'ahead' : 'behind'} by ${usd(Math.abs(gap))} so far; a yearly rate from 30 days` : `${signed(yearly, 1)}% a year so far (${gap >= 0 ? 'ahead' : 'behind'} by ${usd(Math.abs(gap))})`],
+            [without > 0, 'Still ahead without its 3 biggest winning trades', `${without >= 0 ? 'ahead' : 'behind'} by ${usd(Math.abs(without))} without them`]];
+        const met = checks.filter(c => c[0]).length;
+        const verdict = !due ? ['Not yet', 'info', `Decided on ${JUDGE_WORDS}. Until then, how each check stands today (${met} of 4 met):`]
+            : met === 4 ? ['Ready for a small real-money trial', 'good', 'All four checks pass. Start with about 10% of what you would invest, keep the rest in an S&P 500 fund, run the two side by side for 6 months, and move it back if the real account falls 10% behind the fund.']
+            : ['Keep your money in an S&P 500 fund', 'bad', `${4 - met} of the 4 checks did not pass on the day.`];
+        const row = (c) => `<li><span class="${c[0] ? 'ok' : 'red'}" style="font-weight: 700;">${c[0] ? '✓' : '✗'}</span> ${esc(c[1])} <span class="ad-sub">(${esc(c[2])})</span></li>`;
+        return `<div class="ad-card goal"><span class="ad-label">💵 Real money: the decision</span>
+            <div class="ad-goal-head" style="margin-top: 6px;"><span class="ad-goal-now">${verdict[0]}</span> <span class="ad-pill ${verdict[1]}">${due ? 'decided ' + JUDGE_WORDS : met + ' of 4 so far'}</span></div>
+            <div class="ad-sub" style="margin-top: 4px;">${verdict[2]}</div>
+            <ul style="list-style: none; padding: 0; margin: 8px 0 0; line-height: 1.7;">${checks.map(row).join('')}</ul>
+            <div class="ad-sub" style="margin-top: 6px;">Fixed in advance on 19 Oct 2026, so a lucky stretch cannot decide it. Practice money cannot show real fills, fees, currency costs or tax; a licensed adviser is worth a short session before real money. Not financial advice.</div></div>`;
+    }
     function goalHtml(g) {
         g = withLive(g);
         if (!g) return '';
@@ -365,7 +393,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${tilesHtml(data)}${goalHtml(data.goal)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
+            ${tilesHtml(data)}${decisionHtml()}${goalHtml(data.goal)}${propsHtml(data.open || [])}${answeredHtml(data.answered || [])}${changesHtml((data.plan || {}).changes)}${auditHtml((data.plan || {}).audit)}${planSummaryHtml(data.plan)}${reviewHtml(data.review, data.nextReview)}${healthHtml(data.health, data.settings, data.screeners || [])}`;
     }
 
     function reveal() {
