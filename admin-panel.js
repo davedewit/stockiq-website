@@ -198,6 +198,7 @@
             <div class="ad-goal-head" style="margin-top: 6px;"><span class="ad-goal-now">${verdict[0]}</span> <span class="ad-pill ${verdict[1]}">${due ? 'decided ' + JUDGE_WORDS : met + ' of 4 so far'}</span></div>
             <div class="ad-sub" style="margin-top: 4px;">${verdict[2]}</div>
             <ul style="list-style: none; padding: 0; margin: 8px 0 0; line-height: 1.7;">${checks.map(row).join('')}</ul>
+            <div style="margin-top: 6px;"><b>The money it needs on the day:</b> at least what the same $100,000 in an S&P 500 fund is worth then, plus ${LEAD_A_YEAR}%. If the day were today: the fund ${usd(f.fundValue)} → at least <b>${usd(f.fundValue * (1 + LEAD_A_YEAR / 100))}</b>; the account is <span class="${f.accountValue >= f.fundValue * (1 + LEAD_A_YEAR / 100) ? 'ok' : 'red'}">${usd(f.accountValue)}</span>. <span class="ad-sub">In a year the S&P rises 10%, that is about $115,500.</span></div>
             ${confidenceHtml(f.versus)}
             <div class="ad-sub" style="margin-top: 6px;">Fixed in advance on 19 Oct 2026, so a lucky stretch cannot decide it. Practice money cannot show real fills, fees, currency costs or tax; a licensed adviser is worth a short session before real money. Not financial advice.</div></div>`;
     }
