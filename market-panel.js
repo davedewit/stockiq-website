@@ -70,7 +70,7 @@
             var up = info.change >= 0, sign = up ? '+' : '', symbol = info.symbol || name;
             var item = document.createElement('div');
             item.className = 'market-item-sidebar'; item.style.cursor = 'pointer'; item.title = 'Run Analysis';
-            item.onclick = function () { window.location.href = 'analysis.html?symbol=' + encodeURIComponent(symbol) + '&option=1&subOption=custom'; };
+            item.onclick = function () { rowClick(symbol, item); };     // in the background on the dashboard, as the lists do (19 Oct 2026)
             // the small chart: today's prices, drawn by live-market.js (until 18 Oct 2026 a random line); empty until then
             item.innerHTML = '<div class="market-item-sidebar-name">' + esc(name) + '</div>'
                 + '<div class="market-item-sidebar-value">' + panelValue(info.value, tab) + '</div>'
@@ -188,7 +188,7 @@
         box.innerHTML = '';
         (tickers || []).slice(0, SHOWN).forEach(function (ticker, i, all) {
             var p = prices[ticker] || {}, id = idOf(ticker), has = typeof p.price === 'number', up = p.changePercent >= 0;
-            var link = !back && hasPage(ticker), div = document.createElement(link ? 'a' : 'div');
+            var link = false, div = document.createElement('div');     // a row runs the analysis (the owner, 19 Oct 2026); the stock pages are linked from the home page's Stock Pages section
             if (link) { div.href = HERE + 'stocks/' + encodeURIComponent(ticker) + '.html'; div.style.textDecoration = 'none'; div.style.color = 'inherit'; }
             div.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; padding: 5px 0; cursor: pointer; transition: background 0.2s;'
                 + (i < all.length - 1 ? ' border-bottom: 1px solid var(--border-color);' : '');
@@ -249,7 +249,7 @@
         if (np && !np.hasAttribute('data-desk-style')) np.setAttribute('data-desk-style', np.getAttribute('style') || '');   // put back after the phone sidebar
         var first = openTab();                                        // the tab of the market trading now (a tab picked later stays)
         if (first !== window.currentTabSidebar) window.switchToTab(first);
-        loadPages(); scrollHint(); renderLists(); window.fetchMarketDataSidebar(true); window.fetchSidebarTickers();
+        scrollHint(); renderLists(); window.fetchMarketDataSidebar(true); window.fetchSidebarTickers();
         window.updateMarketCountdownSidebar(); setInterval(window.updateMarketCountdownSidebar, 60000);
         setInterval(function () { if (inUse()) { window.fetchMarketDataSidebar(); window.fetchSidebarTickers(); } }, EVERY);
     }
