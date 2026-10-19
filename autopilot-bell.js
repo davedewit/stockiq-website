@@ -9,14 +9,10 @@
    the list is asked for from the autopilot function ("bell": read-only) at most every two minutes. */
 (function () {
     'use strict';
-    // A browser can still hold an older copy of this script (and of the theme.js that asks for it): scripts used to be kept for
-    // a day. That older copy may run first. It must not shut this one out (it did: the owner saw no trades anywhere), so this one
-    // always takes over, and the older one is left with nothing to draw: it reads its trades from its own place in the browser's
-    // store (emptied below), is told nothing by the function (which answers only the question marked "list: 2"), and its marks
-    // and its sign on the red number have other names than the ones used here.
-    const VERSION = 8;
+    // If two copies of this script meet on a page (a page and theme.js both ask for it), the newer one wins. Until 19 Oct 2026 it
+    // also coped with copies kept in browsers since 11 Oct, when scripts were kept a day; browsers keep them five minutes now.
+    const VERSION = 9;
     if (window.autopilotBell && window.autopilotBell.version >= VERSION) return;
-    const hadOlder = window.autopilotBell ? 'version ' + (window.autopilotBell.version || 'before 4') : 'none';
     const API = 'https://qy6s553i647agmxthtecc24fje0zskms.lambda-url.us-east-1.on.aws/';
     // Where the site's own pages and files are: beside this script, wherever the site is served from (the top of its address on
     // stockiq.tech, below a folder in a local preview). Never "/something": that is nowhere unless the site is at the top.
@@ -26,7 +22,6 @@
     const put = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* a private window: it works for this page only */ } };
     const user = () => { const u = get('userId'); return u && u !== 'anonymous' ? u : null; };
     const key = (name) => 'stockiqBell' + name + '_' + (user() || '');
-    const oldKey = (name) => 'stockiqAutopilot' + name + '_' + (user() || '');      // where the copies before version 4 kept theirs
     const esc = (s) => String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const ms = (t) => { const n = new Date(t).getTime(); return isNaN(n) ? 0 : n; };
     const when = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); };
@@ -111,23 +106,13 @@
     const onTop = () => newestTrade() >= newestReport();      // is the newest item one of the autopilot's?
 
     // ---- into the bell's list, wherever the page has opened one: the page's own drawing of it gives way to the one list
-    // What a version-3 copy still on the page would work out as the state of the list (from its own places in the store). The
-    // list carries it too, so that copy finds "its" list up to date and does not draw its own (without the trades) over this one.
-    function olderSig() {
-        let at;
-        try { const c = JSON.parse(get(oldKey('Trades')) || 'null'); at = c && Array.isArray(c.trades) ? c.at : undefined; } catch (e) { at = undefined; }
-        return [at, get(oldKey('Read')), get('unreadReports_' + user()), reports().map(r => r.analysisId + '@' + r.timestamp).join(','), has('rerunFromNotification')].join('|');
-    }
     let draws = [], gaveUp = false, fault = null;
     function place() {
         const drop = document.getElementById('notification-dropdown');
         if (!drop || !user() || gaveUp) return;
-        // an older copy on the page has put its own group of trades into the list, or has fetched itself a list of trades again:
-        // empty its store, so that it has nothing to put back when this list is drawn
-        if (get(oldKey('Trades')) !== null) { try { localStorage.removeItem(oldKey('Trades')); } catch (e) { /* a private window */ } }
         const first = drop.firstElementChild;
-        const sig = [(cache() || {}).at, get(key('Read')), get('unreadReports_' + user()), reports().map(r => r.analysisId + '@' + r.timestamp).join(','), has('rerunFromNotification')].join('|'), older = olderSig();
-        if (first && first.id === 'bell-list' && drop.children.length === 1 && first.getAttribute('data-mine') === sig && first.getAttribute('data-sig') === older) return;
+        const sig = [(cache() || {}).at, get(key('Read')), get('unreadReports_' + user()), reports().map(r => r.analysisId + '@' + r.timestamp).join(','), has('rerunFromNotification')].join('|');
+        if (first && first.id === 'bell-list' && drop.children.length === 1 && first.getAttribute('data-mine') === sig) return;
         const now = Date.now();
         draws = draws.filter(t => now - t < 2000).concat(now);
         if (draws.length > 12) { gaveUp = true; return; }    // something keeps undoing it: leave the list as it is rather than fight over it
@@ -135,7 +120,7 @@
         try { markup = html(); } catch (e) { fault = String(e && e.message || e).slice(0, 160); return; }      // on any fault the page's own list stays as it is
         if (!markup) return;
         const box = document.createElement('div');
-        box.id = 'bell-list'; box.setAttribute('data-mine', sig); box.setAttribute('data-sig', older); box.setAttribute('data-version', VERSION);
+        box.id = 'bell-list'; box.setAttribute('data-mine', sig); box.setAttribute('data-version', VERSION);
         box.style.cssText = 'text-align: left; font-weight: normal; line-height: 1.35;'; box.innerHTML = markup;
         const at = drop.scrollTop;
         drop.innerHTML = ''; drop.appendChild(box); drop.scrollTop = at;
@@ -194,9 +179,6 @@
             .catch(() => { /* the bell works without it */ }).then(() => { asking = false; });
     }
 
-    // the marks of the copies before this one are taken over once; their list of trades is emptied so that they draw nothing
-    ['Bell', 'Read'].forEach(name => { const was = get(oldKey(name)); if (user() && get(key(name)) === null && was && was > '2000') put(key(name), was); });
-    try { if (user()) localStorage.removeItem(oldKey('Trades')); } catch (e) { /* a private window */ }
     window.autopilotBell = { version: VERSION, set, trades, reports, unseen, unread, markSeen, markRead, html, place, open, report, badge, load, onTop, state: () => ({ version: VERSION, site: SITE, draws: draws.length, gaveUp, fault }) };
 
     function start() {
