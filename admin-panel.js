@@ -189,16 +189,26 @@
         const money = v => '$' + Number(v).toFixed(2), tone = v => v < 1 ? 'good' : v < 1.5 ? 'warn' : 'bad';
         let billNote = '';
         if (u.costStockiq !== undefined) {
-            // 19 Oct 2026: what StockIQ costs to run leads; the whole bill also holds the other projects and the one-off
-            // Cost Explorer charge of 17 Oct, which made it read $3.24 in red while StockIQ itself cost $0.48
-            chips.push(`<span class="ad-pill ${tone(u.costStockiq)}">StockIQ's AWS cost this month so far: ${money(u.costStockiq)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
-            if (u.costStockiqForecast) chips.push(`<span class="ad-pill ${tone(u.costStockiqForecast)}">on course for about ${money(u.costStockiqForecast)} for the month</span>`);
+            // 19 Oct 2026, the owner: "i'd like to see my full aws bill, as well as that specific stockiq bill ... make it clear what i'm
+            // looking at". So: the whole bill first, then StockIQ's part of it (its one-off Cost Explorer charge counted in), then the
+            // running cost, which is what the cost rule (under $1 a month) is about, with every service listed.
+            const svcName = { AmazonDynamoDB: 'DynamoDB (the database)', AmazonS3: 'S3 (file storage)', AWSLambda: 'Lambda (the functions)', AmazonCloudWatch: 'CloudWatch (logs)',
+                AmazonCloudFront: 'CloudFront (serving the site)', AWSDataTransfer: 'data transfer out', AmazonSES: 'SES (email)', AmazonSNS: 'SNS', AmazonCognito: 'Cognito (sign-in)',
+                awskms: 'KMS (keys)', AWSEvents: 'EventBridge (schedules)', AWSGlue: 'Glue', AWSMarketplace: 'Marketplace' };
+            const stockiqAll = (u.costStockiq || 0) + (u.costExplorer || 0);
+            if (u.cost !== undefined) chips.push(`<span class="ad-pill ${tone(u.cost)}">Your whole AWS bill this month so far: ${money(u.cost)} <span style="font-weight:400;">(your AWS budget warns at $1 and $1.50)</span></span>`);
+            chips.push(`<span class="ad-pill info">StockIQ's part of it: ${money(stockiqAll)}</span>`);
+            chips.push(`<span class="ad-pill ${tone(u.costStockiq)}">StockIQ's running cost: ${money(u.costStockiq)}${u.costStockiqForecast ? `, on course for about ${money(u.costStockiqForecast)} for the month` : ''} <span style="font-weight:400;">(the cost rule: under $1 a month)</span></span>`);
             const extra = (u.costExplorer || 0) - (u.costExplorerKnown || 0);
             if (extra > 0.02) chips.push(`<span class="ad-pill bad">Cost Explorer is being asked again: ${money(extra)} more this month. A session will find what asks it.</span>`);
-            const parts = [];
-            if (u.costExplorer >= 0.01) parts.push(`${money(u.costExplorer)} for Cost Explorer` + (u.costExplorerKnown ? ' (a session\'s test runs on 17 Oct, stopped that evening; nothing asks it now)' : ''));
-            if (u.costOther >= 0.01) parts.push(`${money(u.costOther)} for your other projects' storage`);
-            if (u.cost !== undefined && parts.length) billNote = `<div class="ad-sub" style="margin-top: 4px;">The whole AWS bill this month is ${money(u.cost)}: StockIQ's ${money(u.costStockiq)}, plus ${parts.join(', plus ')}.</div>`;
+            const svc = Object.entries(u.costServices || {}).filter(([k]) => k !== 'AWSCostExplorer').sort((a, b) => b[1] - a[1]);
+            const paid = svc.filter(([, v]) => v >= 0.01).map(([k, v]) => `${svcName[k] || k} ${money(v)}`);
+            const free = svc.filter(([, v]) => v < 0.01).map(([k]) => (svcName[k] || k).replace(/ \(.*\)$/, ''));
+            const lines = [];
+            if (u.cost !== undefined) lines.push(`<b>Whole bill ${money(u.cost)}</b> = StockIQ ${money(stockiqAll)} + your other projects ${money(u.costOther || 0)}${u.costOther >= 0.01 ? ' (their storage, on another AWS account)' : ''}.`);
+            if (u.costExplorer >= 0.01) lines.push(`<b>StockIQ ${money(stockiqAll)}</b> = ${money(u.costExplorer)} for Cost Explorer${u.costExplorerKnown ? ' (a one-off: a session\'s test runs on 17 Oct asked it 253 times at $0.01 each; stopped that evening, nothing asks it now)' : ''} + ${money(u.costStockiq)} to run the site.`);
+            lines.push(`<b>Running the site ${money(u.costStockiq)}</b>: ${paid.length ? paid.join(', ') : 'nothing yet'}${free.length ? `; still inside the free allowances: ${free.join(', ')}` : ''}.`);
+            billNote = `<div class="ad-sub" style="margin-top: 6px; line-height: 1.5;">${lines.join('<br>')}</div>`;
         } else {
             if (u.costForecast) chips.push(`<span class="ad-pill ${tone(u.costForecast)}">AWS forecasts about ${money(u.costForecast)} for the month</span>`);
             if (u.cost !== undefined) chips.unshift(`<span class="ad-pill ${tone(u.cost)}">AWS bill this month so far: ${money(u.cost)} <span style="font-weight:400;">(warning at $1, limit $1.50)</span></span>`);
