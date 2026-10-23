@@ -323,8 +323,12 @@
     function planHtml(pl) {
         if (!pl || !pl.items) return '';
         const items = pl.items, by = (st) => items.filter(e => e.status === st);
-        const running = by('running').sort((a, b) => (a.decide || '').localeCompare(b.decide || ''));
-        const next = by('idea').sort((a, b) => (a.order || 99) - (b.order || 99));
+        // newest first everywhere, each line dated (23 Oct 2026, the owner: "most recent improvements at the top and dated ... unsure when
+        // the improvement was created or started"): being tested by the day it started, ideas by the day they were added
+        const begun = (e) => e.started || e.added || '';
+        const running = by('running').sort((a, b) => begun(b).localeCompare(begun(a)));
+        const next = by('idea').sort((a, b) => (b.added || '').localeCompare(a.added || '') || (a.order || 99) - (b.order || 99));
+        const dated = (iso) => { const t = Date.parse(iso || ''); return t ? new Date(t + 43200000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''; };
         const done = items.filter(e => e.status === 'kept' || e.status === 'removed').sort((a, b) => (b.decided || '').localeCompare(a.decided || ''));
         const tags0 = (a) => (a || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="ad-tag">${esc(t)}</span>`).join('');
         // the item itself is passed where it is known, so that one shown to every user carries 👥
@@ -334,15 +338,16 @@
             const a = Date.parse(e.started), b = Date.parse(e.decide), pct = a && b && b > a ? Math.max(3, Math.min(100, (todayMs - a) / (b - a) * 100)) : 0;
             const left = b ? Math.ceil((b - todayMs) / dayms) : null;
             return `<div class="ad-goal"><div class="ad-goal-head"><span><b>${esc(e.what)}</b>${tags(e.angle, e)}</span><span class="ad-pill ${left !== null && left <= 0 ? 'warn' : 'info'}">${left === null ? '' : left <= 0 ? 'decide now' : 'decided in ' + left + ' day' + (left === 1 ? '' : 's')}</span></div>
+                <div class="ad-sub" style="margin-top: 2px;">Started ${esc(dated(begun(e)))}${b ? ` · decided by ${esc(dated(e.decide))}` : ''}</div>
                 <div class="ad-bar"><span style="width: ${pct.toFixed(0)}%; background: var(--ad-blue);"></span></div><div class="ad-sub" style="margin-top: 4px;">Measured by: ${esc(e.measure)}</div></div>`;
         };
-        const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : ''}"><b>${e.status === 'kept' ? '✓ Kept' : 'Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${esc(e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
+        const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : ''}"><b>${e.status === 'kept' ? '✓ Kept' : 'Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${begun(e) && begun(e) !== e.decided ? `started ${esc(dated(begun(e)))}, ` : ''}decided ${esc(dated(e.decided) || e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
         const reviewed = (pl.reviews || []).map(r => `<li><b>${esc(r.part)}</b> <span class="ad-sub">${esc(r.at)}</span><div class="ad-sub">${esc(r.found)}</div></li>`).join('');
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
-            <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. Updated ${esc(day(pl.at))}.</div>
+            <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. This list was last brought up to date ${esc(day(pl.at))}.</div>
             <div class="ad-sub" style="margin-bottom: 8px;">This is the full list, for you only. Every user sees a short, plain version on the AI autopilot tab ("How it is improving"): only what affects their autopilot, marked here 👥.</div>
-            ${running.length ? `<div class="ad-section">Being tested now</div>${running.map(runRow).join('')}` : ''}
-            ${next.length ? `<div class="ad-section">Next, in order</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}</li>`).join('')}</ol>` : ''}
+            ${running.length ? `<div class="ad-section">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
+            ${next.length ? `<div class="ad-section">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}</li>`).join('')}</ol>` : ''}
             ${done.length ? `<div class="ad-section">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
             ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
     }
