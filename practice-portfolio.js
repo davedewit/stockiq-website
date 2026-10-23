@@ -85,9 +85,51 @@
     }
 
     // What the sold list adds up to, and how many sales did better than the S&P 500 fund over the same days
-    // Whose holdings a list shows: 'own' the ones bought by hand, 'ai' the autopilot's, anything else all of them
-    function partOf(list, key) {
-        return key === 'own' ? list.filter(h => h.by !== 'ai') : key === 'ai' ? list.filter(h => h.by === 'ai') : list;
+    // Whose holdings a list shows: 'own' the ones bought by hand, 'ai' the autopilot's, 'g:<market>' the autopilot's from one
+    // market, 's:<screener>' from one screener (23 Oct 2026), anything else all of them. info: the screeners, as the autopilot
+    // sends them ({key: {name, group}}).
+    const THEMES_INFO = { name: 'Sector funds (a trial)', group: 'Sector funds' };
+    function marketOf(h, info) {
+        if (!h || h.by !== 'ai') return null;
+        const i = h.screener === 'themes' ? THEMES_INFO : (info || {})[h.screener];
+        return i ? { group: i.group, name: i.name, key: h.screener } : { group: 'Other', name: h.screener || 'Not known', key: h.screener || '' };
+    }
+    function partOf(list, key, info) {
+        if (key === 'own') return list.filter(h => h.by !== 'ai');
+        if (key === 'ai') return list.filter(h => h.by === 'ai');
+        if (/^[gs]:/.test(String(key))) return list.filter(h => pickOf(key, info)(h));
+        return list;
+    }
+    function pickOf(key, info) {
+        const k = String(key || ''), what = k.slice(2);
+        return (h) => { const m = marketOf(h, info); return !!m && (k[0] === 'g' ? m.group === what : m.key === what); };
+    }
+    // Where the autopilot's results come from (the owner, 23 Oct 2026: "the goal is to understand where the profit or loss is
+    // coming from ... my goal is to beat the S&P"): per market and per screener, sold and still held together, against the same
+    // dollars put into an S&P 500 fund on the day each was bought and taken out the day it was sold (or now). A holding bought
+    // without the fund's price kept is counted in the result but not in the comparison (`compared` says how much was).
+    function marketResults(state, quotes, info) {
+        const spyNow = (quotes[BENCHMARK] || {}).price, out = {};
+        const add = (key, label, group, h, gain, fund) => {
+            const r = out[key] || (out[key] = { key, label, group, trades: 0, sold: 0, held: 0, cost: 0, gainUsd: 0, compared: 0, fundUsd: 0, gainCompared: 0 });
+            r.trades++; r[h.soldAt ? 'sold' : 'held']++; r.cost += h.costUsd; r.gainUsd += gain;
+            if (fund !== null) { r.compared += h.costUsd; r.fundUsd += fund; r.gainCompared += gain; }
+        };
+        const one = (h, sold) => {
+            const m = marketOf(h, info);
+            if (!m) return;
+            const gain = sold ? h.proceedsUsd - h.costUsd : valueOf(h, quotes).gainUsd;
+            const end = sold ? h.spyAtSell : spyNow, fund = h.spyAtBuy > 0 && end > 0 ? h.costUsd * (end / h.spyAtBuy - 1) : null;
+            add('g:' + m.group, m.group, m.group, h, gain, fund);
+            add('s:' + m.key, m.name, m.group, h, gain, fund);
+        };
+        state.holdings.forEach(h => one(h, false));
+        state.closed.forEach(h => one(h, true));
+        Object.values(out).forEach(r => {
+            r.aheadUsd = r.compared > 0 ? r.gainCompared - r.fundUsd : null;
+            r.aheadPct = r.compared > 0 ? r.aheadUsd / r.compared * 100 : null;
+        });
+        return out;
     }
 
     function soldSummary(state) {
@@ -307,8 +349,17 @@
     // over its limit) have no dates left: they are counted from the beginning, and `undated` says how much that is.
     // Each point: t, value (the account), all (its change since the start), ai (the autopilot's part), own (the user's),
     // fund (the starting amount in an S&P 500 fund since the account began: fundKnots; null when that cannot be worked out).
-    function valueSeries(state, quotes, now, autoRealized, from) {
+    function valueSeries(state, quotes, now, autoRealized, from, pick) {
         const ms = (x) => typeof x === 'number' ? x : Date.parse(x);
+        const spy = quotes[BENCHMARK], spySeries = (spy && spy.series) || [];
+        // one holding's dollars in the S&P 500 fund instead, on its own days: exact at buying and at selling (or now)
+        const fundLot = (h, bought, end, endSpy) => {
+            if (!(h.spyAtBuy > 0) || !(endSpy > 0)) return null;
+            const k = [[bought, h.costUsd]];
+            spySeries.forEach(([t, p]) => { if (t > bought && t < end && p > 0) k.push([t, h.costUsd * p / h.spyAtBuy]); });
+            k.push([Math.max(end, bought + 1), h.costUsd * endSpy / h.spyAtBuy]);
+            return k;
+        };
         const start = ms(state.createdAt) || now, first = Math.min(now, Math.max(start, from || start)), lots = [];
         const rates = (currency) => { const fx = fxFor(currency), q = fx.symbol && quotes[fx.symbol]; return !fx.symbol ? null : ((q && q.series) || []).map(([t, p]) => [t, fxRate(fx, p)]).filter(k => k[1] > 0); };
         const paid = (h) => h.qty > 0 && h.buyPrice > 0 && h.buyFx > 0 ? h.qty * h.buyPrice * h.buyFx : h.costUsd;      // its worth the moment after buying: what was put in less the cost of buying
@@ -320,27 +371,35 @@
                 if (rate > 0) knots.push([t, h.qty * p * rate]);
             });
             knots.push([Math.max(now, bought + 1), valueOf(h, quotes).valueUsd]);
-            lots.push({ ai: h.by === 'ai', cost: h.costUsd, from: bought, knots });
+            const picked = !!(pick && pick(h));
+            lots.push({ ai: h.by === 'ai', cost: h.costUsd, from: bought, knots, picked, fund: picked ? fundLot(h, bought, now, spy && spy.price) : null });
         });
         state.closed.forEach(h => {
             const bought = ms(h.boughtAt);
-            lots.push({ ai: h.by === 'ai', cost: h.costUsd, from: bought, knots: [[bought, paid(h)], [Math.max(ms(h.soldAt), bought + 1), h.proceedsUsd]] });
+            const picked = !!(pick && pick(h));
+            lots.push({ ai: h.by === 'ai', cost: h.costUsd, from: bought, knots: [[bought, paid(h)], [Math.max(ms(h.soldAt), bought + 1), h.proceedsUsd]],
+                        picked, fund: picked ? fundLot(h, bought, ms(h.soldAt), h.spyAtSell) : null });
         });
         const gain = (lot, t) => t < lot.from ? 0 : valueAt(lot.knots, t) - lot.cost;
         const split = splitGain(state, quotes, autoRealized);
         const undated = split.total - lots.reduce((sum, l) => sum + gain(l, now), 0);
         const undatedAi = split.auto - lots.reduce((sum, l) => sum + (l.ai ? gain(l, now) : 0), 0);
         const times = new Set([first, now]);
-        lots.forEach(l => l.knots.forEach(k => { if (k[0] > first && k[0] < now) times.add(k[0]); }));
+        lots.forEach(l => l.knots.concat(l.fund || []).forEach(k => { if (k[0] > first && k[0] < now) times.add(k[0]); }));
+        const fundGain = (lot, t) => t < lot.from ? 0 : valueAt(lot.fund, Math.min(t, lot.fund[lot.fund.length - 1][0])) - lot.cost;
         const fund = fundKnots(state, quotes, now);
         if (fund) fund.forEach(k => { if (k[0] > first && k[0] < now) times.add(k[0]); });
         for (let i = 1; i < 120; i++) times.add(Math.round(first + (now - first) * i / 120));
         const points = [...times].sort((a, b) => a - b).map(t => {
             let all = undated, ai = undatedAi;
-            lots.forEach(l => { const g = gain(l, t); all += g; if (l.ai) ai += g; });
-            return { t, value: state.startingCash + all, all, ai, own: all - ai, fund: fund ? valueAt(fund, t) : null };
+            let part = 0, pfund = 0;
+            lots.forEach(l => { const g = gain(l, t); all += g; if (l.ai) ai += g; if (l.picked) { part += g; if (l.fund) pfund += fundGain(l, t); } });
+            return Object.assign({ t, value: state.startingCash + all, all, ai, own: all - ai, fund: fund ? valueAt(fund, t) : null }, pick ? { part, pfund } : {});
         });
-        return { start, from: first, now, points, undated, undatedAi, lots: lots.length, anyAi: split.any, fund: !!fund };
+        // pfundAll: every holding of the part has the fund's price from its buy, so the fund's line is the same money throughout
+        const chosen = lots.filter(l => l.picked);
+        return { start, from: first, now, points, undated, undatedAi, lots: lots.length, anyAi: split.any, fund: !!fund,
+                 parts: pick ? chosen.length : 0, pfundAll: !!pick && chosen.length > 0 && chosen.every(l => l.fund) };
     }
     // Round numbers for an axis that covers lo..hi in about `count` steps
     function axisTicks(lo, hi, count) {
@@ -355,8 +414,10 @@
         const pts = series.points, base = key === 'value' ? pts.length ? pts[0].value - pts[0].all : 0 : 0;
         const W = Math.max(260, Math.round(width || 720)), H = Math.round(height || 220), small = W < 480;
         const m = { l: small ? 54 : 70, r: 14, t: 12, b: 24 }, w = W - m.l - m.r, h = H - m.t - m.b;
-        const both = key === 'value' && !!series.fund && pts.every(p => typeof p.fund === 'number');      // the S&P 500 fund's line beside the account's
-        const vals = pts.map(p => p[key]).concat([base], both ? pts.map(p => p.fund) : []);
+        // the S&P 500 fund's line beside the account's; for one market (key 'part') the same dollars in the fund on the same days
+        const fk = key === 'part' ? 'pfund' : 'fund';
+        const both = key === 'value' ? !!series.fund && pts.every(p => typeof p.fund === 'number') : key === 'part' && !!series.pfundAll;
+        const vals = pts.map(p => p[key]).concat([base], both ? pts.map(p => p[fk]) : []);
         let lo = Math.min(...vals), hi = Math.max(...vals);
         const pad = Math.max((hi - lo) * 0.12, Math.abs(base) * 0.0002, 1); lo -= pad; hi += pad;
         const t0 = series.from, t1 = Math.max(series.now, t0 + 1);
@@ -366,7 +427,7 @@
             : (Math.abs(v) < 0.005 ? '$0' : (v > 0 ? '+$' : '-$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 }));
         const days = (t1 - t0) / 86400000;
         const stamp = (t) => { const d = new Date(t); return days <= 3 ? d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
-        let out = `<svg id="pp-chart-svg" class="pp-chart-svg" role="img" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="${esc(key === 'value' ? 'Account value over time' : key === 'ai' ? 'The autopilot’s result over time' : 'The result of your own buys over time')}: from ${esc(label(pts[0][key]))} to ${esc(label(pts[pts.length - 1][key]))}${both ? '; the same amount in an S&amp;P 500 fund since the start: ' + esc(label(pts[pts.length - 1].fund)) : ''}">`;
+        let out = `<svg id="pp-chart-svg" class="pp-chart-svg" role="img" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="${esc(key === 'value' ? 'Account value over time' : key === 'ai' ? 'The autopilot’s result over time' : key === 'part' ? 'The result of one market over time' : 'The result of your own buys over time')}: from ${esc(label(pts[0][key]))} to ${esc(label(pts[pts.length - 1][key]))}${both ? (key === 'part' ? '; the same money in an S&amp;P 500 fund on the same days: ' : '; the same amount in an S&amp;P 500 fund since the start: ') + esc(label(pts[pts.length - 1][fk])) : ''}">`;
         axisTicks(lo, hi, small ? 3 : 4).ticks.forEach(v => {
             out += `<line class="pp-grid" x1="${m.l}" x2="${W - m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="pp-axis" x="${m.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(label(v))}</text>`;
         });
@@ -378,7 +439,7 @@
         // where it started: the line everything is measured against
         out += `<line class="pp-base" x1="${m.l}" x2="${W - m.r}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
         // f, fy: the fund at that moment and where it sits (only on the account's own picture, and only when it could be worked out)
-        const placed = pts.map(p => Object.assign({ t: p.t, v: p[key], all: p.all, x: +x(p.t).toFixed(1), y: +y(p[key]).toFixed(1) }, both ? { f: p.fund, fy: +y(p.fund).toFixed(1) } : {}));
+        const placed = pts.map(p => Object.assign({ t: p.t, v: p[key], all: p.all, x: +x(p.t).toFixed(1), y: +y(p[key]).toFixed(1) }, both ? { f: p[fk], fy: +y(p[fk]).toFixed(1) } : {}));
         if (both) out += `<path class="pp-fund" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.fy).join('')}"/>`;      // under the account's line
         out += `<path class="pp-line" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.y).join('')}"/>`;
         const end = placed[placed.length - 1];
@@ -414,7 +475,7 @@
             + `A practice ${verb === 'sold' ? 'sale' : 'buy'} is made only at a price that has traded in the last ${FRESH_HOURS} hours, as the autopilot's are, so that it is a price someone could really have traded at. Try again once its market is open.`;
     }
 
-    const pure = { closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart, versusDays };
+    const pure = { marketOf, marketResults, pickOf, closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart, versusDays };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -449,6 +510,9 @@
         #practice-portfolio .pp-chart-read { font-size: 0.9rem; color: var(--text-primary); font-variant-numeric: tabular-nums; min-height: 1.3em; }
         #practice-portfolio .pp-chart-read .pp-chart-when { color: var(--text-secondary); margin-right: 8px; }
         #practice-portfolio .pp-chart-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+        #practice-portfolio .pp-market { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.78rem; color: var(--text-secondary); flex-basis: 100%; min-width: 0; margin-top: 6px; }
+        #practice-portfolio .pp-market select { width: 100%; max-width: 100%; min-width: 0; font-size: 16px; padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg, transparent); color: var(--text-primary); }
+        @media (min-width: 700px) { #practice-portfolio .pp-market { flex-wrap: nowrap; } #practice-portfolio .pp-market select { width: auto; font-size: 0.82rem; max-width: 460px; } }
         #practice-portfolio .pp-chart-tabs button { background: none; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 999px; padding: 3px 11px; font-size: 0.78rem; cursor: pointer; }
         #practice-portfolio .pp-chart-tabs button[aria-pressed="true"] { color: var(--text-primary); border-color: var(--text-secondary); font-weight: 600; }
         #practice-portfolio .pp-chart-svg { display: block; width: 100%; height: auto; touch-action: pan-y; cursor: crosshair; }
@@ -645,9 +709,10 @@
     let plans = {}, autoRealized = null;
     function setPlans(list, extra) {
         const next = {}, made = extra && typeof extra.realizedUsd === 'number' ? extra.realizedUsd : null;
+        const info = extra && extra.screeners && typeof extra.screeners === 'object' ? extra.screeners : screenerInfo;
         (list || []).forEach(p => { next[p.id] = p; });
-        if (JSON.stringify(next) === JSON.stringify(plans) && made === autoRealized) return;
-        plans = next; autoRealized = made;
+        if (JSON.stringify(next) === JSON.stringify(plans) && made === autoRealized && JSON.stringify(info) === JSON.stringify(screenerInfo)) return;
+        plans = next; autoRealized = made; screenerInfo = info;
         if (loaded && state && !working) redraw();
     }
     // Change a copy, save it, and only then show it: what is on screen is always what is stored
@@ -720,11 +785,12 @@
 
         // The graph's choice (Account, Your own buys, AI autopilot) is also whose holdings the two lists show
         if (chartKey !== 'value' && !splitGain(state, quotes, autoRealized).any) chartKey = 'value';
-        const held = partOf(state.holdings, chartKey), soldOnes = partOf(state.closed, chartKey), part = chartKey !== 'value';
+        if (isMarket(chartKey) && !screenerInfo) chartKey = 'ai';
+        const held = partOf(state.holdings, chartKey, screenerInfo), soldOnes = partOf(state.closed, chartKey, screenerInfo), part = chartKey !== 'value';
         const count = (shown, all) => part ? `${shown} of ${all}` : String(all);
-        const whose = chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys';
+        const whose = chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : isMarket(chartKey) ? `the 🤖 AI autopilot’s from ${esc(marketLabel(chartKey))}` : 'your own buys';
         const showAll = `<a href="#" data-pp="chart-key" data-id="value" style="color: #007bff; white-space: nowrap;">Show all</a>`;
-        const partLine = part && state.holdings.length ? `<div id="pp-part" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">${held.length ? `Showing <strong style="color: var(--text-primary);">${whose}</strong>: ${held.length} of ${state.holdings.length} holdings.` : `None of the ${state.holdings.length} holdings ${state.holdings.length === 1 ? 'is' : 'are'} ${chartKey === 'ai' ? 'the 🤖 AI autopilot’s' : 'your own buys'}.`} ${showAll}</div>` : '';
+        const partLine = part && state.holdings.length ? `<div id="pp-part" style="margin: 0 0 8px; font-size: 0.85rem; color: var(--text-secondary);">${held.length ? `Showing <strong style="color: var(--text-primary);">${whose}</strong>: ${held.length} of ${state.holdings.length} holdings.` : `None of the ${state.holdings.length} holdings ${state.holdings.length === 1 ? 'is' : 'are'} ${whose}.`} ${showAll}</div>` : '';
 
         // what is particular to an autopilot holding now, visible without opening its plan (moved here from the autopilot tab's
         // "Holding now", which listed the same holdings a second time: 19 Oct 2026)
@@ -876,6 +942,11 @@
     // lists under the graph show (partOf). It is kept while the page is open (a refresh of prices leaves it) and is not
     // remembered: a page opened afresh shows the whole account. chartRange (how far back) is remembered in the browser.
     let chartKey = 'value', chartRange = 'all';
+    // 'g:<market>' / 's:<screener>': one market's part of the autopilot (the menu beside the buttons, 23 Oct 2026). screenerInfo:
+    // the screeners' names and markets, handed over by the autopilot panel (setPlans); without it there is no menu.
+    let screenerInfo = null;
+    const isMarket = (k) => /^[gs]:/.test(String(k || ''));
+    const marketLabel = (k) => { const r = state ? marketResults(state, quotes, screenerInfo)[k] : null; return r ? r.label : String(k).slice(2); };
     let chartNow = null;                             // where each point sits in the picture on show: the pointer reads values off it
     try {
         const r = localStorage.getItem('stockiqPracticeChartRange');
@@ -885,6 +956,14 @@
     // The line above the picture: a moment, the figure then, and the change
     function chartRead(point) {
         const moment = `<span class="pp-chart-when">${esc(new Date(point.t).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`;
+        if (isMarket(chartKey) && typeof point.f === 'number') {
+            // one market: its result, and the same dollars in an S&P 500 fund on the same days
+            const gap = Math.round((point.v - point.f) * 100) / 100;
+            const verdict = gap === 0 ? 'level with it' : `<strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))}</strong>`;
+            return `<div>${moment}</div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${esc(marketLabel(chartKey))}</span><span>${movedHtml(point.v)}</span></div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key fund" aria-hidden="true"></span>The same money in an S&amp;P 500 fund, same days</span><span>${movedHtml(point.f)} · ${verdict}</span></div>`;
+        }
         if (chartKey !== 'value') return `${moment}${movedHtml(point.v)}`;
         const cash = state ? state.startingCash : STARTING_CASH, share = (n) => n / cash * 100;
         const account = `<strong>${usd(point.v)}</strong> ${movedHtml(point.all, share(point.all))} since the start`;
@@ -901,14 +980,26 @@
         const now = Date.now(), age = now - (Date.parse(state.createdAt) || now);
         const ranges = Object.keys(CHART_RANGES).filter(r => r === 'all' || age > CHART_RANGES[r][1] * 1.15);
         if (!ranges.includes(chartRange)) chartRange = 'all';
-        const series = valueSeries(state, quotes, now, autoRealized, chartRange === 'all' ? 0 : now - CHART_RANGES[chartRange][1]);
+        const series = valueSeries(state, quotes, now, autoRealized, chartRange === 'all' ? 0 : now - CHART_RANGES[chartRange][1], isMarket(chartKey) ? pickOf(chartKey, screenerInfo) : null);
         if (!series.anyAi) chartKey = 'value';
         const el = box(), width = Math.min(1100, Math.max(260, ((el && el.clientWidth) || 750) - 30));
-        const picture = chartSvg(series, chartKey, width, width < 480 ? 180 : 220);
+        const picture = chartSvg(series, isMarket(chartKey) ? 'part' : chartKey, width, width < 480 ? 180 : 220);
         chartNow = { placed: picture.placed, width: picture.width };
         const tab = (kind, id, text, on) => `<button type="button" data-pp="chart-${kind}" data-id="${id}" aria-pressed="${on}">${text}</button>`;
         const kinds = series.anyAi ? [['value', 'Account'], ['own', 'Your own buys'], ['ai', '🤖 AI autopilot']] : [];
-        const title = chartKey === 'value' ? 'Account value over time' : chartKey === 'ai' ? 'The autopilot’s result over time' : 'Your own buys: result over time';
+        const title = chartKey === 'value' ? 'Account value over time' : chartKey === 'ai' ? 'The autopilot’s result over time' : isMarket(chartKey) ? esc(marketLabel(chartKey)) + ': result over time' : 'Your own buys: result over time';
+        // The menu of markets and their screeners, each with its result against the same dollars in an S&P 500 fund on the same days
+        const results = series.anyAi && screenerInfo ? marketResults(state, quotes, screenerInfo) : null;
+        const vsText = (r) => r.aheadUsd === null ? `${r.gainUsd >= 0 ? '+' : '-'}${usd(Math.abs(r.gainUsd))}` : Math.abs(r.aheadUsd) < 0.5 ? 'level with the S&P 500'
+            : `${r.aheadUsd > 0 ? 'ahead of' : 'behind'} the S&P 500 by ${usd(Math.abs(r.aheadUsd)).replace(/\.\d\d$/, '')} (${Math.abs(r.aheadPct).toFixed(1)}%)`;
+        const opt = (r, indent) => `<option value="${esc(r.key)}"${chartKey === r.key ? ' selected' : ''}>${indent ? '\u00a0\u00a0' : ''}${esc(r.label)}: ${esc(vsText(r))}, ${r.trades} ${r.trades === 1 ? 'holding' : 'holdings'}</option>`;
+        const menu = !results ? '' : (() => {
+            const groups = Object.values(results).filter(r => r.key[0] === 'g').sort((a, b) => (b.aheadUsd === null ? -1e9 : b.aheadUsd) - (a.aheadUsd === null ? -1e9 : a.aheadUsd));
+            const subs = (g) => Object.values(results).filter(r => r.key[0] === 's' && r.group === g.group).sort((a, b) => (b.aheadUsd || 0) - (a.aheadUsd || 0));
+            return `<label class="pp-market"><span>By market</span><select id="pp-market" aria-label="Show one market or screener of the autopilot"><option value=""${isMarket(chartKey) ? '' : ' selected'}>All of the account</option>${groups.map(g => `<optgroup label="${esc(g.label)}">${opt(g, false)}${subs(g).length > 1 ? subs(g).map(r => opt(r, true)).join('') : ''}</optgroup>`).join('')}</select></label>`;
+        })();
+        const chosen = isMarket(chartKey) && results ? results[chartKey] : null;
+        const partNote = !chosen ? '' : ` This market: ${chosen.sold} sold and ${chosen.held} still held, ${usd(chosen.cost).replace(/\.\d\d$/, '')} put in, ${moved(chosen.gainUsd)} in all${chosen.aheadUsd === null ? '' : `; the same dollars in an S&amp;P 500 fund, bought and sold on the same days, would have ${chosen.fundUsd >= 0 ? 'made' : 'lost'} ${usd(Math.abs(chosen.fundUsd))}`}. The gold line is that fund money.${chosen.trades < 30 ? ` <strong>${chosen.trades} ${chosen.trades === 1 ? 'holding is' : 'holdings are'} too few to tell skill from luck</strong> (about 30 are needed).` : ''}`;
         // the figures behind the picture, a line a day (the last moment of each day)
         const perDay = {};
         series.points.forEach(point => { perDay[new Date(point.t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })] = point; });
@@ -916,10 +1007,10 @@
         const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td${picture.fund ? ' class="pp-fig-part"' : ''}>${movedHtml(point.all)}</td>${picture.fund ? `<td class="pp-fig-part">${usd(point.fund)}</td><td class="pp-fig-vs">${against(point)}</td>` : ''}${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
         const undated = Math.abs(series.undated) > 0.5 ? ` The result of sold holdings that are no longer in the list (${moved(series.undated)}) has no dates left, so it is counted from the start.` : '';
         return `<div class="pp-chart">
-            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.length > 1 ? ranges.map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('') : ''}</span></div>
+            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.length > 1 ? ranges.map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('') : ''}</span>${menu}</div>
             <div class="pp-chart-read" id="pp-chart-read">${chartRead(picture.placed[picture.placed.length - 1])}</div>
             ${picture.svg}
-            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${undated}</div>
+            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund && !isMarket(chartKey) ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${isMarket(chartKey) ? partNote : undated}</div>
             <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
         </div>`;
     }
@@ -1061,6 +1152,8 @@
         if (ppQuote && ppQuote.symbol === code) fillOther(); else if (code) priceFor(code);
     });
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'pp-symbol' && e.target.value.trim()) priceFor(e.target.value); });
+    // the market menu: the graph, the holdings and the sold list follow it; "All of the account" goes back to the whole account
+    document.addEventListener('change', (e) => { if (e.target && e.target.id === 'pp-market') { chartKey = e.target.value || 'value'; redraw(); } });
     // Company-name / ticker lookup, the same service and behaviour as the search box on the home page
     document.addEventListener('input', (e) => {
         if (!e.target || e.target.id !== 'pp-symbol') return;

@@ -1099,7 +1099,7 @@
     }
     function take(result) { data = result; draft = JSON.parse(JSON.stringify(result.settings)); accepted = null; loadedAt = new Date(); const at = Date.parse(result.now); if (isFinite(at)) skew = at - Date.now(); sharePlans(); }
     // practice-portfolio.js marks the autopilot's holdings with when and at what they will be sold
-    function sharePlans() { if (data && data.allowed && window.practicePortfolio && window.practicePortfolio.setPlans) window.practicePortfolio.setPlans(data.plans || [], { realizedUsd: data.realizedUsd }); }
+    function sharePlans() { if (data && data.allowed && window.practicePortfolio && window.practicePortfolio.setPlans) window.practicePortfolio.setPlans(data.plans || [], { realizedUsd: data.realizedUsd, screeners: (data.options || {}).screeners || null }); }
     // What changes when the autopilot acts: its activity list and what it holds
     const stamp = (r) => JSON.stringify([r.order, r.progress, r.log && r.log.length, r.log && r.log.slice(-1), r.plans, r.state, r.tune, r.scorecard && r.scorecard.n, r.coming, r.needs, r.mail, r.nextCheck, r.improvements, r.themes, r.gauge && r.gauge.level]);      // improvements: a new one shows at the next refresh (17 Oct 2026)
     // Ask again without disturbing anything: not while a change is being typed, saved or run
