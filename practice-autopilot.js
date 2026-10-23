@@ -59,6 +59,9 @@
         #practice-autopilot .ap-splitbar span.idle { color: var(--text-secondary); background: none; font-weight: 400; }
         #practice-autopilot .ap-group.first { border-top: none; padding-top: 2px; }
         #practice-autopilot .ap-group-name { color: var(--text-secondary); padding-top: 6px; }
+        #practice-autopilot .ap-pickmode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 2px; font-weight: 600; }
+        #practice-autopilot .ap-chip:has(input:disabled) { opacity: 0.6; cursor: default; }
+        #practice-autopilot .ap-group-pick:disabled { cursor: default; text-decoration: none; }
         #practice-autopilot .ap-group-pick { white-space: nowrap; background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; border-bottom: 1px dashed var(--border-color); }
         #practice-autopilot .ap-group-pick:hover { color: var(--text-primary); border-bottom-color: #3b82f6; }
         #practice-autopilot .ap-chips { display: flex; flex-wrap: wrap; gap: 6px 8px; }
@@ -220,6 +223,18 @@
     }
     // Shortcuts (13 Oct 2026; they replaced the "quick set-ups", which also changed the pace and the level): they change
     // only which screeners are ticked. MAIN is one index a country, none of them inside another.
+    // Who ticks the screeners (23 Oct 2026, the owner's AI / Manual choice): on AI the boxes are the autopilot's and greyed out
+    const aiPicks = (d) => !!(data && data.settings && 'pickMode' in data.settings && (d || data.settings).pickMode !== 'manual');
+    function pickHtml(d) {
+        if (!data || !data.settings || !('pickMode' in data.settings)) return '';
+        const ai = aiPicks(d), names = (data.options && data.options.screeners) || {};
+        const recent = ((data.state && data.state.picks) || []).slice(-6).reverse();
+        const lines = recent.length ? `<details class="ap-help" style="margin-top: 4px;"><summary>What the AI changed lately (${recent.length})</summary><ul style="margin: 4px 0 0 16px; padding: 0;">${recent.map(x => `<li>${esc(day(x.t))}: ${x.do === 'in' ? 'ticked' : 'unticked'} <strong>${esc((names[x.k] || {}).name || x.k)}</strong> (${esc(x.why)})</li>`).join('')}</ul></details>` : '';
+        return `<div class="ap-pickmode" role="radiogroup" aria-label="Who chooses the markets"><span>Who chooses the markets:</span>
+            <label class="ap-chip"><input type="radio" name="ap-pickmode" id="ap-pick-ai" ${ai ? 'checked' : ''}> 🤖 AI</label>
+            <label class="ap-chip"><input type="radio" name="ap-pickmode" id="ap-pick-manual" ${ai ? '' : 'checked'}> Manual</label></div>
+            <div class="ap-help" style="margin-top: 4px;">${ai ? 'It keeps the main index of every country ticked and drops a market only while its own trades lag; it comes back after its rest. Manual lets you tick, starting from what the AI left.' : 'You tick the screeners. AI lets the autopilot choose.'}</div>${lines}`;
+    }
     const MAIN = ['3-3', '5-ftse100', '5-dax40', '5-cac40', '5-smi', '5-aex', '5-ftsemib', '5-ibex35', '4-200', '5-nikkei225', '5-hangseng', '5-sensex', '5-kospi200', '5-sti', '5-tsx60', '5-bovespa', '5-omx30', '5-csi300', '5-tw50', '5-nzx50', '5-ipc'];
     let loadedAt = null, refreshing = false, openDetails = {};       // openDetails: which "Details" are unfolded, kept across redraws
     const REFRESH_MS = 5 * 60000;      // every 5 minutes (it was every minute: the most of the database's reads, 17 Oct 2026); it trades only at :10 and :40, and a press of a button refreshes at once
@@ -882,7 +897,7 @@
                     <h3>🤖 AI autopilot <span class="ap-beta" title="Beta: new, still being tested and changed">Beta</span> <span class="ap-sub">fake money, an experiment to watch</span></h3>
                     <label class="ap-switch" title="Switch the autopilot on or off. This is saved straight away."><span id="ap-switch-text">${d.enabled ? 'On' : 'Off'}</span><input id="ap-enabled" type="checkbox" ${d.enabled ? 'checked' : ''} ${working ? 'disabled' : ''}><span class="ap-track"></span></label>
                 </div>
-                <p class="ap-intro">An AI model makes practice buys and sells for you from the latest results of the screeners you choose, inside the limits you set here. It uses the fake money of your <a href="#practice">practice portfolio</a>, where its holdings are listed with your own. Nothing here is advice, and past screener results have not shown a reliable edge. It is in beta: new, and still being tested and changed.</p>
+                <p class="ap-intro">An AI model buys and sells with the fake money of your <a href="#practice">practice portfolio</a>, from the screeners below and inside your limits. Not advice; in beta.</p>
                 <div id="ap-status" class="ap-status ${on ? 'on' : ''}">${esc(statusText())}${countLine()}</div>
                 ${needsHtml()}
 
@@ -913,7 +928,7 @@
                 </div>
 
                 <div id="ap-pane-settings" class="ap-pane" style="${part === 'settings' ? '' : 'display: none;'}">
-                <div class="ap-help" style="margin-top: 12px;">Every change here saves itself. A change by itself buys or sells nothing: the autopilot acts only at a check-in, and a scheduled check-in waits until the settings have been left alone for 10 minutes.</div>
+                <div class="ap-help" style="margin-top: 12px;">Changes save by themselves and take effect at the next check-in.</div>
 
                 <div class="ap-card">
                     <span class="ap-label">Risk level</span>
@@ -923,13 +938,14 @@
                     <div class="ap-own"><strong>Your own limits</strong>
                         <label>Sell at a loss of <input id="ap-stop" type="number" min="1.5" max="30" step="0.5" inputmode="decimal" placeholder="${hint(d.risk, 'stop')}" value="${d.stopPct || ''}" aria-label="Your own loss limit in percent">%</label>
                         <label>Sell at a gain of <input id="ap-take" type="number" min="2" max="80" step="0.5" inputmode="decimal" placeholder="${hint(d.risk, 'take')}" value="${d.takePct || ''}" aria-label="Your own gain mark in percent">%</label>
-                        <span>Optional. Leave a field empty to use the level's (shown in grey). What you set here, its own trials leave alone.</span>
+                        <span>Leave empty for the level's own (in grey).</span>
                         ${'trailMode' in data.settings ? `<label style="flex-basis: 100%;">Trailing stop <select id="ap-trail" style="padding: 6px 8px; margin: 0 4px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 16px; max-width: 100%;">${Object.keys(TRAILS).map(k => `<option value="${k}" ${trailOf(d) === k ? 'selected' : ''}>${TRAILS[k].name}</option>`).join('')}</select></label>
                         <span id="ap-trail-text" style="flex-basis: 100%;">${esc(TRAILS[trailOf(d)].help)}</span>` : ''}
                     </div>
                 </div>
 
                 <div class="ap-card">
+                    ${lvl && (d.auto || []).length < 3 ? '<div class="ap-help" style="margin: 0 0 10px;"><a href="#" data-ap="autopace">↺ Let the risk level set the pace</a> (build-up, check-ins and holding time; the level\'s own are in grey)</div>' : ''}
                     <div class="ap-fields">
                         <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" ${data.money ? `max="${data.money.reach}"` : ''} step="500" value="${d.budgetUsd}"></div></div>
                         ${'holdings' in data.settings ? `<div><label class="ap-label" for="ap-holdings">Number of holdings<span id="ap-tag-holdings" class="ap-auto ${d.holdings > 0 ? 'own' : ''}">${d.holdings > 0 ? 'set by you' : 'automatic'}</span></label><div class="ap-input"><input id="ap-holdings" type="number" min="${(o.holdings || {}).min || 2}" max="${(o.holdings || {}).max || 50}" step="1" placeholder="${autoWord((o.risk[String(d.risk)] || {}).positions)}" value="${d.holdings > 0 ? d.holdings : ''}" title="How many equal holdings the budget is spread over. Empty: the risk level's own number"> holdings</div></div>` : ''}
@@ -938,29 +954,27 @@
                         <div><label class="ap-label" for="ap-hold">Keeps a holding at most${tag('maxHoldDays')}</label><div class="ap-input">${select('ap-hold', 'maxHoldDays', o.holdDays, d.maxHoldDays, holdText)}</div></div>
                     </div>
                     <div id="ap-budget-hint" class="ap-help">${budgetHint(d)}</div>
-                    ${'compound' in data.settings ? `<label class="ap-help" style="display: block; cursor: pointer;"><input type="checkbox" id="ap-compound" ${d.compound !== false ? 'checked' : ''}> Add its profits to the budget, and take its losses off (after each sale; never more than the practice money there is)</label>` : ''}
                     ${'holdings' in data.settings ? `<div id="ap-holdings-hint" class="ap-help">${holdingsHint(d)}</div>` : ''}
-                    ${lvl ? `<div class="ap-help">The last three follow the risk level while they are left on automatic (an empty box, or "Automatic" in a menu): move the slider and they move with it. Set one yourself and it stays where you put it.${(d.auto || []).length < 3 ? ' <a href="#" data-ap="autopace">Let the risk level set all three</a>' : ''}</div>` : ''}
-                    <div id="ap-plan" class="ap-help">${esc(planText(d))}</div>
-                    <div id="ap-pace" class="ap-help">${esc(paceText(d))}</div>
+                    <details class="ap-help" data-ap-fold="whatwill" ${openDetails.whatwill ? 'open' : ''}><summary>What these settings will do</summary><div id="ap-plan" class="ap-help">${esc(planText(d))}</div><div id="ap-pace" class="ap-help">${esc(paceText(d))}</div></details>
                 </div>
 
                 <div class="ap-card">
                     <span class="ap-label">Screeners it buys from <span id="ap-chosen" class="ap-sub">${chosen} chosen</span></span>
-                    ${sharesOn() ? `<div class="ap-help" style="margin-top: 2px;">Tick the screeners it may buy from. Each market you tick gets a share of ${esc(ofWhat(d))}, shown in the bar and set in the box on its right.${themesShare(d) ? ` That is the budget less the ${Math.round(themesShare(d) * 100)}% of the sector funds, so the shares below add up to 100% of it.` : ''}</div><div id="ap-splitbar" class="ap-splitbar" aria-label="How the budget is spread over the markets">${splitBar(d)}</div>` : ''}
-                    <div class="ap-presets" style="margin-top: 8px;"><span>Shortcuts:</span><button type="button" class="ap-preset" data-ap-pick="main" title="One index a country: ${esc(MAIN.filter(k => o.screeners[k]).map(k => o.screeners[k].name).join(', '))}">🌍 Main index of every country</button><button type="button" class="ap-preset" data-ap-pick="none" title="Untick every screener">Clear all</button><span>or click a market's name to tick or clear all of its screeners. These change only what is ticked, never the pace or the budget. The Euro Stoxx 50 is not one country's index, so the first shortcut leaves it out: 47 of its 50 shares are already in the DAX, CAC, AEX, FTSE MIB and IBEX lists (tick it yourself to add the other three: AB InBev, argenx and Nordea).</span></div>
-                    ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''} ${sharesOn() ? 'shared' + (isTicked(d, group) ? '' : ' off') : ''}"><div class="ap-group-name">${sharesOn() ? `<span class="ap-dot" style="background: ${isTicked(d, group) ? marketColour(group) : 'var(--border-color)'};"></span>` : ''}<button type="button" class="ap-group-pick" data-ap-group="${esc(group)}" title="Tick every screener in ${esc(group)}, or clear them when all are ticked">${esc(group)}</button></div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div></div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div>`).join('')}
+                    ${pickHtml(d)}
+                    ${sharesOn() ? `<div class="ap-help" style="margin-top: 2px;">${aiPicks(d) ? 'The screeners it buys from, ticked by the AI.' : 'Tick the screeners it may buy from.'} Each market you tick gets a share of ${esc(ofWhat(d))}, shown in the bar and set in the box on its right.${themesShare(d) ? ` That is the budget less the ${Math.round(themesShare(d) * 100)}% of the sector funds, so the shares below add up to 100% of it.` : ''}</div><div id="ap-splitbar" class="ap-splitbar" aria-label="How the budget is spread over the markets">${splitBar(d)}</div>` : ''}
+                    <div class="ap-presets" style="margin-top: 8px;${aiPicks(d) ? ' display: none;' : ''}"><span>Shortcuts:</span><button type="button" class="ap-preset" data-ap-pick="main" title="One index a country: ${esc(MAIN.filter(k => o.screeners[k]).map(k => o.screeners[k].name).join(', '))}">🌍 Main index of every country</button><button type="button" class="ap-preset" data-ap-pick="none" title="Untick every screener">Clear all</button><span>or click a market's name to tick all of it. These change only what is ticked.</span></div>
+                    ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''} ${sharesOn() ? 'shared' + (isTicked(d, group) ? '' : ' off') : ''}"><div class="ap-group-name">${sharesOn() ? `<span class="ap-dot" style="background: ${isTicked(d, group) ? marketColour(group) : 'var(--border-color)'};"></span>` : ''}<button type="button" class="ap-group-pick" data-ap-group="${esc(group)}" ${aiPicks(d) ? 'disabled' : ''} title="Tick every screener in ${esc(group)}, or clear them when all are ticked">${esc(group)}</button></div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''} ${aiPicks(d) ? 'disabled title="Ticked or not by the AI: switch to Manual to choose yourself"' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div></div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div>`).join('')}
                     <div id="ap-split" class="ap-help">${esc(splitText(d))}</div>
                     ${'themes' in data.settings && data.themes ? `<div class="ap-group shared${d.themes !== false ? '' : ' off'} ap-themes-row"><div class="ap-group-name"><span class="ap-dot" style="background: ${d.themes !== false ? '#c98500' : 'var(--border-color)'};"></span><span>Sector funds</span></div><div><div class="ap-chips"><label class="ap-chip"><input type="checkbox" id="ap-themes-on" ${d.themes !== false ? 'checked' : ''}> Sector funds (a trial)</label></div><div class="ap-help" style="margin-top: 4px;">${Math.round(data.themes.share * 100)}% of the ${usd0(d.budgetUsd)} budget held in the 3 strongest of 14 US sector funds (technology, chips, energy, gold, bonds and others) by their past year, changed once a month; the markets above share the rest. Untick it to leave it out: what it holds of them is sold at the next check-in while the US market is open. It runs only while "Try changes to its own rules" is on and a share screener is ticked. <a href="#ap-themes" data-ap-part="activity" data-ap-goto="ap-themes">How it is doing</a></div></div><div></div></div>` : ''}
-                    <div class="ap-help">Each share market is only traded while it is open, also when you press "Check in now"; coins at any time. Bigger lists take a little longer to check. Lists can overlap (the S&amp;P 1500 holds every share of the S&amp;P 500, 400 and 600): that does no harm, a share is never held twice, and it is bought on its best place among the lists ticked.</div>
+                    <div class="ap-help">Share markets trade only while open, coins any time. Overlapping lists do no harm: a share is never held twice.</div>
                 </div>
 
                 <div class="ap-card">
                     <span class="ap-label">What it may do by itself</span>
                     ${''/* "Sell early on the AI model's review" was taken out on 17 Oct 2026: its early sales lost money (31 trades, -1.46% a trade, against -0.62% for every other kind of sale). It is off for every account; check-tools/experiments.json "ai-review-off". */}
-                    <div class="ap-help" style="margin: -2px 0 10px;">The AI model no longer sells early: those sales lost money (31 trades, -1.46% a trade, against -0.62% for every other kind of sale), so they were taken out on 17 Oct 2026. The fixed rules sell: the loss limit, the gain mark, the stop that follows a rise, the time limit.</div>
-                    ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'Every 20 finished trades it may try one change to a selling or buying rule beside the current one, and keeps it only if it did clearly better. It also runs two standing trials for shares: which share to buy, and "patient" shares that are not sold when their signal turns. Off: its rules stay exactly as they are and no trial runs.')}
-                    ${mayRow('ap-mail', 'emails', 'Email me its reviews', 'An email to your account address each time it reviews its rules, starts a trial or finishes one. Nothing needs doing when one arrives.')}
+                    <div class="ap-help" style="margin: -2px 0 10px;">Selling is by the fixed rules: the loss limit, the gain mark, the stop that follows a rise and the time limit (the AI model's early sales lost money and were taken out on 17 Oct 2026).</div>
+                    ${mayRow('ap-tune', 'selfTune', 'Try changes to its own rules', 'It tests changes to its rules beside the current ones and keeps only those that do clearly better. Off: no trials run.')}
+                    ${mayRow('ap-mail', 'emails', 'Email me its reviews', 'When it reviews its rules or a trial starts or ends. Nothing needs doing.')}
                     ${mailHtml()}
                 </div>
                 </div>
@@ -1002,7 +1016,8 @@
             aiSell: false, selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
             stopPct: ownLimit('ap-stop', 'stopPct'), takePct: ownLimit('ap-take', 'takePct'),
             ...('compound' in data.settings ? { compound: may('ap-compound', 'compound') } : {}),   // in the function's order (DEFAULTS): the two are compared as text
-            ...('themes' in data.settings ? { themes: may('ap-themes-on', 'themes') } : {})
+            ...('themes' in data.settings ? { themes: may('ap-themes-on', 'themes') } : {}),
+            ...('pickMode' in data.settings ? { pickMode: byId('ap-pick-manual') && byId('ap-pick-manual').checked ? 'manual' : byId('ap-pick-ai') ? (byId('ap-pick-ai').checked ? 'ai' : data.settings.pickMode) : data.settings.pickMode } : {})
         };
         if ('holdings' in data.settings) {                 // the user's own number of holdings; an empty box leaves it to the level
             const box = byId('ap-holdings'), n = box ? parseInt(box.value, 10) : NaN, bound = data.options.holdings || { min: 2, max: 50 };
