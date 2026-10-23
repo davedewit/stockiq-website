@@ -350,16 +350,25 @@
         };
         const doneRow = (e) => `<li class="${e.status === 'kept' ? 'good' : ''}"><b>${e.status === 'kept' ? '✓ Kept' : 'Taken out'}</b> · ${esc(e.what)} <span class="ad-sub">${begun(e) && begun(e) !== e.decided ? `started ${esc(dated(begun(e)))}, ` : ''}decided ${esc(dated(e.decided) || e.decided || '')}</span><div class="ad-sub" style="margin-top: 2px;">${esc(e.result || '')}</div></li>`;
         const reviewed = (pl.reviews || []).map(r => `<li><b>${esc(r.part)}</b> <span class="ad-sub">${esc(r.at)}</span><div class="ad-sub">${esc(r.found)}</div></li>`).join('');
-        return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
-            <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. This list was last brought up to date ${esc(day(pl.at))}.</div>
-            <div class="ad-sub" style="margin-bottom: 8px;">This is the full list, for you only. Every user sees a short, plain version on the AI autopilot tab ("How it is improving"): only what affects their autopilot, marked here 👥.</div>
-            <div class="ad-sub" style="margin-bottom: 8px;">Jump to: ${[['ad-sec-running', 'Being tested', running.length], ['ad-sec-next', 'Ideas', next.length], ['ad-sec-done', 'Done', done.length], ['ad-sec-fixes', 'Fixes and changes', (pl.changes || []).length], ['ad-sec-questions', 'Questions asked', (pl.questions || []).length], ['ad-sec-parts', 'Parts of the site', (pl.siteParts || []).length]].filter(x => x[2]).map(([id, name, k]) => `<a href="#${id}" data-ad-jump="${id}">${name} (${k})</a>`).join(' · ')}</div>
-            ${running.length ? `<div class="ad-section" id="ad-sec-running">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
-            ${next.length ? `<div class="ad-section" id="ad-sec-next">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : ''}
-            ${done.length ? `<div class="ad-section" id="ad-sec-done">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
-            ${fixesHtml(pl.changes)}
-            ${questionsHtml(pl.questions)}
-            ${partsHtml(pl.siteParts, pl.partsNext) || (reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : '')}</div>`;
+        // Six rows, closed until opened (23 Oct 2026, the owner: "honestly a mess of scrolling with no idea what i'm looking at"): each says
+        // its count and the one fact worth knowing; the detail inside is unchanged.
+        const strip = (h) => String(h || '').replace(/^\s*<div class="ad-section"[^>]*>[\s\S]*?<\/div>/, '');
+        const fold = (id, title, fact, body) => body ? `<details class="ad-more ad-fold" id="${id}"><summary><b>${title}</b> <span class="ad-sub">${fact}</span></summary><div style="padding: 6px 0 4px 4px;">${body}</div></details>` : '';
+        const soon = running.filter(e => e.decide).sort((a, b) => a.decide.localeCompare(b.decide))[0];
+        const short = (t) => esc(String(t || '').split(/[:(]/)[0].trim().slice(0, 70));
+        const left = soon ? Math.max(0, Math.ceil((Date.parse(soon.decide) - Date.now()) / 86400000)) : null;
+        const ch = pl.changes || [], recent = ch.filter(c => (Date.now() - Date.parse(c.at + 'T12:00:00Z')) / 86400000 <= 30), yours = recent.filter(c => c.found === 'owner').length;
+        const qs = pl.questions || [], qn = (st) => qs.filter(q => q.status === st).length;
+        const sp = pl.siteParts || [], spFresh = sp.filter(p => p.last && (Date.now() - Date.parse(p.last + 'T12:00:00Z')) / 86400000 <= 30).length;
+        const nextParts = (pl.partsNext || []).map(x => esc(x.part.split(':')[0])).join(', ');
+        return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements</span>
+            <div class="ad-sub" style="margin-bottom: 8px;">Everything being tried to make the site and the autopilot better, and what became of it. Open a row for the detail. Brought up to date ${esc(day(pl.at))}; users see a short version on the AI autopilot tab (marked 👥).</div>
+            ${fold('ad-sec-running', `🧪 Being tested now (${running.length})`, soon ? `next decided: ${short(soon.what)}, in ${left} day${left === 1 ? '' : 's'}` : '', running.length ? running.map(runRow).join('') : '')}
+            ${fold('ad-sec-next', `💡 Ideas waiting (${next.length})`, next.length ? `newest: ${short(next[0].what)}` : '', next.length ? `<ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : '')}
+            ${fold('ad-sec-done', `✅ Decided (${by('kept').length} kept, ${by('removed').length} taken out)`, done.length ? `latest: ${short(done[0].what)}, ${done[0].status === 'kept' ? 'kept' : 'taken out'}` : '', done.length ? `<ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : '')}
+            ${fold('ad-sec-fixes', `🔧 Fixes and changes (${ch.length})`, `${recent.length} in the last 30 days, ${yours} of them pointed out by you`, strip(fixesHtml(ch)))}
+            ${fold('ad-sec-questions', `❓ Questions asked (${qs.length})`, `${qn('answered')} answered, ${qn('trial')} on trial, ${qn('waiting')} waiting for data, ${qn('open')} not tested yet`, strip(questionsHtml(qs)))}
+            ${fold('ad-sec-parts', `🗺 Parts of the site (${sp.length})`, `${spFresh} looked at in the last 30 days${nextParts ? '; next: ' + nextParts : ''}`, strip(partsHtml(sp, pl.partsNext)) || (reviewed ? `<ul class="ad-plain">${reviewed}</ul>` : ''))}</div>`;
     }
 
     // Every part of the site (check-tools/site_parts.json), each looked at in turn, the one looked at longest ago first: three each
