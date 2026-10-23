@@ -546,6 +546,9 @@
         #practice-portfolio .pp-chart-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
         #practice-portfolio .pp-chart-read { font-size: 0.9rem; color: var(--text-primary); font-variant-numeric: tabular-nums; min-height: 1.3em; }
         #practice-portfolio .pp-chart-read .pp-chart-when { color: var(--text-secondary); margin-right: 8px; }
+        #practice-portfolio .pp-sym { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--text-primary); cursor: pointer; text-align: left; }
+        #practice-portfolio .pp-sym:hover { text-decoration: underline dotted; }
+        #practice-portfolio .pp-sym-go { font-size: 0.75em; opacity: 0.55; }
         #practice-portfolio .pp-chart-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
         #practice-portfolio .pp-mkt { position: relative; flex-basis: 100%; min-width: 0; margin-top: 6px; }
         #practice-portfolio .pp-mkt-btn { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; text-align: left; background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; }
@@ -882,7 +885,7 @@
         const rowList = listed.slice().reverse().map(h => {
             const v = valueOf(h, quotes), today = dayMove(h, quotes), shut = closedFor(h.symbol, quotes[h.symbol]);
             return `<tr>
-                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
+                <td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<button type="button" class="pp-sym" data-pp="analyse" data-symbol="${esc(h.symbol)}" title="Run its full analysis in the background: it goes to your Reports">${esc(h.label)} <span class="pp-sym-go" aria-hidden="true">🔍</span></button><div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal;">${esc(h.name)}</div>${h.note ? `<div class="pp-note" style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${h.by === 'ai' ? '' : 'Note: '}${esc(h.note)}</div>` : ''}${h.by === 'ai' && plans[h.id] && plans[h.id].auto
                     ? `${tags(plans[h.id])}<details class="pp-plan" data-id="${esc(h.id)}"${openPlans.has(h.id) ? ' open' : ''}><summary>🤖 Autopilot: its plan for this</summary><div>${esc(planLine(h, plans[h.id]))}</div></details>`
                     : `<div style="font-size: 0.75rem; color: var(--text-secondary); white-space: normal; max-width: 420px;">${esc(planLine(h, plans[h.id]))}</div>`}</td>
                 <td data-label="Bought" style="${cell}">${esc(when(h.boughtAt))}</td>
@@ -899,7 +902,7 @@
 
         const closed = soldOnes.slice().reverse().map(h => {
             const change = (h.proceedsUsd / h.costUsd - 1) * 100;
-            return `<tr><td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<strong style="color: var(--text-primary);">${esc(h.label)}</strong></td><td data-label="Held" style="${cell}">${esc(when(h.boughtAt))} → ${esc(when(h.soldAt))}</td><td data-label="Price" style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td data-label="Result" style="${cell}">${pctHtml(change, h.proceedsUsd - h.costUsd)}</td><td class="pp-act" style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
+            return `<tr><td class="pp-name" style="${left}">${h.by === 'ai' ? '<span title="Bought by the AI autopilot">🤖</span> ' : ''}<button type="button" class="pp-sym" data-pp="analyse" data-symbol="${esc(h.symbol)}" title="Run its full analysis in the background: it goes to your Reports">${esc(h.label)} <span class="pp-sym-go" aria-hidden="true">🔍</span></button></td><td data-label="Held" style="${cell}">${esc(when(h.boughtAt))} → ${esc(when(h.soldAt))}</td><td data-label="Price" style="${cell}">${money(h.buyPrice, h.currency)} → ${money(h.sellPrice, h.currency)}</td><td data-label="Value" style="${cell}">${usd(h.costUsd)} → ${usd(h.proceedsUsd)}</td><td data-label="Result" style="${cell}">${pctHtml(change, h.proceedsUsd - h.costUsd)}</td><td class="pp-act" style="${cell}"><span data-pp="unsold" data-id="${esc(h.id)}" title="Remove this line from the sold list" style="cursor: pointer; font-size: 16px; padding: 0 4px;">×</span></td></tr>`;
         }).join('');
         const sold = soldSummary({ closed: soldOnes });
         const soldLine = sold.count ? `${sold.count} sold: put in ${usd(sold.cost)}, got back ${usd(sold.proceeds)}: ${movedHtml(sold.gainUsd, sold.gainPct)}.` : '';
@@ -1232,6 +1235,15 @@
         if (action === 'mkt-toggle') { mktOpen = !mktOpen; drawChart(); return; }      // only the graph is redrawn: the page does not move (23 Oct 2026)
         if (action === 'market') { chartKey = t.getAttribute('data-id') || 'value'; mktOpen = false; redraw(); return; }      // '', 'value', 'own' or a market
         if (t.tagName === 'A') e.preventDefault();
+        // a holding or a sale clicked: its full analysis, in the background (23 Oct 2026, the owner: "make it so my holdings and sold can
+        // be clicked ... run in background"): the dashboard's own runSidebarAnalysis, as the market panel's rows do (the same daily
+        // allowance, the same "running" note, the report goes to Reports); elsewhere the analysis page, run straight away
+        if (action === 'analyse') {
+            const sym = t.getAttribute('data-symbol');
+            if (sym && typeof window.runSidebarAnalysis === 'function') window.runSidebarAnalysis(sym);      // it shows its own "Running analysis" note
+            else if (sym) location.href = 'analysis.html?option=1&symbol=' + encodeURIComponent(sym) + '&autorun=true';
+            return;
+        }
         if (action === 'held-all') { allHeld = !allHeld; redraw(); return; }
         if (action === 'held-filter') { heldOpenOnly = t.getAttribute('data-id') === 'open'; redraw(); return; }
         if (action === 'chart-key' || action === 'chart-range') {
