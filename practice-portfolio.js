@@ -705,14 +705,37 @@
 
     // range: how far back the daily prices should reach ('3mo', '1y', ...); without it the price source sends a month.
     // Only the S&P 500 fund is asked for more, and only once the account is older than that month (fundRange).
+    function quoteOf(answer, symbol, range) {
+        const result = answer?.chart?.result?.[0], meta = result && result.meta;
+        if (!meta || !(meta.regularMarketPrice > 0)) return null;
+        // series: the month of daily prices that comes with every quote, for the graph of the account over time
+        return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol), range: range || '' };
+    }
     async function fetchQuote(symbol, range) {
         try {
             const res = await fetch(PRICE_API + encodeURIComponent(symbol) + (range ? '&range=' + range : ''));
-            const result = (await res.json())?.chart?.result?.[0], meta = result && result.meta;
-            if (!meta || !(meta.regularMarketPrice > 0)) return null;
-            // series: the month of daily prices that comes with every quote, for the graph of the account over time
-            return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol), range: range || '' };
+            return quoteOf(await res.json(), symbol, range);
         } catch (e) { return null; }
+    }
+    // Many prices at once (23 Oct 2026; the owner: "Prices as of" took about 15 seconds). A browser sends only six requests at a
+    // time to one address, and an account can need 60 prices, so they are asked for 20 a request (?symbols=A,B,C). A request
+    // that fails (an older price function, a hiccup) falls back to one request a symbol. Returns [symbol, quote or null] pairs.
+    // The function takes about a second longer for every ten symbols it fetches at once, while separate requests run side by
+    // side, so the list is split into six requests (the six a browser sends together), at least 4 and at most 20 symbols each.
+    async function fetchQuotes(symbols, rangeOf) {
+        const plain = symbols.filter(sym => !rangeOf(sym)), own = symbols.filter(sym => rangeOf(sym));   // a longer range is asked for alone
+        const parts = [], size = Math.min(20, Math.max(4, Math.ceil(plain.length / 6)));
+        for (let i = 0; i < plain.length; i += size) parts.push(plain.slice(i, i + size));
+        const many = async (part) => {
+            try {
+                const res = await fetch(PRICE_API.replace('?symbol=', '?symbols=') + encodeURIComponent(part.join(',')));
+                const got = res.ok ? (await res.json())?.results : null;
+                if (got && typeof got === 'object') return part.map(sym => [sym, quoteOf(got[sym], sym, '')]);
+            } catch (e) {}
+            return Promise.all(part.map(sym => fetchQuote(sym).then(q => [sym, q])));
+        };
+        const done = await Promise.all(parts.map(many).concat(own.map(sym => fetchQuote(sym, rangeOf(sym)).then(q => [[sym, q]]))));
+        return [].concat(...done);
     }
     // A quote plus what is needed to turn it into dollars and compare it with the market
     async function quoteForTrade(symbol) {
@@ -740,8 +763,7 @@
         // those just fetched ahead are not asked for twice (the fund is, if what came does not reach back far enough)
         const list = [...wanted].filter(sym => !(have && have.has(sym)) || (sym === BENCHMARK && ((quotes[sym] || {}).range || '') !== span)).filter(sym => !only || only(sym));
         list.forEach(sym => { askedAt[sym] = Date.now(); });
-        const got = await Promise.all(list.map(sym => fetchQuote(sym, sym === BENCHMARK ? span : '')));
-        list.forEach((s, i) => { if (got[i]) quotes[s] = got[i]; });
+        (await fetchQuotes(list, sym => sym === BENCHMARK ? span : '')).forEach(([s, q]) => { if (q) quotes[s] = q; });
         pricesAt = Date.now();
     }
 
@@ -749,7 +771,7 @@
         if (!userId()) { loaded = true; render(); return; }
         if (!loaded) render();                             // the spinner until the portfolio and its prices are in
         // on the first load, the prices of what it held last time are asked for while the portfolio itself is on its way
-        const ahead = loaded ? null : Promise.all(knownSymbols().map(sym => fetchQuote(sym, sym === BENCHMARK ? knownRange() : '').then(q => [sym, q]).catch(() => [sym, null])));
+        const ahead = loaded ? null : fetchQuotes(knownSymbols(), sym => sym === BENCHMARK ? knownRange() : '').catch(() => []);
         try {
             const r = await api('get');
             state = r.portfolio || newState(new Date().toISOString());
