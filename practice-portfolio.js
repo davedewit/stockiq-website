@@ -1241,7 +1241,15 @@
         finally { autoBusy = false; }
         return true;
     }
-    if (typeof setInterval === 'function') setInterval(autoRefresh, AUTO_MS);
+    // Checked every 5 seconds, asked only when due: at once when the tab comes back into view (another dashboard tab, another browser
+    // tab: 23 Oct 2026, the owner waited up to a minute for "Prices as of" after switching back), otherwise once a minute. Nothing is
+    // asked after 10 minutes without a touch, a click or a key, even with the page in front (IDLE_MS, in autoRefresh).
+    let wasShown = false;
+    if (typeof setInterval === 'function') setInterval(() => {
+        const el = box(), shown = !!el && el.offsetParent !== null && !(typeof document !== 'undefined' && document.hidden);
+        if (shown && (!wasShown || Date.now() - (pricesAt || 0) >= AUTO_MS)) autoRefresh();
+        wasShown = shown;
+    }, 5000);
     // the time until the US opening, kept current between redraws
     if (typeof setInterval === 'function') setInterval(() => { const line = document.getElementById('pp-us-opens'); if (line && line.textContent !== undefined) line.textContent = marketWait(); }, 30000);
     // The picture is drawn to the width it has: draw it again when that changes (a tab opened, a window resized, a phone turned)
