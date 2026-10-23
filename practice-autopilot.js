@@ -309,24 +309,36 @@
         const level = (data.options.risk[String(d.risk)] || {}).positions || 0, n = positionsOf(d), bound = data.options.holdings || { min: 2, max: 50 };
         if (!n) return '';
         const size = d.budgetUsd / n, each = `${n} holdings of about ${usd0(size)} each`;
-        const what = d.holdings > 0 ? `Set by you: ${each} (the ${autoRules(d.risk) ? autoRules(d.risk).name : ''} level by itself would use ${level}).` : `Left to the risk level: ${each}. Type a number (${bound.min} to ${bound.max}) to choose your own.`;
+        const name = autoRules(d.risk) ? autoRules(d.risk).name : '', per = ((data.options.holdings || {}).perScreener || {})[String(d.risk)];
+        const auto = per ? `${per} for each of the ${(d.screeners || []).length} screeners ticked, at least the ${name} level's ${level}, at most ${bound.max}, so each comes from near the top of its list` : `the ${name} level's own`;
+        const what = d.holdings > 0 ? `Set by you: ${each} (automatic would be ${autoPositions(d)}: ${auto}).` : `Automatic: ${each} (${auto}). Type a number (${bound.min} to ${bound.max}) to choose your own.`;
         const more = d.holdings > level ? ` With more holdings each is smaller and the account moves more like the market as a whole; it buys up to ${buysPerCheck(n)} at a check-in and looks at the top ${Math.max((autoRules(d.risk) || {}).top || 0, Math.min(n, 30))} of each screener to fill them.`
             : d.holdings > 0 && d.holdings < level ? ' With fewer, larger holdings the account swings more: one holding counts for more, up or down.' : ' Fewer, larger holdings swing more; more, smaller ones move more like the market as a whole.';
         const small = size < 25 ? ` Each would be under the $25 smallest buy: it would buy nothing. Use fewer holdings or a larger budget.` : '';
-        return what + more + small + ' Empty the box to leave it to the risk level again.'.repeat(d.holdings > 0 ? 1 : 0);
+        return what + more + small + ' Empty the box to make it automatic again.'.repeat(d.holdings > 0 ? 1 : 0);
     }
     function levelRules(level) {
         const r = autoRules(level), d = draft || data.settings;
         if (!r) return r;
         // the user's own number of holdings: with more of them than the level looks at, it buys further down each ranking (rules_for in the function)
-        const own = d.holdings > 0 ? { positions: d.holdings, top: Math.max(r.top, Math.min(d.holdings, 30)) } : {};
+        const own = d.holdings > 0 ? { positions: d.holdings, top: Math.max(r.top, Math.min(d.holdings, 30)) } : { positions: autoPositions(Object.assign({}, d, { risk: level })) };
         return Object.assign({}, r, own, d.stopPct > 0 ? { stop: -d.stopPct } : {}, d.takePct > 0 ? { take: d.takePct } : {});
     }
     // How many equal holdings the budget is spread over: the user's own number, or the risk level's. holdings_of() in the
     // stockiq-ai-trader Lambda does the same sum, and buys_per_check() the one below: keep them in step.
     // a level's row of the table with the user's own number of holdings in it, for the texts that describe what will happen
-    const withHoldings = (r, d) => r && d && d.holdings > 0 ? Object.assign({}, r, { positions: d.holdings }) : r;
-    function positionsOf(d) { return d && d.holdings > 0 ? d.holdings : ((data.options.risk[String(d.risk)] || {}).positions || 0); }
+    const withHoldings = (r, d) => r && d ? Object.assign({}, r, { positions: positionsOf(d) }) : r;
+    function positionsOf(d) { return d && d.holdings > 0 ? d.holdings : autoPositions(d); }
+    // The automatic number (23 Oct 2026): options.holdings.perScreener for each ticked screener (2 at Balanced), never fewer than the
+    // level's own, at most 50, never so many that one is under the $25 smallest buy. auto_holdings() in the function: keep in step.
+    function autoPositions(d) {
+        const level = (data.options.risk[String(d.risk)] || {}).positions || 0, per = ((data.options.holdings || {}).perScreener || {})[String(d.risk)];
+        if (!per) return level;
+        const count = Math.ceil(per * (d.screeners || []).length - 1e-9);
+        return Math.max(level, Math.min((data.options.holdings || {}).max || 50, count, Math.floor((d.budgetUsd || 0) / 25)));
+    }
+    // the budget can be left automatic too (all the practice money it can reach) when the function says so (options.autoFields)
+    const autoBudget = () => ((data.options || {}).autoFields || []).includes('budgetUsd');
     const buysPerCheck = (positions) => Math.max(3, Math.ceil(positions / 5));
     // The pace a level sets when the three pace fields are left to it ("Automatic"): days to build up, hours between check-ins,
     // days a holding is kept. PACE in the stockiq-ai-trader Lambda, sent as options.pace.
@@ -393,6 +405,7 @@
         const m = data.money;
         if (!m || !(m.reach >= 0)) return '';
         const parts = m.invested > 0 ? `${usd0(m.cash)} of practice cash plus the ${usd0(m.invested)} it has invested` : `the practice cash you have left`;
+        if (autoBudget() && isAuto(d, 'budgetUsd')) return `Automatic: all the practice money it can reach, ${usd0(m.reach)} now (${parts}), worked out again at every check-in, so it grows and shrinks with its results and with your own buys. Type an amount to set your own.`;
         if (d.budgetUsd > m.reach) return `<span style="color: #d97706;">⚠ That is more than the practice money there is. Its budget can be at most <strong>${usd0(m.reach)}</strong> (${parts}).</span> <a href="#" data-ap="maxbudget">Set it to ${usd0(m.reach)}</a>`;
         return `Its budget can be up to ${usd0(m.reach)}: ${parts}.`;
     }
@@ -947,8 +960,8 @@
                 <div class="ap-card">
                     ${lvl && (d.auto || []).length < 3 ? '<div class="ap-help" style="margin: 0 0 10px;"><a href="#" data-ap="autopace">↺ Let the risk level set the pace</a> (build-up, check-ins and holding time; the level\'s own are in grey)</div>' : ''}
                     <div class="ap-fields">
-                        <div><label class="ap-label" for="ap-budget">Budget for the AI</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" ${data.money ? `max="${data.money.reach}"` : ''} step="500" value="${d.budgetUsd}"></div></div>
-                        ${'holdings' in data.settings ? `<div><label class="ap-label" for="ap-holdings">Number of holdings<span id="ap-tag-holdings" class="ap-auto ${d.holdings > 0 ? 'own' : ''}">${d.holdings > 0 ? 'set by you' : 'automatic'}</span></label><div class="ap-input"><input id="ap-holdings" type="number" min="${(o.holdings || {}).min || 2}" max="${(o.holdings || {}).max || 50}" step="1" placeholder="${autoWord((o.risk[String(d.risk)] || {}).positions)}" value="${d.holdings > 0 ? d.holdings : ''}" title="How many equal holdings the budget is spread over. Empty: the risk level's own number"> holdings</div></div>` : ''}
+                        <div><label class="ap-label" for="ap-budget">Budget for the AI${autoBudget() ? `<span id="ap-tag-budgetUsd" class="ap-auto ${isAuto(d, 'budgetUsd') ? '' : 'own'}">${isAuto(d, 'budgetUsd') ? 'automatic' : 'set by you'}</span>` : ''}</label><div class="ap-input">$ <input id="ap-budget" type="number" min="100" ${data.money ? `max="${data.money.reach}"` : ''} step="500" ${autoBudget() && data.money ? `placeholder="${'Automatic: ' + Math.round(data.money.reach).toLocaleString('en-US')}"` : ''} value="${autoBudget() && isAuto(d, 'budgetUsd') ? '' : d.budgetUsd}"></div></div>
+                        ${'holdings' in data.settings ? `<div><label class="ap-label" for="ap-holdings">Number of holdings<span id="ap-tag-holdings" class="ap-auto ${d.holdings > 0 ? 'own' : ''}">${d.holdings > 0 ? 'set by you' : 'automatic'}</span></label><div class="ap-input"><input id="ap-holdings" type="number" min="${(o.holdings || {}).min || 2}" max="${(o.holdings || {}).max || 50}" step="1" placeholder="${autoWord(autoPositions(d))}" value="${d.holdings > 0 ? d.holdings : ''}" title="How many equal holdings the budget is spread over. Empty: automatic"> holdings</div></div>` : ''}
                         <div><label class="ap-label" for="ap-period">Build up to it over${tag('periodDays')}</label><div class="ap-input"><input id="ap-period" type="number" min="1" max="90" step="1" ${lvl ? `placeholder="${autoWord(lvl.periodDays)}"` : ''} value="${isAuto(d, 'periodDays') ? '' : d.periodDays}"> days</div></div>
                         <div><label class="ap-label" for="ap-every">Checks in${tag('everyHours')}</label><div class="ap-input">${select('ap-every', 'everyHours', o.everyHours, d.everyHours, everyText)}</div></div>
                         <div><label class="ap-label" for="ap-hold">Keeps a holding at most${tag('maxHoldDays')}</label><div class="ap-input">${select('ap-hold', 'maxHoldDays', o.holdDays, d.maxHoldDays, holdText)}</div></div>
@@ -1010,7 +1023,7 @@
         };
         draft = {
             enabled: !!byId('ap-enabled').checked, risk,
-            budgetUsd: parseFloat(byId('ap-budget').value) || 0, periodDays: pace('ap-period', 'periodDays', v => parseInt(v, 10), 1) || 1,
+            budgetUsd: autoBudget() && data.money && String(byId('ap-budget').value) === '' ? (left.push('budgetUsd'), data.money.reach) : parseFloat(byId('ap-budget').value) || 0, periodDays: pace('ap-period', 'periodDays', v => parseInt(v, 10), 1) || 1,
             everyHours: pace('ap-every', 'everyHours', parseFloat, NaN), maxHoldDays: pace('ap-hold', 'maxHoldDays', parseFloat, NaN),
             screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')).sort(),
             aiSell: false, selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
@@ -1023,7 +1036,7 @@
             const box = byId('ap-holdings'), n = box ? parseInt(box.value, 10) : NaN, bound = data.options.holdings || { min: 2, max: 50 };
             draft.holdings = !box ? (data.settings.holdings || null) : isFinite(n) && n > 0 ? Math.min(bound.max, Math.max(bound.min, n)) : null;
         }
-        if ('auto' in data.settings) draft.auto = PACE_FIELDS.filter(k => left.includes(k));
+        if ('auto' in data.settings) draft.auto = PACE_FIELDS.concat(autoBudget() ? ['budgetUsd'] : []).filter(k => left.includes(k));
         if ('shares' in data.settings) {                   // a market's share: what its menu says, or automatic when it has no menu on the page
             const sh = {}, known = data.options.groups || [];
             Array.from(document.querySelectorAll('[data-ap-share]')).forEach(el => {
@@ -1045,7 +1058,7 @@
         set('ap-switch-text', el => { el.textContent = draft.enabled ? 'On' : 'Off'; });
         set('ap-risk-text', el => { el.textContent = riskText(draft.risk); });
         set('ap-trail-text', el => { el.textContent = TRAILS[trailOf(draft)].help; });
-        set('ap-holdings', el => { el.placeholder = autoWord((data.options.risk[String(draft.risk)] || {}).positions); });
+        set('ap-holdings', el => { el.placeholder = autoWord(autoPositions(draft)); });
         set('ap-holdings-hint', el => { el.textContent = holdingsHint(draft); });
         set('ap-tag-holdings', el => { el.textContent = draft.holdings > 0 ? 'set by you' : 'automatic'; if (el.classList) el.classList.toggle('own', draft.holdings > 0); });
         const lvl = paceOf(draft.risk);
@@ -1057,6 +1070,7 @@
         set('ap-stop', el => { el.placeholder = hint(draft.risk, 'stop'); });
         set('ap-take', el => { el.placeholder = hint(draft.risk, 'take'); });
         set('ap-budget-hint', el => { el.innerHTML = budgetHint(draft); });
+        set('ap-tag-budgetUsd', el => { el.textContent = isAuto(draft, 'budgetUsd') ? 'automatic' : 'set by you'; if (el.classList) el.classList.toggle('own', !isAuto(draft, 'budgetUsd')); });
         set('ap-plan', el => { el.textContent = planText(draft); });
         set('ap-pace', el => { el.textContent = paceText(draft); });
         set('ap-chosen', el => { el.textContent = draft.screeners.length + ' chosen'; });
@@ -1205,7 +1219,7 @@
             });
         }
         else if (action === 'maxbudget') {                  // the budget was more than the practice money: put it to the most there is
-            if (byId('ap-budget') && data.money) byId('ap-budget').value = String(data.money.reach);
+            if (byId('ap-budget') && data.money) byId('ap-budget').value = autoBudget() ? '' : String(data.money.reach);
             saveError = null; notice = { text: `Budget set to ${usd0(data.money.reach)}: all the practice money there is for it.` };
             queueSave(150);
         }
@@ -1281,8 +1295,8 @@
         const s = data.settings, o = data.options, r = withHoldings((o.risk || {})[String(s.risk)] || {}, s), lines = [], cut = (t, n) => String(t || '').slice(0, n);
         const auto = (k) => Array.isArray(s.auto) && s.auto.includes(k) ? ' (automatic from the risk level)' : ' (set by the user)';
         // the user's own number of holdings is said outright: the chat otherwise answers with the level's number
-        const level = ((o.risk || {})[String(s.risk)] || {}).positions, own = s.holdings > 0 ? `, the number the user set in "Number of holdings" (it uses ${s.holdings}, not the level's own ${level})` : '';
-        lines.push(`AI AUTOPILOT (Beta, fake money): switched ${s.enabled ? 'ON' : 'OFF'}. Risk level ${r.name || s.risk} (up to ${r.positions} holdings${own}; loss limit ${data.rules ? data.rules.stop : r.stop}%, gain mark +${data.rules ? data.rules.take : r.take}%). Budget ${usd0(s.budgetUsd)}; built up over ${s.periodDays} day${s.periodDays === 1 ? '' : 's'}${auto('periodDays')}; checks in ${everyText(s.everyHours)}${auto('everyHours')}; keeps a holding at most ${holdText(s.maxHoldDays)}${auto('maxHoldDays')}. Trailing stop: ${(TRAILS[trailOf(s)] || {}).name || 'default'}.`);
+        const level = ((o.risk || {})[String(s.risk)] || {}).positions, own = s.holdings > 0 ? `, the number the user set in "Number of holdings" (it uses ${s.holdings}, not the automatic ${autoPositions(Object.assign({}, s, { holdings: null }))})` : `, automatic: ${r.positions}, from the ${(s.screeners || []).length} screeners ticked (at least the level's own ${level})`;
+        lines.push(`AI AUTOPILOT (Beta, fake money): switched ${s.enabled ? 'ON' : 'OFF'}. Risk level ${r.name || s.risk} (up to ${r.positions} holdings${own}; loss limit ${data.rules ? data.rules.stop : r.stop}%, gain mark +${data.rules ? data.rules.take : r.take}%). Budget ${usd0(s.budgetUsd)}${autoBudget() ? (isAuto(s, 'budgetUsd') ? ' (automatic: all the practice money it can reach)' : ' (set by the user)') : ''}; built up over ${s.periodDays} day${s.periodDays === 1 ? '' : 's'}${auto('periodDays')}; checks in ${everyText(s.everyHours)}${auto('everyHours')}; keeps a holding at most ${holdText(s.maxHoldDays)}${auto('maxHoldDays')}. Trailing stop: ${(TRAILS[trailOf(s)] || {}).name || 'default'}.`);
         lines.push('Screeners ticked: ' + (s.screeners.map(k => (o.screeners[k] || {}).name || k).join(', ') || 'none') + '.' + (sharesOn() ? ' ' + cut(splitText(s).split(' On automatic')[0], 320) : ''));
         lines.push(`May by itself (selling early on the AI review was taken out on 17 Oct 2026): try changes to its own rules ${s.selfTune !== false ? 'yes' : 'no'}; email its reviews ${s.emails !== false ? 'yes' : 'no'}.` + ('compound' in s ? ` The budget follows its results (profits added, losses taken off after each sale): ${s.compound !== false ? 'yes' : 'no'}.` : ''));
         if (data.money) lines.push(`Practice money it can use: ${usd0(data.money.reach)} (${usd0(data.money.cash)} cash, ${usd0(data.money.invested)} it has invested).`);
