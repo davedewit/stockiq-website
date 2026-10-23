@@ -597,14 +597,16 @@
     const rangeKey = () => 'stockiqPracticeFundRange_' + userId();
     function knownRange() { try { const r = localStorage.getItem(rangeKey()) || ''; return /^(3mo|6mo|1y|2y|5y)$/.test(r) ? r : ''; } catch (e) { return ''; } }
     function knownSymbols() { try { const k = JSON.parse(localStorage.getItem(symbolsKey()) || '[]'); return Array.isArray(k) ? k.filter(x => typeof x === 'string').slice(0, 80) : []; } catch (e) { return []; } }
-    async function refreshQuotes(have) {
+    const askedAt = {};                                    // when each symbol's price was last asked for (the refresh by itself, below)
+    async function refreshQuotes(have, only) {
         if (!state) return;
         const wanted = new Set([BENCHMARK]);
         state.holdings.forEach(h => { wanted.add(h.symbol); const fx = fxFor(h.currency); if (fx.symbol) wanted.add(fx.symbol); });
         const span = fundRange(state.createdAt, Date.now());                         // the fund's prices have to reach back to the account's start
         try { localStorage.setItem(symbolsKey(), JSON.stringify([...wanted])); localStorage.setItem(rangeKey(), span); } catch (e) {}
         // those just fetched ahead are not asked for twice (the fund is, if what came does not reach back far enough)
-        const list = [...wanted].filter(sym => !(have && have.has(sym)) || (sym === BENCHMARK && ((quotes[sym] || {}).range || '') !== span));
+        const list = [...wanted].filter(sym => !(have && have.has(sym)) || (sym === BENCHMARK && ((quotes[sym] || {}).range || '') !== span)).filter(sym => !only || only(sym));
+        list.forEach(sym => { askedAt[sym] = Date.now(); });
         const got = await Promise.all(list.map(sym => fetchQuote(sym, sym === BENCHMARK ? span : '')));
         list.forEach((s, i) => { if (got[i]) quotes[s] = got[i]; });
         pricesAt = Date.now();
@@ -962,6 +964,24 @@
         const from = e.target && e.target.closest && e.target.closest('#pp-chart-svg'), to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#pp-chart-svg');
         if (from && !to && chartNow) chartShow(chartNow.placed[chartNow.placed.length - 1], false);
     });
+    // The prices refresh by themselves every minute while the tab is on screen and someone has used the page in the last 10
+    // minutes (23 Oct 2026, the owner: "i have to click Refresh prices often"). A price that has not traded for half an hour (its
+    // market is shut) is asked for again only every 15 minutes: one call a symbol, so this keeps it to the markets that move.
+    const AUTO_MS = 60000, IDLE_MS = 10 * 60000, SHUT_EVERY_MS = 15 * 60000;
+    let lastUse = Date.now(), autoBusy = false;
+    if (typeof window !== 'undefined' && window.addEventListener)
+        ['pointermove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(ev => window.addEventListener(ev, () => { lastUse = Date.now(); }, { passive: true }));
+    const trading = sym => { const q = quotes[sym]; return !!(q && q.time && Date.now() / 1000 - q.time < 1800); };
+    async function autoRefresh() {
+        const el = box();
+        if (autoBusy || working || !state || !loaded || !el || el.offsetParent === null || (typeof document !== 'undefined' && document.hidden)
+            || Date.now() - lastUse > IDLE_MS || document.querySelector('#pp-chart-svg:hover')) return false;
+        autoBusy = true;
+        try { await refreshQuotes(null, sym => !quotes[sym] || trading(sym) || Date.now() - (askedAt[sym] || 0) > SHUT_EVERY_MS); if (!working) redraw(); }
+        finally { autoBusy = false; }
+        return true;
+    }
+    if (typeof setInterval === 'function') setInterval(autoRefresh, AUTO_MS);
     // the time until the US opening, kept current between redraws
     if (typeof setInterval === 'function') setInterval(() => { const line = document.getElementById('pp-us-opens'); if (line && line.textContent !== undefined) line.textContent = marketWait(); }, 30000);
     // The picture is drawn to the width it has: draw it again when that changes (a tab opened, a window resized, a phone turned)
@@ -1111,6 +1131,6 @@
         const topGains = (state.closed || []).map(h => (h.proceedsUsd || 0) - (h.costUsd || 0)).filter(g => g > 0).sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0);
         return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now(), versus, fundValue, createdAt: state.createdAt, topGains };
     }
-    window.practicePortfolio = { reload: load, setPlans, summary, figures };
+    window.practicePortfolio = { reload: load, setPlans, summary, figures, autoRefresh };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
