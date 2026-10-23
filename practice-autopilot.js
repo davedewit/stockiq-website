@@ -60,11 +60,12 @@
         #practice-autopilot .ap-group.first { border-top: none; padding-top: 2px; }
         #practice-autopilot .ap-group-name { color: var(--text-secondary); padding-top: 6px; }
         #practice-autopilot .ap-pickmode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 2px; font-weight: 600; }
-        #practice-autopilot .ap-chip:has(input:disabled) { cursor: default; }
-        #practice-autopilot .ap-chip:has(input:disabled:not(:checked)) { opacity: 0.55; }
-        /* ticked by the AI (greyed out): drawn here, a browser's own disabled tick is pale and hard to see (23 Oct 2026, the owner) */
-        #practice-autopilot .ap-chip input:disabled { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; flex: none; border: 1.5px solid var(--border-color); border-radius: 3px; background: transparent; }
-        #practice-autopilot .ap-chip input:disabled:checked { border-color: #007bff; background: #007bff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat; }
+        /* chosen by the AI: greyed out and locked, but the tick drawn clearly (a browser's own disabled tick is a faint white on pale grey;
+           23 Oct 2026, the owner: "clearly greyed out unable to tick but the tick box a little more clear") */
+        #practice-autopilot .ap-chip:has(input:disabled), #practice-autopilot .ap-chip:has(input:disabled:checked) { cursor: not-allowed; color: var(--text-secondary); border-color: var(--border-color); background: transparent; border-style: dashed; }
+        #practice-autopilot .ap-chip:has(input:disabled:not(:checked)) { opacity: 0.6; }
+        #practice-autopilot .ap-chip input:disabled { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; flex: none; border: 1.5px solid #8a9099; border-radius: 3px; background: transparent; cursor: not-allowed; }
+        #practice-autopilot .ap-chip input:disabled:checked { border-color: #6b7280; background: #6b7280 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat; }
         #practice-autopilot .ap-group-pick:disabled { cursor: default; text-decoration: none; }
         #practice-autopilot .ap-group-pick { white-space: nowrap; background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; border-bottom: 1px dashed var(--border-color); }
         #practice-autopilot .ap-group-pick:hover { color: var(--text-primary); border-bottom-color: #3b82f6; }
