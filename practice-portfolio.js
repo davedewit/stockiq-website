@@ -924,7 +924,7 @@
         // box): how the account stands against the same starting money in an S&P 500 fund, as the graph shows it. Without the
         // fund's prices back to the start it falls back to what is still held against the fund over the same days.
         const start = usd(state.startingCash).replace(/\.00$/, '');
-        const fundCard = vs ? card('Against the S&amp;P 500', movedHtml(behind, behind / state.startingCash * 100), `${behind === 0 ? 'level with' : behind > 0 ? 'ahead of' : 'behind'} the same ${start} in an S&amp;P 500 fund since the start (it would be ${usd(vs.value)} now)`, behind)
+        const fundCard = vs ? card('Against the S&amp;P 500', movedHtml(behind, behind / state.startingCash * 100), `${behind === 0 ? 'level with' : behind > 0 ? 'ahead of' : 'behind'} an S&amp;P 500 fund: your account ${usd(s.accountValue)} against ${usd(vs.value)} for the same ${start} put in the fund at the start`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
