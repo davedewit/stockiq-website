@@ -354,9 +354,22 @@
             <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. This list was last brought up to date ${esc(day(pl.at))}.</div>
             <div class="ad-sub" style="margin-bottom: 8px;">This is the full list, for you only. Every user sees a short, plain version on the AI autopilot tab ("How it is improving"): only what affects their autopilot, marked here 👥.</div>
             ${running.length ? `<div class="ad-section">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
-            ${next.length ? `<div class="ad-section">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}</li>`).join('')}</ol>` : ''}
+            ${next.length ? `<div class="ad-section">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : ''}
             ${done.length ? `<div class="ad-section">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
+            ${questionsHtml(pl.questions)}
             ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
+    }
+
+    // Every question asked about making it better (check-tools/reviews/questions.md, copied by admin.py sync), so that what was already
+    // tried is seen and not tried again (23 Oct 2026, the owner: "i'm guessing history is kept so its not repeated"). Answered first.
+    function questionsHtml(qs) {
+        if (!qs || !qs.length) return '';
+        const groups = [['answered', 'Answered'], ['trial', 'Being tried live'], ['waiting', 'Waiting for enough trades or data'], ['open', 'Not tested yet']];
+        const count = (st) => qs.filter(q => q.status === st).length;
+        const row = (q) => `<li><b>${q.n}. ${esc(q.q)}</b> <span class="ad-sub">${esc(q.asked)}</span><div class="ad-sub" style="margin-top: 2px;">${esc(q.answer)}</div></li>`;
+        return `<div class="ad-section">Questions asked (${qs.length})</div>
+            <div class="ad-sub" style="margin-bottom: 6px;">${groups.map(([st, name]) => `${count(st)} ${name.toLowerCase()}`).join(' · ')}. Each is tested on past prices or on the live record before anything changes; "tried, no difference" is kept as an answer so that it is not tried again.</div>
+            ${groups.filter(([st]) => count(st)).map(([st, name]) => `<details class="ad-more"${st === 'answered' ? ' open' : ''}><summary>${name} (${count(st)})</summary><ul class="ad-plain">${qs.filter(q => q.status === st).sort((a, b) => b.n - a.n).map(row).join('')}</ul></details>`).join('')}`;
     }
 
     // The short version for the Overview: how many, what is being tested (soonest decision first) and the latest three done
