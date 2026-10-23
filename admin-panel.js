@@ -359,13 +359,13 @@
             ${done.length ? `<div class="ad-section" id="ad-sec-done">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
             ${fixesHtml(pl.changes)}
             ${questionsHtml(pl.questions)}
-            ${partsHtml(pl.siteParts) || (reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : '')}</div>`;
+            ${partsHtml(pl.siteParts, pl.partsNext) || (reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : '')}</div>`;
     }
 
     // Every part of the site (check-tools/site_parts.json), each looked at in turn, the one looked at longest ago first: three each
     // session (23 Oct 2026, the owner: "have a massive list of every part of the site ... tick if its been selected and on what date it
     // was checked, then expand it to see what was improved"). Oldest first rather than at random, so that every part comes round.
-    function partsHtml(parts) {
+    function partsHtml(parts, next3) {
         if (!parts || !parts.length) return '';
         const days = (iso) => iso ? (Date.now() - Date.parse(iso + 'T12:00:00Z')) / 86400000 : Infinity;
         const fresh = parts.filter(p => days(p.last) <= 30).length, never = parts.filter(p => !p.last).length;
@@ -375,7 +375,7 @@
             ? `<details class="ad-more"><summary>✓ <b>${esc(p.part)}</b> <span class="ad-sub">looked at ${esc(when(p.last))}${p.log.length > 1 ? ', ' + p.log.length + ' times' : ''}</span></summary><ul class="ad-plain">${p.log.slice().reverse().map(l => `<li><span class="ad-sub">${esc(when(l.at))}</span> ${esc(l.found)}</li>`).join('')}</ul></details>`
             : `<div class="ad-sub" style="padding: 3px 0;">○ <b>${esc(p.part)}</b> · not looked at yet</div>`);
         return `<div class="ad-section" id="ad-sec-parts">Every part of the site, looked at in turn (${parts.length})</div>
-            <div class="ad-sub" style="margin-bottom: 6px;">${fresh} looked at in the last 30 days, ${never} not yet. Each session takes the three looked at longest ago and checks them for faults, clarity, accuracy against what is live, profit and new ideas. Next: ${order.slice(0, 3).map(p => esc(p.part.split(':')[0])).join(', ')}.</div>
+            <div class="ad-sub" style="margin-bottom: 6px;">${fresh} looked at in the last 30 days, ${never} not yet. Each session takes three: first those never looked at, then those whose code changed since their last look, the ones that matter most for profit and sign-ups sooner. A part unchanged since a recent look waits: looking again at the same thing finds nothing new. Each look starts from what was found the time before.${next3 && next3.length ? `<br>Next: ${next3.map(x => `<b>${esc(x.part.split(':')[0])}</b> (${esc(x.why)})`).join('; ')}.` : ` Next: ${order.slice(0, 3).map(p => esc(p.part.split(':')[0])).join(', ')}.`}</div>
             ${order.slice().reverse().map(row).join('')}`;
     }
 
