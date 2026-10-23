@@ -364,11 +364,27 @@
         // At a glance (23 Oct 2026, the owner: "how do i see sort of these actions going on? what its going to focus on next, what it
         // improved ... its just a huge number of things"): three plain lines, always open, above the six rows.
         const lastDay = ch.length ? ch[0].at : null, lastOnes = ch.filter(c => c.at === lastDay);
-        const firstBit = (t) => esc(String(t || '').split(/[:;]/)[0].trim().slice(0, 110));
-        const glance = `<div style="display: grid; gap: 8px; margin-bottom: 4px;">
-            <div><b>👉 Working on next:</b> ${(pl.partsNext || []).length ? (pl.partsNext || []).map(x => esc(x.part.split(':')[0])).join(', ') + ' (each must end in an improvement)' : 'the parts of the site below'}${soon ? `; the next trial decided: <i>${short(soon.what)}</i>, in ${left} day${left === 1 ? '' : 's'}` : ''}.</div>
-            <div><b>✅ Last session (${esc(dated(lastDay))}) improved ${lastOnes.length} thing${lastOnes.length === 1 ? '' : 's'}:</b><ul class="ad-plain" style="margin: 4px 0 0;">${lastOnes.slice(0, 5).map(c => `<li>${firstBit(c.what)}</li>`).join('')}</ul>${lastOnes.length > 5 ? `<span class="ad-sub">and ${lastOnes.length - 5} more under "Fixes and changes" below</span>` : ''}</div>
-            <div><b>🧪 Being tested:</b> ${running.length} changes, each kept or taken out on its figures; ${by('kept').length} kept and ${by('removed').length} taken out so far.</div></div>`;
+                // The story at the top (23 Oct 2026, the owner: "confirmation AI is being smart figuring out new shit and it leads to profit, eg
+        // analyzed x data trialed y over x days it consistantly led to higher profit so i implemented it"): the score, what testing has
+        // proven (profit tests decided, with their figures), what is being tested now and how far along, and what comes next.
+        const isProfit = (e) => /profit/.test(e.angle || '');
+        const daysBetween = (a, b) => (Date.parse(b) && Date.parse(a)) ? Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86400000)) : null;
+        const f = (typeof window !== 'undefined' && window.practicePortfolio && window.practicePortfolio.figures) ? window.practicePortfolio.figures() : null;
+        const money = (x) => '$' + Math.round(Math.abs(x)).toLocaleString('en-US');
+        const score = f && typeof f.fundValue === 'number'
+            ? `the account ${money(f.accountValue)} against ${money(f.fundValue)} for the same $100,000 in an S&P 500 fund since ${esc(dated((f.createdAt || '').slice(0, 10)))}: <b class="${f.accountValue >= f.fundValue ? 'ok' : 'red'}">${f.accountValue >= f.fundValue ? 'ahead' : 'behind'} by ${money(f.accountValue - f.fundValue)}</b>. Every improvement is judged, in the end, by this line moving up over months.`
+            : 'open the Practice portfolio tab once and this shows the account against the same money in an S&P 500 fund.';
+        // proven: a decided profit test whose result carries measured figures (a percentage, or "N of M"); a plain decision is not proof
+        const measured = (e) => /\d+(\.\d+)?%|\b\d+ of \d+\b/.test(String(e.result || ''));
+        const proven = done.filter(e => isProfit(e) && measured(e)).slice(0, 5).map(e => { const n = daysBetween(e.started, e.decided);
+            return `<li><b class="${e.status === 'kept' ? 'ok' : ''}">${e.status === 'kept' ? 'Kept' : 'Taken out'}</b> · ${short(e.what)} <span class="ad-sub">(${n ? 'tested ' + n + ' day' + (n === 1 ? '' : 's') + ', ' : ''}decided ${esc(dated(e.decided))})</span><div class="ad-sub">${esc(String(e.result || '').replace(/^(Kept|Taken out)[^:]*:\s*/, '').slice(0, 220))}</div></li>`; }).join('');
+        const testing = running.filter(isProfit), tRow = (e) => { const n = daysBetween(e.started, new Date().toISOString()), all = daysBetween(e.started, e.decide);
+            return `<li>${short(e.what)} <span class="ad-sub">day ${n} of ${all || '?'}; decided by ${esc(dated(e.decide))}</span></li>`; };
+        const glance = `<div style="display: grid; gap: 10px; margin-bottom: 4px;">
+            <div><b>🎯 The score:</b> ${score}</div>
+            <div><b>🔬 Proven by testing</b> <span class="ad-sub">(profit tests decided on their figures, newest first)</span>${proven ? `<ul class="ad-plain" style="margin: 4px 0 0;">${proven}</ul>` : '<div class="ad-sub">none decided yet</div>'}</div>
+            <div><b>🧪 Testing now for profit (${testing.length})</b> <span class="ad-sub">each kept only if it beats the current rule after costs, usually over 30 trades a side</span><ul class="ad-plain" style="margin: 4px 0 0;">${testing.slice(0, 6).map(tRow).join('')}</ul>${testing.length > 6 ? `<span class="ad-sub">and ${testing.length - 6} more under "Being tested now" below</span>` : ''}</div>
+            <div><b>👉 Next:</b> ${(pl.partsNext || []).length ? (pl.partsNext || []).map(x => esc(x.part.split(':')[0])).join(', ') + ', each to end in an improvement' : 'the parts of the site below'}${soon ? `; the next trial decided: <i>${short(soon.what)}</i>, in ${left} day${left === 1 ? '' : 's'}` : ''}. The last session (${esc(dated(lastDay))}) made ${lastOnes.length} change${lastOnes.length === 1 ? '' : 's'} (under "Fixes and changes").</div></div>`;
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements</span>
             ${glance}
             <div class="ad-sub" style="margin: 10px 0 6px;">The detail, for when you want it (brought up to date ${esc(day(pl.at))}; users see a short version on the AI autopilot tab, marked 👥):</div>
