@@ -361,8 +361,17 @@
         const qs = pl.questions || [], qn = (st) => qs.filter(q => q.status === st).length;
         const sp = pl.siteParts || [], spFresh = sp.filter(p => p.last && (Date.now() - Date.parse(p.last + 'T12:00:00Z')) / 86400000 <= 30).length;
         const nextParts = (pl.partsNext || []).map(x => esc(x.part.split(':')[0])).join(', ');
+        // At a glance (23 Oct 2026, the owner: "how do i see sort of these actions going on? what its going to focus on next, what it
+        // improved ... its just a huge number of things"): three plain lines, always open, above the six rows.
+        const lastDay = ch.length ? ch[0].at : null, lastOnes = ch.filter(c => c.at === lastDay);
+        const firstBit = (t) => esc(String(t || '').split(/[:;]/)[0].trim().slice(0, 110));
+        const glance = `<div style="display: grid; gap: 8px; margin-bottom: 4px;">
+            <div><b>👉 Working on next:</b> ${(pl.partsNext || []).length ? (pl.partsNext || []).map(x => esc(x.part.split(':')[0])).join(', ') + ' (each must end in an improvement)' : 'the parts of the site below'}${soon ? `; the next trial decided: <i>${short(soon.what)}</i>, in ${left} day${left === 1 ? '' : 's'}` : ''}.</div>
+            <div><b>✅ Last session (${esc(dated(lastDay))}) improved ${lastOnes.length} thing${lastOnes.length === 1 ? '' : 's'}:</b><ul class="ad-plain" style="margin: 4px 0 0;">${lastOnes.slice(0, 5).map(c => `<li>${firstBit(c.what)}</li>`).join('')}</ul>${lastOnes.length > 5 ? `<span class="ad-sub">and ${lastOnes.length - 5} more under "Fixes and changes" below</span>` : ''}</div>
+            <div><b>🧪 Being tested:</b> ${running.length} changes, each kept or taken out on its figures; ${by('kept').length} kept and ${by('removed').length} taken out so far.</div></div>`;
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements</span>
-            <div class="ad-sub" style="margin-bottom: 8px;">Everything being tried to make the site and the autopilot better, and what became of it. Open a row for the detail. Brought up to date ${esc(day(pl.at))}; users see a short version on the AI autopilot tab (marked 👥).</div>
+            ${glance}
+            <div class="ad-sub" style="margin: 10px 0 6px;">The detail, for when you want it (brought up to date ${esc(day(pl.at))}; users see a short version on the AI autopilot tab, marked 👥):</div>
             ${fold('ad-sec-running', `🧪 Being tested now (${running.length})`, soon ? `next decided: ${short(soon.what)}, in ${left} day${left === 1 ? '' : 's'}` : '', running.length ? running.map(runRow).join('') : '')}
             ${fold('ad-sec-next', `💡 Ideas waiting (${next.length})`, next.length ? `newest: ${short(next[0].what)}` : '', next.length ? `<ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : '')}
             ${fold('ad-sec-done', `✅ Decided (${by('kept').length} kept, ${by('removed').length} taken out)`, done.length ? `latest: ${short(done[0].what)}, ${done[0].status === 'kept' ? 'kept' : 'taken out'}` : '', done.length ? `<ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : '')}
