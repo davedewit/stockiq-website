@@ -283,10 +283,10 @@
     function hint(level, key) { const r = autoRules(level), n = r ? Math.abs(r[key]) : NaN; return isFinite(n) ? String(n) : ''; }
     // ... and with the user's own loss limit and gain mark, as they stand on screen: these come before everything else
     // What the number of holdings means, in words: how big each is, what a larger or smaller number does, and any catch
-    // While the themes part (a trial) runs, the share part works with the rest of the budget: the same sum as share_part in the
+    // While the sector funds (a trial) runs, the share part works with the rest of the budget: the same sum as share_part in the
     // function. Every size and build-up on the panel goes through it.
-    function themesShare(d) { const t = data && data.themes; return t && t.on && (!d || d.selfTune !== false) ? (t.share || 0) : 0; }
-    // What the market shares are a share of: the whole budget, or, while the themes part runs, the part left for shares
+    function themesShare(d) { const t = data && data.themes; return t && t.on && (!d || (d.selfTune !== false && d.themes !== false)) ? (t.share || 0) : 0; }
+    // What the market shares are a share of: the whole budget, or, while the sector funds runs, the part left for shares
     function ofWhat(d) { return themesShare(d) ? `the ${usd0(sharePart(d).budgetUsd)} for shares` : 'the budget'; }
     function sharePart(d) { const k = themesShare(d); return k && !d.partOfShares ? Object.assign({}, d, { budgetUsd: Math.round(d.budgetUsd * (1 - k) * 100) / 100, partOfShares: true }) : d; }
     function holdingsHint(d) {
@@ -366,7 +366,7 @@
         const many = up.count === 1 ? '1 holding' : `${up.count} holdings`, full = up.peak >= d.budgetUsd - 0.01;
         const steps = up.hours <= 0 ? ', bought at the first check-in.'
             : `: ${up.first} at the first check-in` + (up.count - up.first === 1 ? ' and one more' : `, then more as the budget is released, all ${up.count}`) + ` after about ${holdText(up.hours / 24)}.`;
-        return `${start}${k ? ` ${Math.round(k * 100)}% of the ${usd0(whole)} budget (${usd0(whole * k)}) is the themes part (a trial, under Activity); the shares get the rest.` : ''} Up to ${many} of about ${usd0(size)} each${full ? '' : ' at a time'}${steps}`
+        return `${start}${k ? ` ${Math.round(k * 100)}% of the ${usd0(whole)} budget (${usd0(whole * k)}) goes to the sector funds (a trial, under Activity); the shares get the rest.` : ''} Up to ${many} of about ${usd0(size)} each${full ? '' : ' at a time'}${steps}`
             + (full ? ` Then the whole ${usd0(d.budgetUsd)}${k ? ' for shares' : ''} is in use.`
                 : ` That is ${usd0(up.peak)} of the ${usd0(d.budgetUsd)}: it buys at most ${buysPerCheck(positionsOf(d))} at a check-in and sells each holding after ${holdText(d.maxHoldDays)}. Keep holdings longer${oftener ? ', or check in more often,' : ''} for it to use more.`)
             + (!sharesOn() && mixed(d) && r.crypto < 1 ? ` Of that, at most ${Math.round(r.crypto * 100)}% (${usd0(d.budgetUsd * r.crypto)}) goes into coins at this level.` : '')
@@ -414,7 +414,7 @@
         const r = withHoldings(data.options.risk[String(s.risk)] || {}, s);
         const t = data.themes && data.themes.on ? data.themes : null, forShares = t ? s.budgetUsd * (1 - t.share) : s.budgetUsd;
         const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(forShares)} ${t ? 'for shares' : 'budget'} is invested.`
-            + (t ? ` The themes part (trial) holds ${t.held.length} fund${t.held.length === 1 ? '' : 's'} (${usd0(t.invested)} of its ${usd0(t.target)}).` : '') : '';
+            + (t ? ` The sector funds (trial) hold ${t.held.length} fund${t.held.length === 1 ? '' : 's'} (${usd0(t.invested)} of its ${usd0(t.target)}).` : '') : '';
         const next = data.nextCheck && data.nextCheck.at
             ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${andList(data.nextCheck.markets)} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
             : (data.nextCheck === null ? ' No check-in is due in the next ten days.' : '');
@@ -662,15 +662,15 @@
     // ---------------------------------------------------------------- progress, a batch of finished trades at a time
     // After every batch (20) the function compares it with the batch before; if it did no better it looks into why and acts
     // within its own rules. This shows each batch, the verdict, and what it did.
-    // The themes part (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's daily calls
-    // One line on the themes part in the summary; the section itself is under "More detail"
-    // The one-line summary of the themes part: the row that opens to its detail (19 Oct 2026: it was a line with a link that opened
+    // The sector funds (a trial since 18 Oct 2026): what it holds, when it changes, how it is doing, and the AI model's daily calls
+    // One line on the sector funds in the summary; the section itself is under "More detail"
+    // The one-line summary of the sector funds: the row that opens to its detail (19 Oct 2026: it was a line with a link that opened
     // one large fold of four different parts and jumped into the middle of it)
     function themesLine() {
         const t = data.themes;
         if (!t || !t.on) return '';
         const held = t.held && t.held.length ? 'holds ' + t.held.map(h => esc(h.symbol)).join(', ') : 'buys its first funds at the next check-in while the US market is open';
-        return `<strong>Themes part</strong> <span class="ap-sub">a trial, ${Math.round(t.share * 100)}% of the budget</span>: ${held}${t.next && t.held && t.held.length ? `; next monthly change ${esc(when(t.next))}` : ''}`;
+        return `<strong>Sector funds</strong> <span class="ap-sub">a trial, ${Math.round(t.share * 100)}% of the budget</span>: ${held}${t.next && t.held && t.held.length ? `; next monthly change ${esc(when(t.next))}` : ''}`;
     }
     // Each of the four parts below "How it is doing" is a row of its own that opens and closes in place (19 Oct 2026)
     function partRow(key, summary, inner) {
@@ -690,7 +690,7 @@
     function themesHtml() {
         const t = data.themes;
         if (!t) return '';
-        if (!t.on) return data.settings.enabled ? `<div class="ap-section"><h4>Themes part <span class="ap-sub">a trial</span></h4><div style="font-size: 0.85rem;">It runs while "Try changes to its own rules" is on and at least one share screener is ticked: ${Math.round(t.share * 100)}% of the budget is then held in the ${t.count} strongest of 14 sector and theme funds, changed once a month.</div></div>` : '';
+        if (!t.on) return data.settings.enabled ? `<div class="ap-section"><h4>Sector funds <span class="ap-sub">a trial</span></h4><div style="font-size: 0.85rem;">${data.settings.themes === false ? 'Left out: ticked off in the screeners card under Settings. ' : ''}It runs while it is ticked in the screeners card, "Try changes to its own rules" is on and at least one share screener is ticked: ${Math.round(t.share * 100)}% of the budget is then held in the ${t.count} strongest of 14 sector and theme funds, changed once a month.</div></div>` : '';
         const box = (key, title, inner) => `<details data-ap-fold="${esc(key)}" ${openDetails[key] ? 'open' : ''} style="margin-top: 6px;"><summary>${esc(title)}</summary>${inner}</details>`;
         const names = (t.ranking || []).reduce((o, r) => (o[r.symbol] = r, o), {});
         const held = t.held.length ? t.held.map(h => `<strong style="color: var(--text-primary);">${esc(h.symbol)}</strong> ${esc(h.name)} (${usd0(h.cost)}${names[h.symbol] ? `, ${pc(names[h.symbol].trend)} over the past year` : ''})`).join(' · ') : 'nothing yet: it buys at the first check-in while the US market is open';
@@ -699,7 +699,7 @@
         const aiLine = ai.at ? `Its last read (${esc(when(ai.at))})${ai.theme ? `: “${esc(String(ai.theme).replace(/[.\s]+$/, ''))}”` : ''}. ${ai.scored ? `${ai.right} of ${ai.scored} of its calls scored so far were right` : 'None of its calls has been scored yet'}${ai.scored < 30 ? ' (too few to read under 30)' : ''}.` : 'It has not read the news yet: it does so every trading day while the US market is open.';
         const table = (t.ranking || []).length ? box('themes-rank', 'The 14 funds by their past year, as last ranked', `<table class="ap-bd" style="width: 100%;"><tr><th style="text-align: left;">Fund</th><th>Past year (less the last month)</th><th>3 months</th></tr>${t.ranking.map((x, i) => `<tr><td style="text-align: left;">${i < t.count ? '<strong>' : ''}${esc(x.symbol)} ${esc(x.name)}${i < t.count ? '</strong>' : ''}</td><td>${pc(x.trend)}</td><td>${pc(x.m3)}</td></tr>`).join('')}</table>`) : '';
         const callList = calls.length ? box('themes-calls', 'Its latest calls', `<ul style="margin: 4px 0 0 18px; padding: 0;">${calls.map(c => `<li>${esc(when(c.at))}: ${esc(c.symbol)} ${c.view === 'better' ? 'better' : 'worse'} than an S&P 500 fund over the week (${esc(c.why)})${typeof c.rel === 'number' ? `: it was ${c.rel >= 0 ? 'ahead' : 'behind'} by ${Math.abs(c.rel).toFixed(1)}%, ${c.right ? 'right' : 'wrong'}` : ', not scored yet'}</li>`).join('')}</ul>`) : '';
-        return `<div class="ap-section" id="ap-themes"><h4>Themes part <span class="ap-sub">a trial: ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)})</span></h4>
+        return `<div class="ap-section" id="ap-themes"><h4>Sector funds <span class="ap-sub">a trial: ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)})</span></h4>
             <div style="font-size: 0.85rem; margin-bottom: 6px;">A theme in the news (chips and AI, oil, inflation, gold) shows up first as a whole sector moving. So this part holds the ${t.count} strongest of 14 sector and theme funds by their rise over the past year (the last month left out), and changes them once a month. On five years of past prices it was ahead of an S&P 500 fund in both halves, mostly through the chip fund, so it is tested here for over a year before anything is concluded.</div>
             <div>Holds: ${held}.</div>
             ${t.next ? `<div style="margin-top: 4px;">Next monthly change ${until(t.next)} <span class="ap-sub">(${esc(when(t.next))})</span>.</div>` : ''}
@@ -947,11 +947,11 @@
 
                 <div class="ap-card">
                     <span class="ap-label">Screeners it buys from <span id="ap-chosen" class="ap-sub">${chosen} chosen</span></span>
-                    ${sharesOn() ? `<div class="ap-help" style="margin-top: 2px;">Tick the screeners it may buy from. Each market you tick gets a share of ${esc(ofWhat(d))}, shown in the bar and set in the box on its right.${themesShare(d) ? ` That is the budget less the ${Math.round(themesShare(d) * 100)}% of the themes part, so the shares below add up to 100% of it.` : ''}</div><div id="ap-splitbar" class="ap-splitbar" aria-label="How the budget is spread over the markets">${splitBar(d)}</div>` : ''}
+                    ${sharesOn() ? `<div class="ap-help" style="margin-top: 2px;">Tick the screeners it may buy from. Each market you tick gets a share of ${esc(ofWhat(d))}, shown in the bar and set in the box on its right.${themesShare(d) ? ` That is the budget less the ${Math.round(themesShare(d) * 100)}% of the sector funds, so the shares below add up to 100% of it.` : ''}</div><div id="ap-splitbar" class="ap-splitbar" aria-label="How the budget is spread over the markets">${splitBar(d)}</div>` : ''}
                     <div class="ap-presets" style="margin-top: 8px;"><span>Shortcuts:</span><button type="button" class="ap-preset" data-ap-pick="main" title="One index a country: ${esc(MAIN.filter(k => o.screeners[k]).map(k => o.screeners[k].name).join(', '))}">🌍 Main index of every country</button><button type="button" class="ap-preset" data-ap-pick="none" title="Untick every screener">Clear all</button><span>or click a market's name to tick or clear all of its screeners. These change only what is ticked, never the pace or the budget. The Euro Stoxx 50 is not one country's index, so the first shortcut leaves it out: 47 of its 50 shares are already in the DAX, CAC, AEX, FTSE MIB and IBEX lists (tick it yourself to add the other three: AB InBev, argenx and Nordea).</span></div>
                     ${screenerGroups(o.screeners).map(([group, keys], i) => `<div class="ap-group ${i === 0 ? 'first' : ''} ${sharesOn() ? 'shared' + (isTicked(d, group) ? '' : ' off') : ''}"><div class="ap-group-name">${sharesOn() ? `<span class="ap-dot" style="background: ${isTicked(d, group) ? marketColour(group) : 'var(--border-color)'};"></span>` : ''}<button type="button" class="ap-group-pick" data-ap-group="${esc(group)}" title="Tick every screener in ${esc(group)}, or clear them when all are ticked">${esc(group)}</button></div><div><div class="ap-chips">${keys.map(k => `<label class="ap-chip"><input type="checkbox" data-ap-screener="${esc(k)}" ${d.screeners.includes(k) ? 'checked' : ''}> ${esc(o.screeners[k].name)}${data.resting && data.resting[k] ? ' <small title="Resting after its recent trades lagged the market">(resting until ' + esc(day(data.resting[k])) + ')</small>' : ''}</label>`).join('')}</div></div><div id="ap-sharebox-${i}">${shareRow(d, group, i)}</div></div>`).join('')}
                     <div id="ap-split" class="ap-help">${esc(splitText(d))}</div>
-                    ${data.themes && data.themes.on ? `<div class="ap-help ap-themes-note" style="margin-top: 6px; padding: 6px 8px; border-left: 3px solid var(--border-color);">The percentages above are of the ${usd0(sharePart(d).budgetUsd)} for shares. The other ${Math.round(data.themes.share * 100)}% of the ${usd0(d.budgetUsd)} budget (${usd0(data.themes.target)}) is the <strong>themes part</strong>, a trial: the 3 strongest of 14 sector and theme funds, changed once a month. It is not a screener to tick; what it holds and how it is doing are under Activity. <a href="#ap-themes" data-ap-part="activity" data-ap-goto="ap-themes">See the themes part</a></div>` : ''}
+                    ${'themes' in data.settings && data.themes ? `<div class="ap-group shared${d.themes !== false ? '' : ' off'} ap-themes-row"><div class="ap-group-name"><span class="ap-dot" style="background: ${d.themes !== false ? '#c98500' : 'var(--border-color)'};"></span><span>Sector funds</span></div><div><div class="ap-chips"><label class="ap-chip"><input type="checkbox" id="ap-themes-on" ${d.themes !== false ? 'checked' : ''}> Sector funds (a trial)</label></div><div class="ap-help" style="margin-top: 4px;">${Math.round(data.themes.share * 100)}% of the ${usd0(d.budgetUsd)} budget held in the 3 strongest of 14 US sector funds (technology, chips, energy, gold, bonds and others) by their past year, changed once a month; the markets above share the rest. Untick it to leave it out: what it holds of them is sold at the next check-in while the US market is open. It runs only while "Try changes to its own rules" is on and a share screener is ticked. <a href="#ap-themes" data-ap-part="activity" data-ap-goto="ap-themes">How it is doing</a></div></div><div></div></div>` : ''}
                     <div class="ap-help">Each share market is only traded while it is open, also when you press "Check in now"; coins at any time. Bigger lists take a little longer to check. Lists can overlap (the S&amp;P 1500 holds every share of the S&amp;P 500, 400 and 600): that does no harm, a share is never held twice, and it is bought on its best place among the lists ticked.</div>
                 </div>
 
@@ -1001,7 +1001,8 @@
             screeners: Array.from(document.querySelectorAll('[data-ap-screener]')).filter(c => c.checked).map(c => c.getAttribute('data-ap-screener')).sort(),
             aiSell: false, selfTune: may('ap-tune', 'selfTune'), emails: may('ap-mail', 'emails'),
             stopPct: ownLimit('ap-stop', 'stopPct'), takePct: ownLimit('ap-take', 'takePct'),
-            ...('compound' in data.settings ? { compound: may('ap-compound', 'compound') } : {})    // in the function's order (DEFAULTS): the two are compared as text
+            ...('compound' in data.settings ? { compound: may('ap-compound', 'compound') } : {}),   // in the function's order (DEFAULTS): the two are compared as text
+            ...('themes' in data.settings ? { themes: may('ap-themes-on', 'themes') } : {})
         };
         if ('holdings' in data.settings) {                 // the user's own number of holdings; an empty box leaves it to the level
             const box = byId('ap-holdings'), n = box ? parseInt(box.value, 10) : NaN, bound = data.options.holdings || { min: 2, max: 50 };
@@ -1274,7 +1275,7 @@
         (data.coming || []).slice(0, 5).forEach(c => lines.push('Coming: ' + (c.at ? when(c.at) : typeof c.after === 'number' ? `after ${c.after} more finished trades` : 'not planned') + ': ' + cut(c.text, 230)));
         lines.push('Needs the user: ' + ((data.needs || []).map(n => cut(n.text, 200)).join(' | ') || 'nothing') + '.');
         if (data.gauge && typeof data.gauge.level === 'number') lines.push(`Market risk gauge now: ${data.gauge.name} (${data.gauge.level} of 4; S&P 500 ${data.gauge.spy < data.gauge.avg200 ? 'below' : 'above'} its 200-day and ${data.gauge.spy < data.gauge.avg50 ? 'below' : 'above'} its 50-day average, VIX ${data.gauge.vix}). Shown for information and recorded with each buy; it does not make the autopilot hold cash.`);
-        if (data.themes && data.themes.on) { const t = data.themes; lines.push(`Themes part (a trial since 18 Oct 2026): ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)}) in the ${t.count} strongest of 14 sector and theme funds by their past year, changed monthly; holds ${t.held.map(h => h.symbol + ' ' + h.name).join(', ') || 'nothing yet'}; next change ${t.next ? when(t.next) : 'at the next US check-in'}; ${t.trades && t.trades.n ? `${t.trades.n} sold, ${usd2(t.trades.usd)}` : 'none sold yet'}. The AI model's daily news calls are recorded and scored a week later, not acted on: ${t.ai && t.ai.scored ? `${t.ai.right} of ${t.ai.scored} right` : 'none scored yet'}.`); }
+        if (data.themes && data.themes.on) { const t = data.themes; lines.push(`Sector funds (a trial since 18 Oct 2026): ${Math.round(t.share * 100)}% of the budget (${usd0(t.target)}) in the ${t.count} strongest of 14 sector and theme funds by their past year, changed monthly; holds ${t.held.map(h => h.symbol + ' ' + h.name).join(', ') || 'nothing yet'}; next change ${t.next ? when(t.next) : 'at the next US check-in'}; ${t.trades && t.trades.n ? `${t.trades.n} sold, ${usd2(t.trades.usd)}` : 'none sold yet'}. The AI model's daily news calls are recorded and scored a week later, not acted on: ${t.ai && t.ai.scored ? `${t.ai.right} of ${t.ai.scored} right` : 'none scored yet'}.`); }
         (data.plans || []).filter(p => !p.theme).slice(0, 8).forEach(p => lines.push(`Holds ${p.label}: sold at the latest ${when(p.sellBy)}, sooner at ${p.stop}% or +${p.take}%${p.closed ? '; its market is closed now' : ''}.`));
         const c = data.scorecard, m = data.month && data.month.last30;
         if (c && c.n) lines.push(`Finished trades: ${c.n} (${c.up} up), average ${pc(c.avg)} each${m ? `; last 30 days ${usd2(m.usd)}` : ''}. Too few to judge under ${data.minSample || 8}.`);

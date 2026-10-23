@@ -159,15 +159,18 @@
     }
     function confidenceHtml(v) {
         if (!v || !(v.days >= 0)) return '';
-        const head = 'Confidence it has been ahead of an S&P 500 fund so far';
+        // Two different numbers stood near each other (23 Oct 2026, the owner: "one part you say 30% chance we win, the other 57%"): this
+        // one is the record so far, not a forecast, so it shows no percentage until 30 trading days; the forecast is Claude's (estimateHtml)
+        const head = 'So far: has it beaten an S&P 500 fund? (the record, not a forecast)';
         const gaps = Array.isArray(v.gaps) ? v.gaps : null;
         const p = gaps ? sureFrom(gaps) : (v.se > 0 ? sureOf(v.avg / v.se) : null);
         const early = v.days < CONFIDENCE_DAYS;
         const level = p === null ? null : p >= 0.9 ? ['Clearly ahead', 'good'] : p >= 0.5 ? ['Leaning ahead', 'warn'] : ['More likely behind', 'bad'];   // 50% is a coin flip (the owner, 19 Oct 2026)
         const word = early ? 'Too early to tell' : level ? level[0] : '…';
         const pill = early ? `<span class="ad-pill info">${v.days} of ${CONFIDENCE_DAYS} trading days</span>` : level ? `<span class="ad-pill ${level[1]}">${Math.round(p * 100)}%</span>` : '';
-        const visual = p === null ? '' : `<div class="ad-dial">${dialSvg(p, early)}<div class="ad-dial-side">${early ? `<div><strong>Early reading</strong>: needs ${CONFIDENCE_DAYS - v.days} more trading day${CONFIDENCE_DAYS - v.days === 1 ? '' : 's'} before it counts.</div>` : ''}${gaps ? trailSvg(gaps) : ''}${gaps && gaps.length > 2 ? '<div class="ad-sub">How it has moved, day by day (dashed: 50%, a coin flip, and 90%).</div>' : ''}</div></div>`;
-        const why = early ? `So far it has been ahead of the fund on ${v.ahead} of ${v.days} days. A few days say almost nothing; the reading counts from ${CONFIDENCE_DAYS}.`
+        const visual = p === null || early ? '' : `<div class="ad-dial">${dialSvg(p, early)}<div class="ad-dial-side">${early ? `<div><strong>Early reading</strong>: needs ${CONFIDENCE_DAYS - v.days} more trading day${CONFIDENCE_DAYS - v.days === 1 ? '' : 's'} before it counts.</div>` : ''}${gaps ? trailSvg(gaps) : ''}${gaps && gaps.length > 2 ? '<div class="ad-sub">How it has moved, day by day (dashed: 50%, a coin flip, and 90%).</div>' : ''}</div></div>`;
+        const f = liveAccount(), gapNow = f && f.fundValue > 0 ? f.accountValue - f.fundValue : null;
+        const why = early ? `${gapNow === null ? '' : `Right now the account is <strong class="${gapNow >= 0 ? 'ok' : 'red'}">${gapNow >= 0 ? 'ahead of' : 'behind'} the same $100,000 in the fund by ${usd(Math.abs(gapNow))}</strong>. `}It has beaten the fund on ${v.ahead} of ${v.days} days. A few days say almost nothing, so the dial (how sure the record makes it that it is really ahead) appears after ${CONFIDENCE_DAYS} trading days.`
             : `Ahead of the fund on ${v.ahead} of ${v.days} trading days, by ${signed(v.avg, 2)}% a day on average (give or take ${v.se.toFixed(2)}%). ${Math.round(p * 100)}% is how sure these days make it that the lead is real so far, not luck: under 50% more likely behind than ahead (red), 50 to 90% leaning ahead (yellow), 90% or more clearly ahead (green). About the past only, not a forecast.`;
         return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">${word}</span> ${pill}</span></div>${visual}<div class="ad-sub">${why}</div></div>`;
     }
@@ -185,7 +188,7 @@
         const last = list[list.length - 1], prev = list.length > 1 ? list[list.length - 2] : null;
         const move = prev ? (last.pct > prev.pct ? ` <span class="ok">▲ from ${prev.pct}%</span>` : last.pct < prev.pct ? ` <span class="red">▼ from ${prev.pct}%</span>` : ` <span class="ad-sub">unchanged</span>`) : '';
         const when = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-        return `<div style="margin-top: 8px;"><b>Claude's estimate:</b> <span style="font-size: 1.1rem; font-weight: 800;">${last.pct}%</span> chance the account is ahead of an S&P 500 fund after a year${move} <span class="ad-sub">(${esc(when(last.at))}; updated every weekly session)</span>
+        return `<div style="margin-top: 8px;"><b>Claude's forecast</b> (a judgement for a year ahead, not the record): <span style="font-size: 1.1rem; font-weight: 800;">${last.pct}%</span> chance the account ends up ahead of an S&P 500 fund after a year${move} <span class="ad-sub">(${esc(when(last.at))}; updated every weekly session)</span>
             <div class="ad-sub" style="margin-top: 2px;">${esc(last.why)}</div>
             ${list.length > 1 ? `<div class="ad-sub" style="margin-top: 2px;">Earlier: ${list.slice(0, -1).reverse().slice(0, 6).map(e => `${esc(when(e.at))} ${e.pct}%`).join(' · ')}</div>` : ''}</div>`;
     }
