@@ -80,6 +80,8 @@
         #admin-panel .ad-prop b { color: var(--text-primary); font-size: 1rem; }
         #admin-panel .ad-tag { display: inline-block; font-size: 0.75rem; border-radius: 10px; padding: 1px 8px; margin-left: 6px; background: var(--ad-blue-bg); color: var(--ad-blue); font-weight: 600; }
         #admin-panel .ad-btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; margin: 8px 8px 0 0; font-size: 0.9rem; }
+        #admin-panel .ad-btn.rec { box-shadow: 0 0 0 3px var(--ad-blue); }
+        #admin-panel .ad-rec { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--ad-blue); background: var(--bg-secondary); border-radius: 4px; font-size: 0.9rem; }
         #admin-panel .ad-btn.yes { background: var(--ad-green); border-color: var(--ad-green); color: #fff; font-weight: 700; }
         #admin-panel .ad-btn:hover { border-color: var(--ad-blue); } #admin-panel .ad-btn[disabled] { opacity: 0.6; cursor: default; }
         #admin-panel .ad-lines { list-style: none; margin: 4px 0 0; padding: 0; }
@@ -161,7 +163,7 @@
         if (!v || !(v.days >= 0)) return '';
         // Two different numbers stood near each other (23 Oct 2026, the owner: "one part you say 30% chance we win, the other 57%"): this
         // one is the record so far, not a forecast, so it shows no percentage until 30 trading days; the forecast is Claude's (estimateHtml)
-        const head = 'So far: has it beaten an S&P 500 fund? (the record, not a forecast)';
+        const head = 'So far against an S&P 500 fund (what has happened)';
         const gaps = Array.isArray(v.gaps) ? v.gaps : null;
         const p = gaps ? sureFrom(gaps) : (v.se > 0 ? sureOf(v.avg / v.se) : null);
         const early = v.days < CONFIDENCE_DAYS;
@@ -170,7 +172,10 @@
         const pill = early ? `<span class="ad-pill info">${v.days} of ${CONFIDENCE_DAYS} trading days</span>` : level ? `<span class="ad-pill ${level[1]}">${Math.round(p * 100)}%</span>` : '';
         const visual = p === null ? '' : `<div class="ad-dial">${dialSvg(p, early)}<div class="ad-dial-side">${early ? `<div><strong>Early reading</strong>: needs ${CONFIDENCE_DAYS - v.days} more trading day${CONFIDENCE_DAYS - v.days === 1 ? '' : 's'} before it counts.</div>` : ''}${gaps ? trailSvg(gaps) : ''}${gaps && gaps.length > 2 ? '<div class="ad-sub">How it has moved, day by day (dashed: 50%, a coin flip, and 90%).</div>' : ''}</div></div>`;
         const f = liveAccount(), gapNow = f && f.fundValue > 0 ? f.accountValue - f.fundValue : null;
-        const why = early ? `${gapNow === null ? '' : `Right now the account is <strong class="${gapNow >= 0 ? 'ok' : 'red'}">${gapNow >= 0 ? 'ahead of' : 'behind'} the same $100,000 in the fund by ${usd(Math.abs(gapNow))}</strong>. `}It has beaten the fund on ${v.ahead} of ${v.days} days. A few days say almost nothing, so the dial is faded until ${CONFIDENCE_DAYS} trading days.`
+        const lines = [gapNow === null ? '' : `<li>Right now: <strong class="${gapNow >= 0 ? 'ok' : 'red'}">${gapNow >= 0 ? 'ahead of' : 'behind'} the fund by ${usd(Math.abs(gapNow))}</strong></li>`,
+            `<li>Days it beat the fund: ${v.ahead} of ${v.days}</li>`,
+            p === null ? '' : `<li>The dial, ${Math.round(p * 100)}%: how sure these days make it that the account is really ahead of the fund, not luck. It is not the share of days it won. Under 50% means more likely behind; it counts once there are ${CONFIDENCE_DAYS} trading days (faded until then).</li>`].join('');
+        const why = early ? `<ul style="margin: 4px 0 0 18px; padding: 0;">${lines}</ul>`
             : `Ahead of the fund on ${v.ahead} of ${v.days} trading days, by ${signed(v.avg, 2)}% a day on average (give or take ${v.se.toFixed(2)}%). ${Math.round(p * 100)}% is how sure these days make it that the lead is real so far, not luck: under 50% more likely behind than ahead (red), 50 to 90% leaning ahead (yellow), 90% or more clearly ahead (green). About the past only, not a forecast.`;
         return `<div class="ad-goal"><div class="ad-goal-head"><span class="ad-goal-name">${head}</span><span><span class="ad-goal-now">${word}</span> ${pill}</span></div>${visual}<div class="ad-sub">${why}</div></div>`;
     }
@@ -188,8 +193,8 @@
         const last = list[list.length - 1], prev = list.length > 1 ? list[list.length - 2] : null;
         const move = prev ? (last.pct > prev.pct ? ` <span class="ok">▲ from ${prev.pct}%</span>` : last.pct < prev.pct ? ` <span class="red">▼ from ${prev.pct}%</span>` : ` <span class="ad-sub">unchanged</span>`) : '';
         const when = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-        return `<div style="margin-top: 8px;"><b>Claude's forecast</b> (a judgement for a year ahead, not the record): <span style="font-size: 1.1rem; font-weight: 800;">${last.pct}%</span> chance the account ends up ahead of an S&P 500 fund after a year${move} <span class="ad-sub">(${esc(when(last.at))}; updated every weekly session)</span>
-            <div class="ad-sub" style="margin-top: 2px;">${esc(last.why)}</div>
+        return `<div style="margin-top: 8px;"><b>Claude's forecast for the year ahead:</b> <span style="font-size: 1.1rem; font-weight: 800;">${last.pct}%</span> chance the account ends the year ahead of an S&P 500 fund${move} <span class="ad-sub">(${esc(when(last.at))}; updated every weekly session)</span>
+            <details class="ad-sub" style="margin-top: 2px;"><summary>Why</summary>${esc(last.why)}</details>
             ${list.length > 1 ? `<div class="ad-sub" style="margin-top: 2px;">Earlier: ${list.slice(0, -1).reverse().slice(0, 6).map(e => `${esc(when(e.at))} ${e.pct}%`).join(' · ')}</div>` : ''}</div>`;
     }
     function decisionHtml() {
@@ -234,9 +239,10 @@
     }
 
     function propsHtml(open) {
-        const body = open.length ? open.map(p => `<div class="ad-prop"><b>${esc(p.title)}</b><span class="ad-tag">${p.kind === 'setting' ? 'applied the moment you say yes' : 'done in your next session'}</span>
-            <div class="ad-sub" style="margin-top: 4px;">${esc(p.why)}</div>
-            <button type="button" class="ad-btn yes" data-ad-answer="yes" data-ad-id="${p.id}" ${busy ? 'disabled' : ''}>Yes</button><button type="button" class="ad-btn" data-ad-answer="no" data-ad-id="${p.id}" ${busy ? 'disabled' : ''}>Not now</button></div>`).join('')
+        const rec = (p) => p.recommend === 'yes' || p.recommend === 'no' ? `<div class="ad-rec">Claude recommends: <b>${p.recommend === 'yes' ? 'Yes' : 'Not now'}</b>${p.recommendWhy ? ' · ' + esc(p.recommendWhy) : ''}</div>` : '';
+        const body = open.length ? open.map(p => `<div class="ad-prop"><b>${esc(p.title)}</b><span class="ad-tag">${p.kind === 'setting' ? 'applied the moment you say yes' : 'done in your next session'}</span> <span class="ad-sub">raised ${esc(day(p.at))}</span>
+            ${rec(p)}<details class="ad-sub" style="margin-top: 4px;"><summary>The details</summary>${esc(p.why)}</details>
+            <button type="button" class="ad-btn yes${p.recommend === 'yes' ? ' rec' : ''}" data-ad-answer="yes" data-ad-id="${p.id}" ${busy ? 'disabled' : ''}>Yes${p.recommend === 'yes' ? ' (recommended)' : ''}</button><button type="button" class="ad-btn${p.recommend === 'no' ? ' rec' : ''}" data-ad-answer="no" data-ad-id="${p.id}" ${busy ? 'disabled' : ''}>Not now${p.recommend === 'no' ? ' (recommended)' : ''}</button></div>`).join('')
             : '<div class="ok">✓ No decisions waiting.</div><div class="ad-sub" style="margin-top: 4px;">A change to the site or its settings that the weekly review or a session thinks worth making is put here for your yes or no. Anything wrong with the autopilot itself (no cash, a failed check-in) shows on the AI autopilot tab, as it does for every user.</div>';
         return `<div class="ad-card ask${open.length ? ' waiting' : ''}"><span class="ad-label">${open.length ? '⚠️' : '✅'} Decisions for you ${open.length ? `<span class="ad-pill warn">${open.length}</span>` : ''}</span>${body}</div>`;
     }
@@ -376,10 +382,15 @@
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
             .forEach(x => items.push([at(x.decide), 'Decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80))]));
         if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
-        items.push([at(JUDGE_ON), 'Real money: the decision']);
-        const rows = items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).slice(0, 7);
+        const label = (t) => t <= now ? 'Today' : fmt(t), byDay = [];
+        items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).forEach(([t, text]) => {      // two things on one day share its line (23 Oct 2026)
+            const last = byDay[byDay.length - 1];
+            if (last && label(last[0]) === label(t)) last[1] += ' · ' + text; else byDay.push([t, text]);
+        });
+        const rows = byDay.slice(0, 6), li = ([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${esc(label(t))}</span> ${text}</li>`;
         return `<div style="margin-top: 10px; font-weight: 600; font-size: 0.9rem;">Coming up</div><ul style="list-style: none; margin: 2px 0 0; padding: 0; line-height: 1.55; font-size: 0.88rem;">`
-            + rows.map(([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${t <= now ? 'Today' : esc(fmt(t))}</span> ${text}</li>`).join('') + '</ul>';
+            + rows.map(li).join('') + '</ul>'
+            + `<div class="ad-sub" style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.85rem;">Further off: <b>${esc(fmt(at(JUDGE_ON)))}</b>, real money: the decision</div>`;
     }
     function needMeHtml(d) {
         const plan = d.plan || {}, now = Date.now(), daysSince = (iso) => iso ? Math.floor((now - Date.parse(iso)) / 86400000) : null;

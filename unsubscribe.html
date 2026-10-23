@@ -138,26 +138,21 @@ const originalText = button.textContent;
 button.textContent = 'Unsubscribing...';
 button.disabled = true;
 
-// Simulate unsubscribe (replace with actual API call later)
-setTimeout(() => {
-// Hide form and show success message
+// Unsubscribe for real (23 Oct 2026: this page only pretended to, and sent the address to Google Analytics)
+fetch('https://r5aierjvyfe2kdjoql5p23jmuy0rtisk.lambda-url.us-east-1.on.aws/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unsubscribe', email: email }) })
+.then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+.then(() => {
 form.style.display = 'none';
 successMessage.style.display = 'block';
-
-// Scroll to top to show success message
 window.scrollTo({ top: 0, behavior: 'smooth' });
-
-// Log for now (replace with actual API call)
-console.log('Unsubscribed email:', email);
-
-// Track event if analytics available
-if (typeof gtag !== 'undefined') {
-gtag('event', 'unsubscribe', {
-'method': 'email',
-'email': email
+if (typeof gtag !== 'undefined') gtag('event', 'unsubscribe', { 'method': 'email' });     // no address in the event
+})
+.catch(() => {
+errorMessage.textContent = 'Something went wrong. Please try again in a moment, or write to us from the Contact page.';
+errorMessage.style.display = 'block';
+button.textContent = originalText;
+button.disabled = false;
 });
-}
-}, 1000);
 }
 
 function isValidEmail(email) {

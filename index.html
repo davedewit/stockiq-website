@@ -1448,47 +1448,7 @@ window.location.href = 'signup.html';
 }
 }
 
-// Email capture function
-function captureEmail() {
-const emailInput = document.getElementById('email-capture');
-const email = emailInput.value.trim();
-
-if (!email) {
-alert('Please enter your email address');
-return;
-}
-
-if (!isValidEmail(email)) {
-alert('Please enter a valid email address');
-return;
-}
-
-// Store email for later processing
-localStorage.setItem('marketAlertsEmail', email);
-
-// Show success message
-const button = event.target;
-const originalText = button.textContent;
-button.textContent = '✅ Subscribed!';
-button.style.background = '#22c55e';
-
-// Reset after 3 seconds
-setTimeout(() => {
-button.textContent = originalText;
-button.style.background = '#22c55e';
-emailInput.value = '';
-}, 3000);
-
-// Track the email capture event
-if (typeof gtag !== 'undefined') {
-gtag('event', 'email_capture', {
-'method': 'daily_alerts',
-'source': 'homepage'
-});
-}
-
-console.log('Email captured:', email);
-}
+// (an older captureEmail stood here: it was overridden by the one below and printed the address to the console; removed 23 Oct 2026)
 
 // Email validation helper
 function isValidEmail(email) {
@@ -2086,15 +2046,8 @@ button.textContent = 'Subscribing...';
 button.disabled = true;
 
 try {
-// Get user IP for tracking
-let userIP = '';
-try {
-const ipResponse = await fetch('https://api.ipify.org?format=json');
-const ipData = await ipResponse.json();
-userIP = ipData.ip;
-} catch (e) {
-console.warn('Could not get IP address:', e);
-}
+// the function takes the address from the request itself: no call to a third-party IP service (23 Oct 2026)
+const userIP = '';
 
 // Call email capture Lambda function
 const response = await fetch('https://r5aierjvyfe2kdjoql5p23jmuy0rtisk.lambda-url.us-east-1.on.aws/', {
