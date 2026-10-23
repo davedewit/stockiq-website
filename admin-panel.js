@@ -356,8 +356,24 @@
             ${running.length ? `<div class="ad-section">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
             ${next.length ? `<div class="ad-section">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : ''}
             ${done.length ? `<div class="ad-section">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
+            ${fixesHtml(pl.changes)}
             ${questionsHtml(pl.questions)}
             ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
+    }
+
+    // Every fix and change, newest first, with who found the problem behind it (23 Oct 2026, the owner: "note how you found many problems
+    // simply by me saying simple things i see on the page"). The count of those he found is the one to bring down: the checks and the
+    // sessions should find them first.
+    function fixesHtml(list) {
+        if (!list || !list.length) return '';
+        const days = (iso) => (Date.now() - Date.parse(iso + 'T12:00:00Z')) / 86400000, recent = list.filter(c => days(c.at) <= 30);
+        const by = (w) => recent.filter(c => c.found === w).length;
+        const tag = (c) => c.found === 'owner' ? '<span class="ad-tag" style="border-color: var(--ad-amber, #d97706);">you pointed it out</span>' : c.found === 'check' ? '<span class="ad-tag pub">found by a check</span>' : c.found === 'session' ? '<span class="ad-tag">found by a session</span>' : '';
+        const when = (iso) => { const t = Date.parse(iso + 'T12:00:00Z'); return t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''; };
+        const li = (c) => `<li>${esc(c.what)} ${tag(c)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
+        return `<div class="ad-section">Fixes and changes, newest first (${list.length})</div>
+            <div class="ad-sub" style="margin-bottom: 6px;">Last 30 days: ${recent.length} changes. The problem behind ${by('owner')} of them was pointed out by you, ${by('check')} found by a check, ${by('session')} by a session${recent.length - by('owner') - by('check') - by('session') ? ` (${recent.length - by('owner') - by('check') - by('session')} not marked: from before 23 Oct 2026)` : ''}. The aim is that the checks and sessions find problems before you do; each one you point out also becomes a check.</div>
+            <ul class="ad-plain">${list.slice(0, 8).map(li).join('')}</ul>${list.length > 8 ? `<details class="ad-more"><summary>${list.length - 8} earlier</summary><ul class="ad-plain">${list.slice(8).map(li).join('')}</ul></details>` : ''}`;
     }
 
     // Every question asked about making it better (check-tools/reviews/questions.md, copied by admin.py sync), so that what was already
