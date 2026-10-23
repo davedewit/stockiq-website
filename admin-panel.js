@@ -267,8 +267,9 @@
         const runs = h ? `Last scheduled run ${esc(ago(h.at))} (${esc(day(h.at))}): ` + (h.ran ? `${h.ran} of ${h.on} switched-on account${h.on === 1 ? '' : 's'} checked in` : 'nothing was due (its markets were closed, or its next check-in had not come)') + `${h.waiting ? ', ' + h.waiting + ' left for the next run' : ''}${h.paused ? ', ' + h.paused + ' paused' : ''}. ` + (h.failed ? `<span class="red">${h.failed} check-in${h.failed === 1 ? '' : 's'} stopped on an error.</span>` : '<span class="ok">✓ No errors.</span>') : 'No scheduled run recorded yet (it runs at :10 and :40 past every hour).';
         const chip = (text, on) => `<span class="ad-chip${on === false ? ' off' : ''}">${text}</span>`;
         const chips = s ? [chip(`Autopilot <b>${s.enabled ? 'on' : 'off'}</b>`, s.enabled), chip(`<b>${esc(({ 1: 'Cautious', 2: 'Careful', 3: 'Balanced', 4: 'Bold', 5: 'Adventurous' })[s.risk] || 'Level ' + s.risk)}</b> level`), chip(`<b>${esc(s.holdings || "the level's")}</b> holdings`), chip(`Budget <b>${usd(s.budgetUsd)}</b>`),
-            chip(`Checks in every <b>${esc(s.everyHours)} h</b>`), chip(`Keeps a holding up to <b>${esc(s.maxHoldDays)} days</b>`), chip(`Tries changes to its rules <b>${s.selfTune ? 'on' : 'off'}</b>`, s.selfTune)].join('') : '';
-        return `<div class="ad-card run${h && h.failed ? ' bad' : ''}"><span class="ad-label">⚙️ How it is running</span><div>${runs}</div>
+            chip(`Checks in every <b>${esc(s.everyHours)} h</b>`), chip(`Keeps a holding up to <b>${esc(s.maxHoldDays)} days</b>`), chip(`Tries changes to its rules <b>${s.selfTune ? 'on' : 'off'}</b>`, s.selfTune), ...('pickMode' in s ? [chip(`Markets chosen by <b>${s.pickMode === 'manual' ? 'you' : 'the AI'}</b>`)] : [])].join('') : '';
+        // the last run is in "What runs by itself" (23 Oct 2026: it stood here as well); here only when something failed
+        return `<div class="ad-card run${h && h.failed ? ' bad' : ''}"><span class="ad-label">⚙️ Settings in force, and the AWS bill</span>${h && h.failed ? `<div>${runs}</div>` : ''}
             ${chips ? `<div class="ad-chips">${chips}</div>` : ''}
             ${s ? `<details class="ad-more"><summary>Show the ${screeners.length} screeners it buys from</summary><div class="ad-sub" style="margin-top: 6px;">${screeners.length ? esc(screeners.join(', ')) : 'none'}.</div></details>` : ''}
             ${usageHtml(data.usage)}</div>`;
@@ -438,7 +439,7 @@
             + adRow('answered', `✅ <b>Decisions you answered</b> <span class="ad-sub">${(d.answered || []).length}</span>`, answeredHtml(d.answered || []))
             + adRow('review', `📋 <b>Weekly review</b> <span class="ad-sub">${d.review ? esc(day2(d.review.at)) : 'not written yet'}</span>`, reviewHtml(d.review, d.nextReview))
             + adRow('selfrun', '🔁 <b>What runs by itself</b>, and when each last ran', selfRunHtml(d))
-            + adRow('health', '⚙️ <b>How it is running, and the settings in force</b>', healthHtml(d.health, d.settings, d.screeners || []));
+            + adRow('health', '⚙️ <b>Settings in force, and the AWS bill</b>', healthHtml(d.health, d.settings, d.screeners || []));
     }
     if (document.addEventListener) document.addEventListener('toggle', (e) => { const k = e.target && e.target.getAttribute && e.target.getAttribute('data-ad-row'); if (k) { if (e.target.open) adOpen.add(k); else adOpen.delete(k); } }, true);
     // What runs without anyone (19 Oct 2026, the owner: "so i know whats going on where its at"): each job, how often, and when it
