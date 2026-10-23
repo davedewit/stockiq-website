@@ -18,7 +18,7 @@
  */
 (function () {
     'use strict';
-    var VERSION = 3;
+    var VERSION = 4;
     if (window.liveMarket && window.liveMarket.version >= VERSION) return;
     var PRICES = 'https://2vl4la6od3vfgbkv6ycbj7ewry0yxvck.lambda-url.us-east-1.on.aws/';
     var T = window.LIVE_MARKET_TEST || {};               // a browser test may shorten the times
@@ -83,11 +83,21 @@
         });
         return out;
     }
+    // The line's colour follows the change shown beside it (23 Oct 2026, the owner: a green line under a red -3.20%). The line is
+    // the latest day's prices (a coin's since 00:00 UTC) while the figure is the source's own change (a coin's over 24 hours), and a
+    // line can come from the copy kept 20 minutes: the two could disagree. The figure is what the visitor reads, so it decides.
+    function shownUp(el, s) {
+        var t = el ? String(el.textContent || '') : '';
+        if (el && el.classList && el.classList.contains('negative')) return false;
+        if (el && el.classList && el.classList.contains('positive')) return true;
+        if (/\d/.test(t)) return !/^\s*[-\u2212]/.test(t);
+        return s.spark[s.spark.length - 1] >= (s.prev || s.spark[0]);
+    }
     function drawCard(c, s) {
         if (!c.line || !s || !s.spark || s.spark.length < 2) return;
         c.line.setAttribute('points', sparkPoints(s.spark, s.prev, 58));
         c.line.setAttribute('data-lm', '1');
-        c.line.setAttribute('stroke', s.spark[s.spark.length - 1] >= (s.prev || s.spark[0]) ? '#22c55e' : '#ef4444');
+        c.line.setAttribute('stroke', shownUp(c.change, s) ? '#22c55e' : '#ef4444');
         var svg = c.line.parentNode; if (svg && svg.setAttribute) svg.setAttribute('aria-label', 'today so far');
     }
     function drawAll() {
@@ -107,7 +117,7 @@
         if (!line || !s || !s.spark || s.spark.length < 2) return;
         line.setAttribute('points', sparkPoints(s.spark, s.prev));
         line.setAttribute('data-lm', '1');
-        line.setAttribute('stroke', s.spark[s.spark.length - 1] >= (s.prev || s.spark[0]) ? '#22c55e' : '#ef4444');
+        line.setAttribute('stroke', shownUp(row.querySelector('.market-item-sidebar-change'), s) ? '#22c55e' : '#ef4444');
         var svg = row.querySelector('.market-item-sidebar-chart'); if (svg) svg.setAttribute('aria-label', 'today so far');
     }
 
@@ -138,6 +148,7 @@
                 later(function () {
                     valEl.textContent = text; flash(valEl, up);
                     if (chEl) { chEl.textContent = changeText(q.change, q.changePercent); chEl.className = 'market-item-sidebar-change ' + (q.change >= 0 ? 'positive' : 'negative'); flash(chEl, up); }
+                    if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]);
                 });
             }
             if (store && store[r.cat] && store[r.cat][r.name]) {
@@ -155,6 +166,7 @@
                 later(function () {
                     el.textContent = text; if (!first) flash(el, up);
                     if (ch) { ch.textContent = changeText(q.change, q.changePercent); ch.className = 'index-change ' + (q.change >= 0 ? 'positive' : 'negative'); if (!first) flash(ch, up); }
+                    if (sparks[c.sym]) drawCard(c, sparks[c.sym]);
                 });
             }
         });
