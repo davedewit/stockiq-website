@@ -562,7 +562,7 @@
         #practice-portfolio .pp-mkt-head span:not(:first-child), #practice-portfolio .pp-mkt-row > span:not(:first-child) { text-align: right; }
         #practice-portfolio .pp-mkt-row { width: 100%; background: none; border: 0; border-top: 1px solid var(--border-color); padding: 7px 8px; font-size: 0.85rem; color: var(--text-primary); cursor: pointer; text-align: left; }
         #practice-portfolio .pp-mkt-row:hover, #practice-portfolio .pp-mkt-row.on { background: rgba(127, 127, 127, 0.1); }
-        #practice-portfolio .pp-mkt-row.all { grid-template-columns: 1fr; font-weight: 600; }
+        #practice-portfolio .pp-mkt-row.all { font-weight: 700; font-size: 0.95rem; background: rgba(127, 127, 127, 0.08); }
         #practice-portfolio .pp-mkt-row:not(.sub):not(.all) .pp-mkt-name { font-weight: 700; }
         #practice-portfolio .pp-mkt-row.sub .pp-mkt-name { padding-left: 16px; }
         #practice-portfolio .pp-mkt-name small { display: block; font-weight: 400; font-size: 0.72rem; color: var(--text-secondary); }
@@ -765,7 +765,12 @@
     function redraw() {
         const ids = ['pp-symbol', 'pp-amount', 'pp-qty', 'pp-note'], active = document.activeElement && document.activeElement.id;
         const keep = ids.map(id => [id, document.getElementById(id) ? document.getElementById(id).value : null]);
+        // keep where the page and the market list were scrolled to (23 Oct 2026, the owner: "it occasionally jumps up to the top")
+        const panel = () => document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'), listAt = panel() ? panel().scrollTop : 0;
+        const pageAt = typeof window !== 'undefined' && typeof window.scrollY === 'number' ? window.scrollY : null;
         render();
+        if (panel() && listAt) panel().scrollTop = listAt;
+        if (pageAt !== null && window.scrollY !== pageAt && window.scrollTo) window.scrollTo(0, pageAt);
         keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el && v) el.value = v; });
         const clear = document.getElementById('pp-clear'), search = document.getElementById('pp-symbol');
         if (clear && search) clear.style.display = search.value ? 'block' : 'none';
@@ -1003,7 +1008,9 @@
                 <button data-pp="reset" class="pp-btn ghost${busy === 'reset' ? ' busy' : ''}" title="Clears every practice holding and the sold list and puts the fake money back to ${usd(STARTING_CASH)}" ${working ? 'disabled' : ''}>${busy === 'reset' ? 'Resetting…' : 'Reset fake money'}</button>`;
     }
     // ---------------------------------------------------------------- the graph of the account over time
-    const CHART_RANGES = { all: ['All', 0], month: ['1 month', 30 * 86400000], week: ['1 week', 7 * 86400000] };
+    const DAYMS = 86400000;
+    const CHART_RANGES = { day: ['1d', DAYMS], week: ['1w', 7 * DAYMS], month: ['1m', 30 * DAYMS], m3: ['3m', 91 * DAYMS], m6: ['6m', 182 * DAYMS],
+                           y1: ['1y', 365 * DAYMS], y2: ['2y', 730 * DAYMS], y5: ['5y', 1826 * DAYMS], y10: ['10y', 3652 * DAYMS], all: ['All', 0] };
     // chartKey: which line (the account, the user's own buys, the autopilot's). The same choice says whose holdings the two
     // lists under the graph show (partOf). It is kept while the page is open (a refresh of prices leaves it) and is not
     // remembered: a page opened afresh shows the whole account. chartRange (how far back) is remembered in the browser.
@@ -1055,15 +1062,15 @@
     function chartHtml() {
         if (!state || !(state.holdings.length || state.closed.length)) return '';
         const now = Date.now(), age = now - (Date.parse(state.createdAt) || now);
-        const ranges = Object.keys(CHART_RANGES).filter(r => r === 'all' || age > CHART_RANGES[r][1] * 1.15);
-        if (!ranges.includes(chartRange)) chartRange = 'all';
+        const ranges = Object.keys(CHART_RANGES), longer = (r) => r !== 'all' && age < CHART_RANGES[r][1];   // longer than the account's life: greyed
+        if (!CHART_RANGES[chartRange] || longer(chartRange)) chartRange = 'all';
         const series = valueSeries(state, quotes, now, autoRealized, chartRange === 'all' ? 0 : now - CHART_RANGES[chartRange][1], isMarket(chartKey) ? pickOf(chartKey, screenerInfo) : null);
         if (!series.anyAi) chartKey = 'value';
         const el = box(), width = Math.min(1100, Math.max(260, ((el && el.clientWidth) || 750) - 30));
         const picture = chartSvg(series, isMarket(chartKey) ? 'part' : chartKey, width, width < 480 ? 180 : 220);
         chartNow = { placed: picture.placed, width: picture.width };
         const tab = (kind, id, text, on) => `<button type="button" data-pp="chart-${kind}" data-id="${id}" aria-pressed="${on}">${text}</button>`;
-        const kinds = series.anyAi ? [['value', 'Account'], ['own', 'Your own buys'], ['ai', '🤖 AI autopilot']] : [];
+        const kinds = series.anyAi ? [['value', 'All markets'], ['own', 'Your own buys'], ['ai', '🤖 AI autopilot']] : [];
         const title = chartKey === 'value' ? 'Account value over time' : chartKey === 'ai' ? 'The autopilot’s result over time' : isMarket(chartKey) ? esc(marketLabel(chartKey)) + ': result over time' : 'Your own buys: result over time';
         // The menu of markets and their screeners, each with its result against the same dollars in an S&P 500 fund on the same days
         const results = series.anyAi && screenerInfo ? marketResults(state, quotes, screenerInfo) : null;
@@ -1097,6 +1104,13 @@
             const covered = parts.every(r => r.aheadUsd !== null && r.compared >= r.cost - 0.01);
             const idle = vs && covered ? vs.gapUsd - parts.reduce((n, r) => n + r.aheadUsd, 0) : null;
             const sumRow = (label, sub, amount, key) => `<${key !== undefined ? `button type="button" data-pp="market" data-id="${key}"` : 'div'} class="pp-mkt-row sumrow${key === 'value' && !isMarket(chartKey) && chartKey === 'value' ? ' on' : ''}"><span class="pp-mkt-name">${label}<small>${sub}</small></span><span class="pp-mkt-in"></span><span class="pp-mkt-res"></span><span class="pp-mkt-vs">${vsHtml({ aheadUsd: amount, aheadPct: Math.abs(amount) / (state.startingCash || STARTING_CASH) * 100 })}</span></${key !== undefined ? 'button' : 'div'}>`;
+            // the totals, on the first row (23 Oct 2026, the owner: "this will be the main thing i always look at"): every buy, the account's
+            // result since the start, and the account against the same money in an S&P 500 fund since the start
+            const bought = state.holdings.concat(state.closed).reduce((n, h) => n + (h.costUsd || 0), 0), start = state.startingCash || STARTING_CASH;
+            const gainAll = summarize(state, quotes).accountValue - start;
+            const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>the whole account since the start, against the same ${usd(start).replace(/\.00$/, '')} in an S&amp;P 500 fund</small></span>`
+                + `<span class="pp-mkt-in" data-label="Total bought">${usd(bought).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(gainAll, gainAll / start * 100)}</span>`
+                + `<span class="pp-mkt-vs" data-label="Against the S&amp;P 500">${vs ? vsHtml({ aheadUsd: vs.gapUsd, aheadPct: Math.abs(vs.gapUsd) / start * 100 }) : '–'}</span></button>`;
             const tally = vs && idle !== null ? `<div class="pp-mkt-tally"><div class="pp-mkt-sum" style="margin-top: 6px;"><strong>How they add up</strong> (the percentages against the S&amp;P 500 here are of the ${usd(state.startingCash).replace(/\.00$/, '')} it started with)</div>`
                 + sumRow('The autopilot’s markets', 'the rows above, added up', groups.reduce((n, r) => n + r.aheadUsd, 0))
                 + (own ? row(Object.assign({}, own, { label: 'Your own buys', aheadPct: own.aheadUsd / (state.startingCash || STARTING_CASH) * 100 }), false) : '')
@@ -1113,7 +1127,7 @@
                 <div class="pp-mkt-panel"${mktOpen ? '' : ' hidden'}>
                     <div class="pp-mkt-sum">Against the S&amp;P 500, screener by screener: <span class="pp-vs up">${up.length} ahead, by ${total(up)} together</span> · <span class="pp-vs down">${down.length} behind, by ${total(down)}</span>.${few ? ` <strong>Under 30 holdings is too few to tell skill from luck.</strong>` : ''} <details class="pp-mkt-how"><summary>How it is worked out</summary>Each holding is set against the same money put into an S&amp;P 500 fund the day it was bought and taken out the day it was sold (or now), with no trading cost taken off the fund; sold and still held together, ahead first. "Total bought" adds up every buy: the money from a sale is used again for the next buy, so it keeps growing whether the trades win or lose (it is not money lost or at risk). The result's percent is of it: what each dollar traded made on average. The grey line is each holding against its own market's index (an ASX share against the ASX 200), in that market's own currency, so a currency's move is left out: it says whether the picks did better than their market, while the S&amp;P 500 figure says whether the market was worth the money. The index's price at the moment of a buy or a sale is read between its daily closes, so that line is an approximation.</details></div>
                     <div class="pp-mkt-head" aria-hidden="true"><span>Market and screener</span><span>Total bought</span><span>Result</span><span>Against the S&amp;P 500</span></div>
-                    <button type="button" class="pp-mkt-row all${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets</span></button>
+                    ${allRow}
                     ${groups.map(g => row(g, false) + (subs(g).length > 1 ? subs(g).map(r => row(r, true)).join('') : '')).join('')}
                     ${tally}
                 </div></div>`;
@@ -1127,14 +1141,24 @@
         const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td${picture.fund ? ' class="pp-fig-part"' : ''}>${movedHtml(point.all)}</td>${picture.fund ? `<td class="pp-fig-part">${usd(point.fund)}</td><td class="pp-fig-vs">${against(point)}</td>` : ''}${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
         const undated = Math.abs(series.undated) > 0.5 ? ` The result of sold holdings that are no longer in the list (${moved(series.undated)}) has no dates left, so it is counted from the start.` : '';
         return `<div class="pp-chart">
-            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.length > 1 ? ranges.map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('') : ''}</span>${menu}</div>
+            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.map(r => longer(r) ? `<button type="button" disabled title="The account is ${Math.max(1, Math.round(age / DAYMS))} days old: not that much history yet">${CHART_RANGES[r][0]}</button>` : tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('')}</span>${menu}</div>
             <div class="pp-chart-read" id="pp-chart-read">${chartRead(picture.placed[picture.placed.length - 1])}</div>
             ${picture.svg}
             <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund && !isMarket(chartKey) ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${isMarket(chartKey) ? partNote : undated}</div>
             <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
         </div>`;
     }
-    function drawChart() { const slot = document.getElementById('pp-chart'); if (slot && state && loaded) slot.innerHTML = chartHtml(); }
+    function drawChart() {
+        const slot = document.getElementById('pp-chart');
+        if (!slot || !state || !loaded) return;
+        const p0 = document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'), listAt = p0 ? p0.scrollTop : 0;
+        const pageAt = typeof window !== 'undefined' && typeof window.scrollY === 'number' ? window.scrollY : null;
+        slot.style.minHeight = slot.offsetHeight ? slot.offsetHeight + 'px' : '';      // no collapse while it is drawn again
+        slot.innerHTML = chartHtml();
+        slot.style.minHeight = '';
+        const p1 = document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'); if (p1 && listAt) p1.scrollTop = listAt;
+        if (pageAt !== null && window.scrollY !== pageAt && window.scrollTo) window.scrollTo(0, pageAt);
+    }
     // The pointer over the picture: a line at that moment, and its figures above
     function chartShow(point, crossed) {
         const cross = document.getElementById('pp-cross'), dot = document.getElementById('pp-dot'), read = document.getElementById('pp-chart-read');
@@ -1202,10 +1226,10 @@
 
     document.addEventListener('click', (e) => {
         const t = e.target.closest && e.target.closest('[data-pp]');
-        if (mktOpen && !(e.target.closest && e.target.closest('#pp-mkt'))) { mktOpen = false; redraw(); if (!t) return; }
+        if (mktOpen && !(e.target.closest && e.target.closest('#pp-mkt'))) { mktOpen = false; drawChart(); if (!t) return; }
         if (!t) { const sug = document.getElementById('pp-suggest'); if (sug && !e.target.closest('#pp-suggest, #pp-symbol')) sug.style.display = 'none'; return; }
         const action = t.getAttribute('data-pp');
-        if (action === 'mkt-toggle') { mktOpen = !mktOpen; redraw(); return; }
+        if (action === 'mkt-toggle') { mktOpen = !mktOpen; drawChart(); return; }      // only the graph is redrawn: the page does not move (23 Oct 2026)
         if (action === 'market') { chartKey = t.getAttribute('data-id') || 'value'; mktOpen = false; redraw(); return; }      // '', 'value', 'own' or a market
         if (t.tagName === 'A') e.preventDefault();
         if (action === 'held-all') { allHeld = !allHeld; redraw(); return; }
@@ -1276,7 +1300,7 @@
     });
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'pp-symbol' && e.target.value.trim()) priceFor(e.target.value); });
     // the market list: open and shut by its button, shut by a click elsewhere or Escape; a row chooses (the graph and both lists follow)
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mktOpen) { mktOpen = false; redraw(); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mktOpen) { mktOpen = false; drawChart(); } });
     // Company-name / ticker lookup, the same service and behaviour as the search box on the home page
     document.addEventListener('input', (e) => {
         if (!e.target || e.target.id !== 'pp-symbol') return;
