@@ -353,9 +353,10 @@
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
             <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. This list was last brought up to date ${esc(day(pl.at))}.</div>
             <div class="ad-sub" style="margin-bottom: 8px;">This is the full list, for you only. Every user sees a short, plain version on the AI autopilot tab ("How it is improving"): only what affects their autopilot, marked here 👥.</div>
-            ${running.length ? `<div class="ad-section">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
-            ${next.length ? `<div class="ad-section">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : ''}
-            ${done.length ? `<div class="ad-section">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
+            <div class="ad-sub" style="margin-bottom: 8px;">Jump to: ${[['ad-sec-running', 'Being tested', running.length], ['ad-sec-next', 'Ideas', next.length], ['ad-sec-done', 'Done', done.length], ['ad-sec-fixes', 'Fixes and changes', (pl.changes || []).length], ['ad-sec-questions', 'Questions asked', (pl.questions || []).length]].filter(x => x[2]).map(([id, name, k]) => `<a href="#${id}" data-ad-jump="${id}">${name} (${k})</a>`).join(' · ')}</div>
+            ${running.length ? `<div class="ad-section" id="ad-sec-running">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
+            ${next.length ? `<div class="ad-section" id="ad-sec-next">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : ''}
+            ${done.length ? `<div class="ad-section" id="ad-sec-done">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
             ${fixesHtml(pl.changes)}
             ${questionsHtml(pl.questions)}
             ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
@@ -371,7 +372,7 @@
         const tag = (c) => c.found === 'owner' ? '<span class="ad-tag" style="border-color: var(--ad-amber, #d97706);">you pointed it out</span>' : c.found === 'check' ? '<span class="ad-tag pub">found by a check</span>' : c.found === 'session' ? '<span class="ad-tag">found by a session</span>' : '';
         const when = (iso) => { const t = Date.parse(iso + 'T12:00:00Z'); return t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''; };
         const li = (c) => `<li>${esc(c.what)} ${tag(c)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
-        return `<div class="ad-section">Fixes and changes, newest first (${list.length})</div>
+        return `<div class="ad-section" id="ad-sec-fixes">Fixes and changes, newest first (${list.length})</div>
             <div class="ad-sub" style="margin-bottom: 6px;">Last 30 days: ${recent.length} changes. The problem behind ${by('owner')} of them was pointed out by you, ${by('check')} found by a check, ${by('session')} by a session${recent.length - by('owner') - by('check') - by('session') ? ` (${recent.length - by('owner') - by('check') - by('session')} not marked: from before 23 Oct 2026)` : ''}. The aim is that the checks and sessions find problems before you do; each one you point out also becomes a check.</div>
             <ul class="ad-plain">${list.slice(0, 8).map(li).join('')}</ul>${list.length > 8 ? `<details class="ad-more"><summary>${list.length - 8} earlier</summary><ul class="ad-plain">${list.slice(8).map(li).join('')}</ul></details>` : ''}`;
     }
@@ -383,7 +384,7 @@
         const groups = [['answered', 'Answered'], ['trial', 'Being tried live'], ['waiting', 'Waiting for enough trades or data'], ['open', 'Not tested yet']];
         const count = (st) => qs.filter(q => q.status === st).length;
         const row = (q) => `<li><b>${q.n}. ${esc(q.q)}</b> <span class="ad-sub">${esc(q.asked)}</span><div class="ad-sub" style="margin-top: 2px;">${esc(q.answer)}</div></li>`;
-        return `<div class="ad-section">Questions asked (${qs.length})</div>
+        return `<div class="ad-section" id="ad-sec-questions">Questions asked (${qs.length})</div>
             <div class="ad-sub" style="margin-bottom: 6px;">${groups.map(([st, name]) => `${count(st)} ${name.toLowerCase()}`).join(' · ')}. Each is tested on past prices or on the live record before anything changes; "tried, no difference" is kept as an answer so that it is not tried again.</div>
             ${groups.filter(([st]) => count(st)).map(([st, name]) => `<details class="ad-more"${st === 'answered' ? ' open' : ''}><summary>${name} (${count(st)})</summary><ul class="ad-plain">${qs.filter(q => q.status === st).sort((a, b) => b.n - a.n).map(row).join('')}</ul></details>`).join('')}`;
     }
@@ -535,8 +536,8 @@
     function render() {
         const el = box(); if (!el || !data) return;
         style();
-        const n = ((data.plan || {}).items || []).length;
-        const tabs = `<div class="ad-views"><button type="button" class="ad-view${view === 'overview' ? ' on' : ''}" data-ad-view="overview">Overview</button><button type="button" class="ad-view${view === 'improvements' ? ' on' : ''}" data-ad-view="improvements">🧭 Improvements${n ? ` (${n})` : ''}</button></div>`;
+        const n = ((data.plan || {}).items || []).filter(e => e.status === 'running').length;      // the tab's number: being tested now
+        const tabs = `<div class="ad-views"><button type="button" class="ad-view${view === 'overview' ? ' on' : ''}" data-ad-view="overview">Overview</button><button type="button" class="ad-view${view === 'improvements' ? ' on' : ''}" data-ad-view="improvements">🧭 Improvements${n ? ` (${n} being tested)` : ''}</button></div>`;
         if (view === 'improvements') {
             el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}${planHtml(data.plan) || '<div class="ad-card">No improvements recorded yet.</div>'}`;
             return;
@@ -567,6 +568,10 @@
         const v = e.target.closest && e.target.closest('#admin-panel [data-ad-view]');
         const vName = v && v.getAttribute('data-ad-view');
         if (vName === 'overview' || vName === 'improvements') { e.preventDefault(); view = vName; try { localStorage.setItem('stockiqAdminView', view); } catch (x) {} render(); return; }
+        // the jump links at the top of the Improvements view: scroll there, without changing the address (the dashboard's tabs read it)
+        const j = e.target.closest && e.target.closest('#admin-panel [data-ad-jump]');
+        const jid = j && j.getAttribute ? j.getAttribute('data-ad-jump') : null;
+        if (jid) { e.preventDefault(); const to = document.getElementById(jid); if (to) { const d = to.closest('details'); if (d) d.open = true; to.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
         const t = e.target.closest && e.target.closest('#admin-panel [data-ad-answer], #admin-panel [data-ad]');
         if (!t || busy) return;
         e.preventDefault();
