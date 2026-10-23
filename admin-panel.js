@@ -353,13 +353,30 @@
         return `<div class="ad-card plan"><span class="ad-label">🧭 Improvements <span class="ad-sub">${running.length} being tested · ${next.length} next · ${by('kept').length} kept · ${by('removed').length} taken out · ${pl.reviewed || 0} of ${pl.parts || 0} parts of the site reviewed</span></span>
             <div class="ad-sub" style="margin-bottom: 8px;">Every change whose worth is not certain is tested over a period, then kept or taken out on the figures. Each session also reviews three parts of the site and adds new ideas. This list was last brought up to date ${esc(day(pl.at))}.</div>
             <div class="ad-sub" style="margin-bottom: 8px;">This is the full list, for you only. Every user sees a short, plain version on the AI autopilot tab ("How it is improving"): only what affects their autopilot, marked here 👥.</div>
-            <div class="ad-sub" style="margin-bottom: 8px;">Jump to: ${[['ad-sec-running', 'Being tested', running.length], ['ad-sec-next', 'Ideas', next.length], ['ad-sec-done', 'Done', done.length], ['ad-sec-fixes', 'Fixes and changes', (pl.changes || []).length], ['ad-sec-questions', 'Questions asked', (pl.questions || []).length]].filter(x => x[2]).map(([id, name, k]) => `<a href="#${id}" data-ad-jump="${id}">${name} (${k})</a>`).join(' · ')}</div>
+            <div class="ad-sub" style="margin-bottom: 8px;">Jump to: ${[['ad-sec-running', 'Being tested', running.length], ['ad-sec-next', 'Ideas', next.length], ['ad-sec-done', 'Done', done.length], ['ad-sec-fixes', 'Fixes and changes', (pl.changes || []).length], ['ad-sec-questions', 'Questions asked', (pl.questions || []).length], ['ad-sec-parts', 'Parts of the site', (pl.siteParts || []).length]].filter(x => x[2]).map(([id, name, k]) => `<a href="#${id}" data-ad-jump="${id}">${name} (${k})</a>`).join(' · ')}</div>
             ${running.length ? `<div class="ad-section" id="ad-sec-running">Being tested now, newest first</div>${running.map(runRow).join('')}` : ''}
             ${next.length ? `<div class="ad-section" id="ad-sec-next">Ideas not started yet, newest first</div><ol class="ad-next">${next.map(e => `<li><b>${esc(e.what)}</b>${tags(e.angle, e)}${e.added ? ` <span class="ad-sub">added ${esc(dated(e.added))}</span>` : ''}${e.measure ? `<div class="ad-sub" style="margin-top: 2px;">${esc(e.measure)}</div>` : ''}</li>`).join('')}</ol>` : ''}
             ${done.length ? `<div class="ad-section" id="ad-sec-done">Done, newest first</div><ul class="ad-lines">${done.map(doneRow).join('')}</ul>` : ''}
             ${fixesHtml(pl.changes)}
             ${questionsHtml(pl.questions)}
-            ${reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : ''}</div>`;
+            ${partsHtml(pl.siteParts) || (reviewed ? `<details class="ad-more"><summary>Parts of the site reviewed lately (${(pl.reviews || []).length})</summary><ul class="ad-plain">${reviewed}</ul></details>` : '')}</div>`;
+    }
+
+    // Every part of the site (check-tools/site_parts.json), each looked at in turn, the one looked at longest ago first: three each
+    // session (23 Oct 2026, the owner: "have a massive list of every part of the site ... tick if its been selected and on what date it
+    // was checked, then expand it to see what was improved"). Oldest first rather than at random, so that every part comes round.
+    function partsHtml(parts) {
+        if (!parts || !parts.length) return '';
+        const days = (iso) => iso ? (Date.now() - Date.parse(iso + 'T12:00:00Z')) / 86400000 : Infinity;
+        const fresh = parts.filter(p => days(p.last) <= 30).length, never = parts.filter(p => !p.last).length;
+        const order = parts.slice().sort((a, b) => (a.last || '').localeCompare(b.last || ''));
+        const when = (iso) => { const t = Date.parse((iso || '') + 'T12:00:00Z'); return t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''; };
+        const row = (p) => (p.log && p.log.length
+            ? `<details class="ad-more"><summary>✓ <b>${esc(p.part)}</b> <span class="ad-sub">looked at ${esc(when(p.last))}${p.log.length > 1 ? ', ' + p.log.length + ' times' : ''}</span></summary><ul class="ad-plain">${p.log.slice().reverse().map(l => `<li><span class="ad-sub">${esc(when(l.at))}</span> ${esc(l.found)}</li>`).join('')}</ul></details>`
+            : `<div class="ad-sub" style="padding: 3px 0;">○ <b>${esc(p.part)}</b> · not looked at yet</div>`);
+        return `<div class="ad-section" id="ad-sec-parts">Every part of the site, looked at in turn (${parts.length})</div>
+            <div class="ad-sub" style="margin-bottom: 6px;">${fresh} looked at in the last 30 days, ${never} not yet. Each session takes the three looked at longest ago and checks them for faults, clarity, accuracy against what is live, profit and new ideas. Next: ${order.slice(0, 3).map(p => esc(p.part.split(':')[0])).join(', ')}.</div>
+            ${order.slice().reverse().map(row).join('')}`;
     }
 
     // Every fix and change, newest first, with who found the problem behind it (23 Oct 2026, the owner: "note how you found many problems
@@ -411,7 +428,7 @@
         if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The next full check of the site, by itself (with the daily update), emailed to you']);
         if (d.nextReview) items.push([at(d.nextReview), "The autopilot's next weekly review, by itself"]);
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
-            .forEach(x => items.push([at(x.decide), 'Decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80))]));
+            .forEach(x => items.push([at(x.decide), 'Decision due: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80))]));
         if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
         const label = (t) => t <= now ? 'Today' : fmt(t), byDay = [];
         items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).forEach(([t, text]) => {      // two things on one day share its line (23 Oct 2026)
@@ -437,7 +454,7 @@
         else soon.push('the full check has not run yet');
         const u = d.usage || {};
         if (u.costStockiq >= 1.5 || ((u.costExplorer || 0) - (u.costExplorerKnown || 0)) > 0.02) urgent.push('the AWS bill needs a look');
-        else if (typeof u.costStockiq === 'number') good.push(`the bill is in order ($${Number(u.costStockiq).toFixed(2)} this month)`);
+        else if (typeof u.costStockiq === 'number') good.push(`the bill is in order (StockIQ's running cost $${Number(u.costStockiq).toFixed(2)} this month)`);
         const open = (d.open || []).length;
         if (open) soon.push(`${open} decision${open === 1 ? '' : 's'} waiting for your yes or no below`);
         const a = plan.audit;
@@ -464,12 +481,12 @@
     function rowsHtml(d) {
         const plan = d.plan || {}, w = plan.weekly, a = plan.audit, day2 = (iso) => { const x = new Date(iso); return isNaN(x) ? '' : x.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
         const wOk = w && w.passed === w.total, probs = a ? (a.findings || []).filter(f => f.level === 'problem').length : 0;
-        return adRow('weekly', w ? `🧪 <b>Full check of the site</b>: <span class="${wOk ? 'ok' : 'red'}">${wOk ? 'all ' + w.total + ' passed' : (w.total - w.passed) + ' of ' + w.total + ' failed'}</span> <span class="ad-sub">${esc(day2(w.at))}, every 7 days</span>` : '🧪 <b>Full check of the site</b>: not run yet', weeklyHtml(w), w && !wOk)
-            + adRow('audit', a ? `🔎 <b>Site check</b>: <span class="${probs ? 'red' : 'ok'}">${probs ? probs + ' problem' + (probs === 1 ? '' : 's') : 'no problems'}</span> <span class="ad-sub">${esc(day2(a.at))}, with the daily update</span>` : '', auditHtml(a))
+        return adRow('weekly', w ? `🧪 <b>Full check</b> (every test, run on the live site): <span class="${wOk ? 'ok' : 'red'}">${wOk ? 'all ' + w.total + ' passed' : (w.total - w.passed) + ' of ' + w.total + ' failed'}</span> <span class="ad-sub">${esc(day2(w.at))}, every 7 days</span>` : '🧪 <b>Full check</b> (every test, run on the live site): not run yet', weeklyHtml(w), w && !wOk)
+            + adRow('audit', a ? `🔎 <b>Page scan</b> (links, descriptions, stale or broken pages): <span class="${probs ? 'red' : 'ok'}">${probs ? probs + ' problem' + (probs === 1 ? '' : 's') : 'no problems'}</span> <span class="ad-sub">${esc(day2(a.at))}, with the daily update</span>` : '', auditHtml(a))
             + adRow('answered', `✅ <b>Decisions you answered</b> <span class="ad-sub">${(d.answered || []).length}</span>`, answeredHtml(d.answered || []))
-            + adRow('review', `📋 <b>Weekly review</b> <span class="ad-sub">${d.review ? esc(day2(d.review.at)) : 'not written yet'}</span>`, reviewHtml(d.review, d.nextReview))
+            + adRow('review', `📋 <b>The autopilot's weekly review</b> (its trades and results) <span class="ad-sub">${d.review ? esc(day2(d.review.at)) : 'not written yet'}</span>`, reviewHtml(d.review, d.nextReview))
             + adRow('selfrun', '🔁 <b>What runs by itself</b>, and when each last ran', selfRunHtml(d))
-            + adRow('health', '⚙️ <b>Settings in force, and the AWS bill</b>', healthHtml(d.health, d.settings, d.screeners || []));
+            + adRow('health', `⚙️ <b>The autopilot's settings and how its runs went, and the AWS bill in full</b>`, healthHtml(d.health, d.settings, d.screeners || []));
     }
     if (document.addEventListener) document.addEventListener('toggle', (e) => { const k = e.target && e.target.getAttribute && e.target.getAttribute('data-ad-row'); if (k) { if (e.target.open) adOpen.add(k); else adOpen.delete(k); } }, true);
     // What runs without anyone (19 Oct 2026, the owner: "so i know whats going on where its at"): each job, how often, and when it
