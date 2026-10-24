@@ -286,3 +286,22 @@ document.addEventListener('visibilitychange', function() {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 // LIVE_MARKET_END
+
+// SITE_HEADER_START (24 Oct 2026; taking everything from here to SITE_HEADER_END out switches it off on every page)
+// The header's parts that a page lacks (the ☰ button, the phone menu and its swipe, the bell, the sign-in state and the
+// usage count) are filled in by site-header.js, so the guides, the legal pages and the daily screener pages have the
+// same header as the home page. A page that has its own keeps it.
+(function () {
+    var here = (document.currentScript && document.currentScript.src) || '';
+    var beside = /theme\.js/.test(here) ? here.replace(/theme\.js.*$/, '') : '/';
+    function go() {
+        try {
+            if (window.siteHeader || !document.querySelector('nav.top-nav .nav-container .desktop-nav')) return;
+            var script = document.createElement('script');
+            script.src = beside + 'site-header.js?h=' + Math.floor(Date.now() / 36e5); script.async = true;
+            document.head.appendChild(script);
+        } catch (e) { /* the page works without it */ }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+// SITE_HEADER_END
