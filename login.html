@@ -70,6 +70,8 @@
         }
         
         /* under the form's button, in the card (it was pinned near the top right, so it moved against the header with the strip) */
+        /* on a desktop the header's "Log in" / "Sign up free" do this job; on a phone the header shows only the menu button */
+        @media (min-width: 769px) { .dont-have-account { display: none; } }
         .dont-have-account {
             text-align: center;
             margin: 18px 0 4px;
