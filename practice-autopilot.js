@@ -165,7 +165,7 @@
         @media (max-width: 640px) { #practice-autopilot .ap-only-phone { display: inline; } }
         #practice-autopilot .ap-countline { margin-top: 6px; color: var(--text-primary); }
         #practice-autopilot .ap-count { display: inline-block; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-        #practice-autopilot .ap-needs { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); background: rgba(217, 119, 6, 0.12); border: 1px solid rgba(217, 119, 6, 0.5); }
+        #practice-autopilot .ap-needs { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); background: rgba(217, 119, 6, 0.12); border: 1px solid rgba(217, 119, 6, 0.5); } .ap-trial { margin: 10px 0; padding: 10px 14px; border: 1px solid #3b82f6; border-radius: 8px; background: rgba(59,130,246,0.08); font-size: 0.92rem; line-height: 1.45; }
         #practice-autopilot .ap-needs.none { background: none; border: 0; padding: 0; color: var(--text-secondary); }
         #practice-autopilot .ap-needs ul { margin: 4px 0 0 18px; padding: 0; }
         #practice-autopilot .ap-next { display: grid; grid-template-columns: minmax(150px, max-content) 1fr; gap: 8px 14px; align-items: start; margin-top: 8px; line-height: 1.45; }
@@ -479,6 +479,13 @@
         return n ? `<div class="ap-countline">⏱ Next check-in ${until(n)} <span style="color: var(--text-secondary);">(${esc(when(n))}).</span> <a href="#ap-coming" data-ap-part="activity" data-ap-goto="ap-coming">What happens then</a></div>` : '';
     }
     // What needs the user. Its own reviews and trials do not: they happen by themselves at check-ins
+    // A free trial includes the autopilot (24 Oct 2026): say until when, and how to keep it (the function sends trialEnds)
+    function trialHtml() {
+        if (!data || !data.trialEnds) return '';
+        const d = new Date(data.trialEnds + 'T12:00:00Z'), day = isNaN(d) ? data.trialEnds : d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+        return `<div class="ap-trial">🎁 <strong>Included in your free trial</strong>: it runs until the end of ${esc(day)}, then pauses. To keep it running, <a href="#upgrade" onclick="if (window.dashboardTabs) window.dashboardTabs.show('reports');">choose a plan</a> (from $4.99 a month).</div>`;
+    }
+
     function needsHtml() {
         if (!Array.isArray(data.needs)) return '';
         if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now${data.settings.enabled ? ': its settings, cash and screeners are all in order, and it runs by itself' : ''}.</div>`;
@@ -917,6 +924,7 @@
                 </div>
                 <p class="ap-intro">An AI model buys and sells with the fake money of your <a href="#practice">practice portfolio</a>, from the screeners below and inside your limits. Not advice; in beta.</p>
                 <div id="ap-status" class="ap-status ${on ? 'on' : ''}">${esc(statusText())}${countLine()}</div>
+                ${trialHtml()}
                 ${needsHtml()}
 
                 <div class="ap-actions">
