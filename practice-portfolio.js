@@ -1296,7 +1296,7 @@
         if (action === 'analyse') {
             const sym = t.getAttribute('data-symbol');
             if (sym && typeof window.runSidebarAnalysis === 'function') window.runSidebarAnalysis(sym);      // it shows its own "Running analysis" note
-            else if (sym) location.href = 'analysis.html?option=1&symbol=' + encodeURIComponent(sym) + '&autorun=true';
+            else if (sym) location.href = 'analysis.html?symbol=' + encodeURIComponent(sym) + '&option=1&subOption=custom&autorun=true';   // subOption is what makes it run (24 Oct 2026)
             return;
         }
         if (action === 'held-all') { allHeld = !allHeld; redraw(); return; }
