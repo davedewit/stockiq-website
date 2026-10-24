@@ -14,7 +14,7 @@
 (function () {
     'use strict';
     if (window.siteHeader) return;
-    var VERSION = 1;
+    var VERSION = 2;
     var here = (document.currentScript && document.currentScript.src) || '';
     var beside = /theme\.js/.test(here) ? here.replace(/theme\.js.*$/, '') : (/site-header\.js/.test(here) ? here.replace(/site-header\.js.*$/, '') : '/');
     var added = [];
@@ -72,10 +72,15 @@
         if (document.getElementById('mobile-menu')) return false;
         var prefix = /\/stocks\//.test(location.pathname) ? '../' : '';
         var parts = [];
-        var home = desk.querySelector('a.home-link');
-        parts.push('<div class="mobile-section"><a href="' + esc(home ? home.getAttribute('href') : prefix + 'index.html') + '">🏠 Home</a></div>');
-        parts.push('<div class="mobile-section" id="mobile-dashboard-section" style="display: none;"><a href="' + prefix + 'dashboard.html">📊 Dashboard</a></div>');
-        Array.prototype.forEach.call(desk.querySelectorAll('.nav-item.dropdown'), function (item) {
+        // the desktop menu's items in order: a plain link (Home, Pricing) is a section of its own, a menu a titled section
+        var ICONS = { Home: '🏠', Pricing: '💳' };
+        Array.prototype.forEach.call(desk.querySelectorAll(':scope > a.nav-item, :scope > .nav-item.dropdown'), function (item) {
+            if (item.tagName === 'A') {
+                var label = item.textContent.trim();
+                parts.push('<div class="mobile-section"><a href="' + esc(item.getAttribute('href')) + '">' + (ICONS[label] ? ICONS[label] + ' ' : '') + esc(label) + '</a></div>');
+                if (label === 'Home') parts.push('<div class="mobile-section" id="mobile-dashboard-section" style="display: none;"><a href="' + prefix + 'dashboard.html">📊 Dashboard</a></div>');
+                return;
+            }
             var title = '';
             Array.prototype.forEach.call(item.childNodes, function (n) { if (n.nodeType === 3) title += n.textContent; });
             title = title.replace(/\s+/g, ' ').trim();
@@ -191,6 +196,7 @@
     function go() {
         try {
             centrePhoneList();
+            setTimeout(function () { var d = document.getElementById('mobile-dashboard-section'); if (d && signedIn()) d.style.display = 'block'; }, 300);
             var container = document.querySelector('nav.top-nav .nav-container');
             var desk = container && container.querySelector('.desktop-nav');
             if (!container || !desk) return;

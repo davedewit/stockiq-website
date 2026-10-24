@@ -239,6 +239,20 @@ document.addEventListener('visibilitychange', function() {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 
+// The menu's dropdowns (24 Oct 2026): one definition for every page. A page that still has its own showDropdown (index, analysis,
+// dashboard, blog, news, sign-in pages, stock pages) declares it later and takes over; the guides and legal pages had a copy each.
+if (typeof window.showDropdown !== 'function') {
+    window.showDropdown = function (id, event) {
+        if (event && event.target && event.target.closest && event.target.closest('.home-link')) return;
+        document.querySelectorAll('.dropdown-menu.show').forEach(function (m) { if (m.id !== id) m.classList.remove('show'); });
+        var menu = document.getElementById(id);
+        if (menu) menu.classList.toggle('show');
+    };
+    document.addEventListener('click', function (e) {
+        if (!(e.target && e.target.closest && e.target.closest('.dropdown'))) document.querySelectorAll('.dropdown-menu.show').forEach(function (m) { m.classList.remove('show'); });
+    });
+}
+
 // VISITOR_BAR_START (check-tools/pending-banners-undo/deploy.sh takes everything from here to VISITOR_BAR_END out again)
 // The visitor's usage count ("1 free today", "3/5 today", "Unlimited") is shown as a chip inside the header bar by
 // visitor-bar.js. The pages still work the count out and write it into their own floating badge (#trial-status-display);

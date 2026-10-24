@@ -42,7 +42,13 @@ gtag('config', 'G-WVETNMPF8V');
 </a>
 </div>
 <div class="desktop-nav">
-<a href="index.html" class="nav-item">Home</a>
+<!-- SHARED_MENU_START: the menu, written by stockiq/shared_parts.py: change it there, not here -->
+<a href="index.html" class="nav-item home-link" style="text-decoration: none !important; color: inherit; display: flex; align-items: center;">Home</a>
+<div class="nav-item dropdown" onclick="showDropdown('analysis-dropdown', event)">Analysis <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="analysis-dropdown"><a href="analysis.html?option=1">Stock &amp; ETF Analysis</a><a href="analysis.html?option=2">Trading Signals</a></div></div>
+<div class="nav-item dropdown" onclick="showDropdown('screeners-dropdown', event)">Screeners <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="screeners-dropdown"><a href="screeners-today.html">📊 Today&rsquo;s top 10s</a><a href="analysis.html?option=3">🇺🇸 US Markets</a><a href="analysis.html?option=4">🇪🇺 Europe Markets</a><a href="analysis.html?option=5">🌏 Asia-Pacific Markets</a><a href="analysis.html?option=6">🌎 Americas Markets</a><a href="analysis.html?option=7">🪙 Crypto (540 coins)</a></div></div>
+<a href="index.html#pricing" class="nav-item home-link" style="text-decoration: none !important; color: inherit; display: flex; align-items: center;">Pricing</a>
+<div class="nav-item dropdown" onclick="showDropdown('account-dropdown', event)" style="margin-left: auto;">Account <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="account-dropdown"><a href="signup.html">Register</a><a href="login.html">Login</a></div></div>
+<!-- SHARED_MENU_END -->
 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
 <span class="theme-icon">🌙</span>
 </button>
@@ -98,15 +104,16 @@ Need help? <a href="support.html" style="color: #007bff; text-decoration: none;"
 </div>
 </div>
 
-<footer class="footer" style="margin-top: 60px;">
-<p>&copy; 2026 StockIQ - Research tools for individual investors</p>
-<p>
-<a href="terms.html" style="color: #007bff; text-decoration: none;">Terms of Service</a> • 
-<a href="privacy-policy.html" style="color: #007bff; text-decoration: none;">Privacy Policy</a> • 
-<a href="support.html" style="color: #007bff; text-decoration: none;">Support</a> • 
-<a href="about.html" style="color: #007bff; text-decoration: none;">About</a>
-</p>
+<!-- SHARED_FOOTER_START: the footer, written by stockiq/shared_parts.py: change it there, not here -->
+<footer class="footer site-footer">
+<div class="sf-cols">
+<div class="sf-brand"><a href="index.html" class="sf-logo"><img src="stockiq-logo.png" alt="" width="20" height="20" loading="lazy">StockIQ</a><p>Research tools for individual investors: scores, screeners and a practice portfolio.</p></div>
+<div class="sf-col"><div class="sf-head">Tools</div><a href="analysis.html?option=1">Stock analysis</a><a href="screeners-today.html">Today&rsquo;s top 10s</a><a href="analysis.html?option=3">All screeners</a><a href="index.html#pricing">Pricing</a></div><div class="sf-col"><div class="sf-head">Learn</div><a href="news.html">Market news</a><a href="blog.html">Blog</a><a href="faq.html">FAQ</a><a href="about.html">About</a></div><div class="sf-col"><div class="sf-head">Help</div><a href="support.html">Support</a><a href="contact.html">Contact</a><a href="terms.html">Terms of Service</a><a href="privacy-policy.html">Privacy Policy</a><a href="refunds.html">Refund Policy</a><a href="data-deletion.html">Data Deletion</a></div>
+</div>
+<p class="sf-legal">General information only, not financial advice. Scores and signals are automated model outputs that do not take your personal circumstances into account, and past performance does not indicate future results. Market data comes from third parties (Yahoo Finance, Finnhub) and may be delayed or inaccurate.</p>
+<p class="sf-copy">&copy; 2026 StockIQ &middot; <a href="https://instagram.com/stockiq.tech" target="_blank" rel="noopener noreferrer">Instagram</a></p>
 </footer>
+<!-- SHARED_FOOTER_END -->
 
 <script>
 function handleUnsubscribe() {
