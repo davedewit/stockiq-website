@@ -439,12 +439,13 @@
     // tried is seen and not tried again (23 Oct 2026, the owner: "i'm guessing history is kept so its not repeated"). Answered first.
     function questionsHtml(qs) {
         if (!qs || !qs.length) return '';
-        const groups = [['answered', 'Answered'], ['trial', 'Being tried live'], ['waiting', 'Waiting for enough trades or data'], ['open', 'Not tested yet']];
+        // what is still live first, open; what is answered last and folded: history, kept so nothing is tested twice (24 Oct 2026, the owner: "will old things be cleared out")
+        const groups = [['trial', 'Being tried live'], ['waiting', 'Waiting for enough trades or data'], ['open', 'Not tested yet'], ['answered', 'Answered (history)']];
         const count = (st) => qs.filter(q => q.status === st).length;
         const row = (q) => `<li><b>${q.n}. ${esc(q.q)}</b> <span class="ad-sub">${esc(q.asked)}</span><div class="ad-sub" style="margin-top: 2px;">${esc(q.answer)}</div></li>`;
         return `<div class="ad-section" id="ad-sec-questions">Questions asked (${qs.length})</div>
             <div class="ad-sub" style="margin-bottom: 6px;">${groups.map(([st, name]) => `${count(st)} ${name.toLowerCase()}`).join(' · ')}. Each is tested on past prices or on the live record before anything changes; "tried, no difference" is kept as an answer so that it is not tried again.</div>
-            ${groups.filter(([st]) => count(st)).map(([st, name]) => `<details class="ad-more"${st === 'answered' ? ' open' : ''}><summary>${name} (${count(st)})</summary><ul class="ad-plain">${qs.filter(q => q.status === st).sort((a, b) => b.n - a.n).map(row).join('')}</ul></details>`).join('')}`;
+            ${groups.filter(([st]) => count(st)).map(([st, name]) => `<details class="ad-more"${st !== 'answered' ? ' open' : ''}><summary>${name} (${count(st)})</summary><ul class="ad-plain">${qs.filter(q => q.status === st).sort((a, b) => b.n - a.n).map(row).join('')}</ul></details>`).join('')}`;
     }
 
     // The short version for the Overview: how many, what is being tested (soonest decision first) and the latest three done
