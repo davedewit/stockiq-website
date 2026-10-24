@@ -15,10 +15,15 @@ def notify_indexnow():
             "https://stockiq.tech/sitemap.xml"
         ]
     }
+    # The daily screener pages change every day (24 Oct 2026): name each one
+    import glob, os
+    here = os.path.dirname(os.path.abspath(__file__))
+    data["urlList"] += ["https://stockiq.tech/" + os.path.basename(p)
+                        for p in sorted(glob.glob(os.path.join(here, "screener-*.html")) + glob.glob(os.path.join(here, "screeners-today.html")))]
     
     try:
         response = requests.post(url, json=data, headers={"Content-Type": "application/json"})
-        if response.status_code == 200:
+        if response.status_code in (200, 202):
             print("✅ IndexNow notification sent (Bing, Yandex)")
         else:
             print(f"⚠️  IndexNow response: {response.status_code}")
