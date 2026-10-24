@@ -69,7 +69,10 @@ function handleURLParams() {
                 console.log('🤖 Bot detected, skipping autorun analysis');
                 return;
             }
-            setTimeout(() => runAnalysis(optionNum, subOption), 100);
+            // "run" when the screener's own number differs from the section it sits in (24 Oct 2026: the daily screener pages open the
+            // Americas section, 6, and run Mexico's screener, which runAnalysis knows as 5)
+            const runNum = parseInt(urlParams.get('run') || option);
+            setTimeout(() => runAnalysis(runNum, subOption), 100);
         }
     }
 }
