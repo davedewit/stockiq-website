@@ -1378,6 +1378,7 @@ html.signed-in .nav-login, html.signed-in .nav-signup { display: none !important
 html:not(.signed-in) .nav-account { display: none !important; }
 html.paid-user .nav-pricing, html.paid-user .mobile-pricing { display: none !important; }
 html:not(.signed-in) #notification-bell, html:not(.signed-in) #mobile-notification-bell { display: none !important; }   /* nothing to notify a signed-out visitor of */
+html.signed-in #notification-bell, html.signed-in #mobile-notification-bell { display: block !important; }   /* there from the first frame, so the centred menu does not shift when the page's code shows it (24 Oct 2026) */
 
 /* What shows by who is looking (classes from theme.js): a link for a signed-in visitor, another for a signed-out one */
 html:not(.signed-in) .only-signed-in, html.signed-in .only-signed-out { display: none !important; }
