@@ -805,100 +805,56 @@ setInterval(continuousScroll, 50);
 </section>
 <!-- MARKET_WEEK_END -->
 
-<section style="background: var(--bg-secondary); padding: 50px 30px; border-radius: 12px; margin: 40px 0;">
-<h2 style="text-align: center; color: var(--text-primary); margin-bottom: 30px; font-size: 1.8rem;">📚 Free Investment Guides</h2>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-<a href="stock-analysis-guide.html" style="background: var(--card-bg); padding: 25px; border-radius: 8px; text-decoration: none; border: 1px solid var(--border-color); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-<div style="font-size: 2rem; margin-bottom: 10px;">📊</div>
-<h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 1.1rem;">Stock Analysis Guide</h3>
-<p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Master fundamental and technical analysis techniques</p>
-</a>
-<a href="stock-screener-guide.html" style="background: var(--card-bg); padding: 25px; border-radius: 8px; text-decoration: none; border: 1px solid var(--border-color); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-<div style="font-size: 2rem; margin-bottom: 10px;">🔍</div>
-<h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 1.1rem;">Stock Screener Guide</h3>
-<p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Filter and rank stocks with a transparent score</p>
-</a>
-<a href="technical-analysis-guide.html" style="background: var(--card-bg); padding: 25px; border-radius: 8px; text-decoration: none; border: 1px solid var(--border-color); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-<div style="font-size: 2rem; margin-bottom: 10px;">📈</div>
-<h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 1.1rem;">Technical Analysis Guide</h3>
-<p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Read charts and identify trading signals</p>
-</a>
-<a href="investment-research-tools.html" style="background: var(--card-bg); padding: 25px; border-radius: 8px; text-decoration: none; border: 1px solid var(--border-color); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-<div style="font-size: 2rem; margin-bottom: 10px;">🛠️</div>
-<h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 1.1rem;">Investment Tools Guide</h3>
-<p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Essential tools for serious investors</p>
-</a>
-</div>
+<section class="home-guides" aria-label="Free guides">
+<span class="home-guides-title">📚 Free guides:</span>
+<a href="stock-analysis-guide.html">Stock analysis</a>
+<a href="stock-screener-guide.html">Stock screeners</a>
+<a href="technical-analysis-guide.html">Technical analysis</a>
+<a href="investment-research-tools.html">Research tools</a>
 </section>
-
-<section class="social-proof-section" style="background: var(--bg-secondary); padding: 40px 30px; border-radius: 12px; margin: 40px 0; text-align: center;">
-<h2 style="color: var(--text-primary); margin-bottom: 30px; font-size: 1.8rem;">How StockIQ Works</h2>
-<div class="testimonials-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 30px;">
-<div class="testimonial" style="background: var(--card-bg); padding: 20px; border-radius: 8px; border-left: 4px solid #22c55e;">
-<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">1. Enter a ticker or run a screener</div>
-<p style="color: var(--text-secondary); margin: 0;">Stocks, ETFs and coins. Single reports cover most major exchanges; screeners cover US, Canadian, Brazilian, Mexican, UK, European, Asian, Australian and New Zealand indexes and 540 coins.</p>
-</div>
-<div class="testimonial" style="background: var(--card-bg); padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">2. Get a score that shows its working</div>
-<p style="color: var(--text-secondary); margin: 0;">A report scores a stock from 0 to 100 and lists every point added or taken off: trend, RSI, MACD, valuation, growth, debt and more. A screener ranks a whole list by a published trend score: how far each share has risen from its 52-week low, its rise over the year and where it stands against its long-term average.</p>
-</div>
-<div class="testimonial" style="background: var(--card-bg); padding: 20px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-<div style="color: var(--text-primary); font-weight: 600; margin-bottom: 10px;">3. Read it, ask about it, practise with it</div>
-<p style="color: var(--text-secondary); margin: 0;">A plain-English report says what is behind the score, the AI chat answers questions about the data, and the practice portfolio lets you try it with fake money. <a href="about.html" style="color: #007bff;">See how it works</a>.</p>
-</div>
-</div>
-<div class="trust-indicators" style="display: flex; justify-content: center; align-items: center; gap: 30px; flex-wrap: wrap; margin-top: 20px;">
-<div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
-<span style="color: #22c55e; font-size: 1.2rem;">🔒</span>
-<span>Sign-in by AWS Cognito, payments by Stripe</span>
-</div>
-<div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
-<span style="color: #3b82f6; font-size: 1.2rem;">📊</span>
-<span>Prices from Yahoo Finance and Finnhub (may be delayed)</span>
-</div>
-<div style="color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
-<span style="color: #f59e0b; font-size: 1.2rem;">🧾</span>
-<span>General information only, not financial advice</span>
-</div>
-</div>
-</section>
-
 <section id="features" style="margin: 40px 0;">
 <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 10px; font-size: 1.8rem;">What you can do with StockIQ</h2>
-<p style="text-align: center; color: var(--text-secondary); margin: 0 auto 30px; font-size: 1.1rem; max-width: 760px;">Everything here describes what the data shows. Nothing here tells you what to buy or sell.</p>
+<p style="text-align: center; color: var(--text-secondary); margin: 0 auto 30px; font-size: 1.1rem; max-width: 760px;">Everything here describes what the data shows; nothing tells you what to buy or sell, and a high score is not a forecast: past screener results have not shown a reliable edge over simply holding the market.</p>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px;">
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">🔍 A report on one stock, ETF or coin</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">A score from 0 to 100 with every point explained, a price chart with its moving averages, support and resistance, company figures and the latest news, in the share&rsquo;s own currency.</p>
+<div class="feat-gos"><a class="feat-go" href="analysis.html?option=1">Analyze a stock &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">📋 Index screeners</div>
-<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Rank a whole index in one run: Dow 30, S&amp;P 100, 500 and 1500, NASDAQ 100, Russell 1000 and 2000, TSX 60, ASX 50 to 300, FTSE 100, DAX 40, CAC 40, AEX, FTSE MIB, IBEX 35, SMI, OMX Stockholm 30, Euro Stoxx 50, Nikkei 225, Hang Seng, CSI 300, Taiwan 50, STI, Sensex, KOSPI 200, NZX 50, Bovespa and IPC. Take the result away as a CSV file.</p>
-<p style="margin: 10px 0 0;"><a href="screeners-today.html" style="color: #3b82f6; text-decoration: none; font-weight: 600;">See today&rsquo;s top 10 for 24 markets, free &rarr;</a></p>
+<p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Rank a whole index in one run: 32 share screeners in the US, Europe, Asia-Pacific and the Americas, from the Dow 30 and the FTSE 100 to the Nikkei 225 and the Russell 2000. Take the result away as a CSV file.</p>
+<div class="feat-gos"><a class="feat-go" href="screeners-today.html">Today&rsquo;s top 10s, free &rarr;</a><a class="feat-go" href="analysis.html?option=3">Run a screener &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">📈 Trading signals</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">A short-term technical reading (RSI, MACD, Bollinger bands) for up to 10 symbols, or the five strongest readings across the S&amp;P 100, each with its reasons.</p>
+<div class="feat-gos"><a class="feat-go" href="analysis.html?option=2">Get signals &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">🪙 Crypto screener</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">540 coins ranked by score, with how long each has been in the top 10 and what its price has done since.</p>
+<div class="feat-gos"><a class="feat-go" href="analysis.html?option=7">Rank 540 coins &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">💬 AI chat</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Ask what the data shows for a stock, or how your own dashboard is doing. It explains and points you to the right place; it does not tell you what to buy or sell.</p>
+<div class="feat-gos"><a class="feat-go" href="#" onclick="var b = document.getElementById('ai-chat-btn'); if (b) b.click(); return false;">Ask the chat &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">💵 Practice portfolio</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Buy and sell with $100,000 of fake money, see today&rsquo;s change and a graph of the account, and compare it with an S&amp;P 500 index fund. Free with every account.</p>
+<div class="feat-gos"><a class="feat-go only-signed-in" href="dashboard.html#practice">Open your practice portfolio &rarr;</a><a class="feat-go only-signed-out" href="signup.html">Create a free account &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">🤖 AI autopilot (Beta)</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">In every paid plan: it runs your practice portfolio from the screeners&rsquo; results by itself (with a fifth of its budget, as a trial, in sector and theme funds), says why it bought and sold each holding, and tests changes to its own rules. Fake money only.</p>
+<div class="feat-gos"><a class="feat-go only-signed-in" href="dashboard.html#autopilot">Open the AI autopilot &rarr;</a><a class="feat-go only-signed-out" href="#pricing">See the plans &rarr;</a></div>
 </div>
-<div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
+<div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">📁 Your dashboard</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Report history and favourites, background runs of the big screeners, and a bell that tells you when a report or a practice trade is in.</p>
+<div class="feat-gos"><a class="feat-go only-signed-in" href="dashboard.html">Open your dashboard &rarr;</a><a class="feat-go only-signed-out" href="signup.html">Create a free account &rarr;</a></div>
 </div>
 </div>
 </section>
@@ -940,17 +896,6 @@ setInterval(continuousScroll, 50);
 </div>
 <p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-secondary);">No spam • Unsubscribe anytime • General information only, not financial advice</p>
 </section>
-
-<section style="margin: 40px 0;">
-<div style="text-align: center; padding: 30px; background: var(--bg-secondary); border-radius: 12px;">
-<h3 style="color: var(--text-primary); margin-bottom: 15px;">What StockIQ is, and what it is not</h3>
-<p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; max-width: 820px; margin: 0 auto;">
-StockIQ works out scores, signals and rankings from prices, volume and published company figures, and <strong style="color: var(--text-primary);">shows its working</strong> in every report. It is general information, not financial advice, and StockIQ holds no financial services licence. Prices come from Yahoo Finance and Finnhub and can be delayed. A high score is not a forecast: past screener results have not shown a reliable edge over the market, and past performance does not indicate future results. <a href="about.html" style="color: #007bff;">How the scores are calculated</a>.
-</p>
-</div>
-</section>
-
-
 <!-- STOCK_LINKS_START -->
 <section id="stock-pages" style="padding: 20px 10px; margin: 30px 0 10px; border-top: 1px solid var(--border-color);">
 <h2 style="color: var(--text-primary); margin: 0 0 6px 0; font-size: 1.05rem;">Stock pages</h2>

@@ -1377,6 +1377,38 @@ body {
 html.signed-in .nav-login, html.signed-in .nav-signup { display: none !important; }
 html:not(.signed-in) .nav-account { display: none !important; }
 html.paid-user .nav-pricing, html.paid-user .mobile-pricing { display: none !important; }
+html:not(.signed-in) #notification-bell, html:not(.signed-in) #mobile-notification-bell { display: none !important; }   /* nothing to notify a signed-out visitor of */
+
+/* What shows by who is looking (classes from theme.js): a link for a signed-in visitor, another for a signed-out one */
+html:not(.signed-in) .only-signed-in, html.signed-in .only-signed-out { display: none !important; }
+
+/* The home page's feature cards: each ends in a way onward (24 Oct 2026, the owner: "almost all these boxes should be clickable") */
+.feat-card { display: flex; flex-direction: column; }
+.feat-gos { margin-top: auto; padding-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.feat-go { color: #3b82f6 !important; font-weight: 600; text-decoration: none !important; font-size: 0.95rem; }
+.feat-go:hover { text-decoration: underline !important; }
+/* The home page's guides, one row of links */
+.home-guides { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px; margin: 30px 0; }
+.home-guides-title { font-weight: 600; color: var(--text-primary); margin-right: 4px; }
+.home-guides a { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; }
+.home-guides a:hover { color: #3b82f6; border-color: #3b82f6; }
+
+/* The home page's stock page links: symbols only on a phone, where the names made the list 1,300px long */
+@media (max-width: 768px) { #stock-pages a > span { display: none !important; } }
+
+/* The home page's intro on a phone: the four numbers two by two, the buttons side by side (it was 1,436px tall) */
+@media (max-width: 768px) {
+    .hero-stats { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 14px !important; }
+    .hero-stats .stat-item { padding: 10px 6px !important; margin: 0 !important; }
+    .hero-stats .stat-number { font-size: 1.7rem !important; margin-bottom: 4px !important; }
+    .hero-stats .stat-label { font-size: 0.8rem !important; line-height: 1.35 !important; }
+    .hero-section { padding: 26px 16px !important; }
+    .hero-section .hero-title { font-size: 1.55rem !important; margin-bottom: 0.6rem !important; }
+    .hero-section .hero-subtitle { font-size: 1rem !important; line-height: 1.5 !important; }
+    .hero-buttons { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; justify-content: center !important; gap: 10px !important; }
+    .hero-buttons a { margin: 0 !important; padding: 12px 16px !important; font-size: 0.95rem !important; }
+    .hero-buttons .cta-primary { flex-basis: 100%; text-align: center; }
+}
 
 /* The strip across the top on a desktop (shared_parts.py writes it; its script shows it to anyone not on a paid plan) */
 .site-strip { position: fixed; top: 0; left: 0; right: 0; height: 41px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;

@@ -250,14 +250,19 @@
             text-decoration: underline;
         }
         
+        /* under the form's button, in the card (it was pinned near the top right, so it moved against the header with the strip) */
         .already-have-account {
-            position: absolute;
-            top: 141px;
-            right: 40px;
+            text-align: center;
+            margin: 18px 0 4px;
             font-size: 0.9rem;
             color: var(--text-secondary);
         }
         
+        .signup-gets { list-style: none; padding: 0; margin: 0 auto; max-width: 420px; text-align: left; font-size: 0.92rem; line-height: 1.45; }
+        .signup-gets li { position: relative; padding-left: 26px; margin: 0 0 8px; color: var(--text-secondary); }
+        .signup-gets li::before { content: '✓'; position: absolute; left: 4px; color: #22c55e; font-weight: 700; }
+        .signup-gets b { color: var(--text-primary); }
+
         @media (max-width: 768px) {
             .signup-container {
                 margin: 20px;
@@ -368,9 +373,13 @@
     <div class="signup-container">
         <div class="signup-header">
             <h1>Create Your Account</h1>
-            <p style="margin: 0;"><span style="color: #22c55e;">✓</span> 15 free analyses/screeners</p>
-            <p style="margin: 5px 0 0 0;"><span style="color: #22c55e;">✓</span> No credit card required</p>
-            <p style="margin: 5px 0 0 0;"><span style="color: #22c55e;">✓</span> 3-day free trial</p>
+            <p style="margin: 0 0 12px; color: var(--text-secondary);">Free for 3 days, no credit card needed. You get:</p>
+            <ul class="signup-gets">
+                <li><b>15 analyses</b>: a full report on any stock, ETF or coin, a screener of a whole market, or trading signals</li>
+                <li><b>Your reports saved</b> on your dashboard, with a bell when a background analysis is ready</li>
+                <li><b>A practice portfolio</b> with $100,000 of fake money to try ideas, free to keep after the trial</li>
+                <li><b>Then a plan from $4.99/month</b>, or carry on with what stays free; nothing is charged by itself</li>
+            </ul>
         </div>
 
         <form class="signup-form" onsubmit="handleEmailSignup(event)" action="https://stockiq.tech/signup.html" method="post">
