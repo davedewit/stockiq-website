@@ -272,13 +272,20 @@
         return `<div class="ad-card run${h && h.failed ? ' bad' : ''}"><span class="ad-label">⚙️ Settings in force, and the AWS bill</span>${h && h.failed ? `<div>${runs}</div>` : ''}
             ${chips ? `<div class="ad-chips">${chips}</div>` : ''}
             ${s ? `<details class="ad-more"><summary>Show the ${screeners.length} screeners it buys from</summary><div class="ad-sub" style="margin-top: 6px;">${screeners.length ? esc(screeners.join(', ')) : 'none'}.</div></details>` : ''}
-            ${usageHtml(data.usage)}</div>`;
+            ${usageHtml(data.usage)}${openaiHtml(h && h.openai)}</div>`;
     }
 
     // AWS this month (17 Oct 2026): the bill so far and Lambda's calls against the free million, read once a day by the function
     function usageMessage(u) {
         if (!u) return 'Not done: the figures could not be read.';
         return u.costError ? 'Read just now: the calls. The bill could not be read just now; the figure shown is the last one read.' : 'Read just now, free: the calls and the bill (as AWS last updated it).';
+    }
+    // The autopilot's own AI calls this month, counted from the tokens each answer reports at OpenAI's published prices (24 Oct 2026,
+    // the owner: "hooked in to its api to review costs"). Not on the AWS bill; the AI chat and the daily news summaries are not in it.
+    function openaiHtml(o) {
+        if (!o || !o.month) return '';
+        const usd = Number(o.usd || 0), tone = usd < 0.5 ? 'good' : usd < 2 ? 'warn' : 'bad';
+        return `<div style="margin-top: 8px;"><span class="ad-pill ${tone}">OpenAI, the autopilot's AI calls this month: about $${usd < 0.1 ? usd.toFixed(3) : usd.toFixed(2)}</span> <span class="ad-sub">${Number(o.calls || 0).toLocaleString('en-US')} calls, ${Math.round((o.in || 0) / 1000).toLocaleString('en-US')}k words in and ${Math.round((o.out || 0) / 1000).toLocaleString('en-US')}k out (tokens), counted from ${o.month === '2026-10' ? '24 Oct' : 'the 1st'}; billed by OpenAI, not AWS; the AI chat and the news summaries are separate.</span></div>`;
     }
     function usageHtml(u) {
         if (!u) return '<div class="ad-sub" style="margin-top: 10px;">AWS this month: not read yet (the scheduled run reads it once a day).</div>';
