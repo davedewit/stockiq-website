@@ -315,6 +315,14 @@ html {
     left: 0;
 }
 
+/* No dark shade behind the two phone panels (24 Oct 2026; the owner, iPhone Safari: "when fully open it gets darker shade and bottom
+   has a different shade even darker"). Safari tints its own toolbar and status bar from a full-screen fixed layer and re-tints when
+   the panel stops, so the shade changed twice. The layer stays, see-through, so a tap beside the panel still closes it; the
+   panels keep their shadow. Remove these lines to have the shade back. */
+.mobile-menu-overlay, #mobile-sidebar-overlay { background: transparent !important; background-color: transparent !important; }
+/* the round market-data button sat on top of the open menu */
+body.menu-open #mobile-sidebar-toggle { display: none !important; }
+
 /* The page behind the open menu (or a pop-up that uses this class) only stops scrolling. It must never be given
    position: fixed or a fixed height: either throws the page to the top. The !important lines also undo the
    position: fixed, top and height that older page code still writes on the body when the menu opens. */
