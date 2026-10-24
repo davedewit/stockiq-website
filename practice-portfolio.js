@@ -543,7 +543,7 @@
         [data-theme="dark"] #practice-portfolio { --pp-line: #3b82f6; }
         #practice-portfolio .pp-chart { border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px 8px; margin-bottom: 14px; background: var(--bg-primary); }
         #practice-portfolio .pp-chart-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
-        #practice-portfolio .pp-chart-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+        #practice-portfolio .pp-chart-title { flex: 0 0 300px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
         #practice-portfolio .pp-chart-read { font-size: 0.9rem; color: var(--text-primary); font-variant-numeric: tabular-nums; min-height: 1.3em; }
         #practice-portfolio .pp-chart-read .pp-chart-when { color: var(--text-secondary); margin-right: 8px; }
         #practice-portfolio .pp-sym { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--text-primary); cursor: pointer; text-align: left; }
@@ -982,6 +982,7 @@
                 <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. “Today” is what is held now, each holding since its market’s previous close (a coin: since 00:00 UTC) or since it was bought if that was later; while its market is closed it is the last session. A sale made today is not in it. General information only, not financial advice.</span>
             </div>`;
         if (beside) beside.innerHTML = toolsHtml();
+        keepReadHeight();
     }
 
     function say(text, bad) { notice = text ? { text, bad: !!bad } : null; }
@@ -1040,6 +1041,13 @@
     // lists under the graph show (partOf). It is kept while the page is open (a refresh of prices leaves it) and is not
     // remembered: a page opened afresh shows the whole account. chartRange (how far back) is remembered in the browser.
     let chartKey = 'value', chartRange = 'all';
+    let readTallest = 0;
+    // The read-out above the picture keeps the tallest height it has had (three lines for the whole account), so pressing
+    // "Your own buys" or "AI autopilot" does not move the picture up (24 Oct 2026, the owner: "things move alot")
+    function keepReadHeight() {
+        const read = document.getElementById('pp-chart-read');
+        if (read && read.offsetHeight) { readTallest = Math.max(readTallest, read.offsetHeight); read.style.minHeight = readTallest + 'px'; }
+    }
     // 'g:<market>' / 's:<screener>': one market's part of the autopilot (the menu beside the buttons, 23 Oct 2026). screenerInfo:
     // the screeners' names and markets, handed over by the autopilot panel (setPlans); without it there is no menu.
     let screenerInfo = null, mktOpen = false, indexWait = false, indexAt = 0;
@@ -1166,8 +1174,8 @@
         const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td${picture.fund ? ' class="pp-fig-part"' : ''}>${movedHtml(point.all)}</td>${picture.fund ? `<td class="pp-fig-part">${usd(point.fund)}</td><td class="pp-fig-vs">${against(point)}</td>` : ''}${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
         const undated = Math.abs(series.undated) > 0.5 ? ` The result of sold holdings that are no longer in the list (${moved(series.undated)}) has no dates left, so it is counted from the start.` : '';
         return `<div class="pp-chart">
-            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.map(r => longer(r) ? `<button type="button" disabled title="The account is ${Math.max(1, Math.round(age / DAYMS))} days old: not that much history yet">${CHART_RANGES[r][0]}</button>` : tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('')}</span>${menu}</div>
-            <div class="pp-chart-read" id="pp-chart-read">${chartRead(picture.placed[picture.placed.length - 1])}</div>
+            <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.filter(r => !longer(r)).map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('')}</span>${menu}</div>
+            <div class="pp-chart-read" id="pp-chart-read"${readTallest ? ` style="min-height: ${readTallest}px"` : ''}>${chartRead(picture.placed[picture.placed.length - 1])}</div>
             ${picture.svg}
             <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund && !isMarket(chartKey) ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${isMarket(chartKey) ? partNote : undated}</div>
             <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
@@ -1181,6 +1189,7 @@
         slot.style.minHeight = slot.offsetHeight ? slot.offsetHeight + 'px' : '';      // no collapse while it is drawn again
         slot.innerHTML = chartHtml();
         slot.style.minHeight = '';
+        keepReadHeight();
         const p1 = document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'); if (p1 && listAt) p1.scrollTop = listAt;
         if (pageAt !== null && window.scrollY !== pageAt && window.scrollTo) window.scrollTo(0, pageAt);
     }
