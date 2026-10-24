@@ -321,7 +321,7 @@ html {
    panels keep their shadow. Remove these lines to have the shade back. */
 .mobile-menu-overlay, #mobile-sidebar-overlay { background: transparent !important; background-color: transparent !important; }
 /* the round market-data button sat on top of the open menu */
-body.menu-open #mobile-sidebar-toggle { display: none !important; }
+body.menu-open #mobile-sidebar-toggle, body.menu-open #vb-pill, body.menu-open #ai-chat-btn { display: none !important; }   /* the round buttons sat on top of the open menu */
 
 /* The page behind the open menu (or a pop-up that uses this class) only stops scrolling. It must never be given
    position: fixed or a fixed height: either throws the page to the top. The !important lines also undo the
@@ -1379,6 +1379,12 @@ html:not(.signed-in) .nav-account { display: none !important; }
 html.paid-user .nav-pricing, html.paid-user .mobile-pricing { display: none !important; }
 html:not(.signed-in) #notification-bell, html:not(.signed-in) #mobile-notification-bell { display: none !important; }   /* nothing to notify a signed-out visitor of */
 html.signed-in #notification-bell, html.signed-in #mobile-notification-bell { display: block !important; }   /* there from the first frame, so the centred menu does not shift when the page's code shows it (24 Oct 2026) */
+
+/* The phone menu's first row for a signed-out visitor: Sign up free and Log in (24 Oct 2026; they were last in the menu) */
+.mobile-menu .mobile-join { display: flex; gap: 10px; align-items: center; padding: 16px 20px !important; }
+.mobile-menu .mobile-join a { flex: 1; text-align: center; padding: 11px 12px !important; border-radius: 999px; font-weight: 600; text-decoration: none !important; }
+.mobile-menu .mobile-join .mobile-signup { background: #007bff; color: #fff !important; border: 1px solid #007bff; }
+.mobile-menu .mobile-join .mobile-login { border: 1px solid var(--border-color); color: var(--text-primary) !important; }
 
 /* What shows by who is looking (classes from theme.js): a link for a signed-in visitor, another for a signed-out one */
 html:not(.signed-in) .only-signed-in, html.signed-in .only-signed-out { display: none !important; }
