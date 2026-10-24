@@ -693,6 +693,17 @@
     let allHeld = false, heldOpenOnly = false;       // "Can be sold now": only the holdings whose market is open (19 Oct 2026, the owner)
     let moreOpen = false;                         // whether the breakdown under the three figures is unfolded (kept across redraws)
     let soldOpen = false;                         // whether the Sold list is unfolded (kept across redraws)
+    let figsAll = false;                          // "Show all" days of the graph's figures (kept while the page is open)
+    // Every fold with an id stays as the viewer left it when the tab is drawn again (24 Oct 2026, the owner: "Show the figures" closed
+    // at the minute's refresh). A new fold needs only an id to be kept: no flag of its own.
+    const openFolds = new Set();
+    if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('toggle', (e) => {
+        const d = e.target; if (!d || d.tagName !== 'DETAILS' || !d.id || !d.closest || !d.closest('#practice-portfolio')) return;
+        if (d.open) openFolds.add(d.id); else openFolds.delete(d.id);
+    }, true);
+    function restoreFolds(el) {
+        if (el && el.querySelectorAll) el.querySelectorAll('details[id]').forEach(d => { if (openFolds.has(d.id) && !d.open) d.open = true; });
+    }
     const userId = () => { const u = localStorage.getItem('userId'); return u && u !== 'anonymous' ? u : null; };
     const box = () => document.getElementById('practice-portfolio');
 
@@ -982,6 +993,7 @@
                 <span>Fake money for practice: no real trades are placed. ${TRADE_COST_PCT ? `A trading cost of ${TRADE_COST_PCT}% is taken off each practice buy and each sale (a typical figure; real costs vary), so a holding starts a little below what was put in. ` : ''}Prices can be delayed${s.unpriced ? '; ' + s.unpriced + ' holding(s) have no price right now and are shown at cost' : ''}. Other currencies are converted to US dollars. “Today” is what is held now, each holding since its market’s previous close (a coin: since 00:00 UTC) or since it was bought if that was later; while its market is closed it is the last session. A sale made today is not in it. General information only, not financial advice.</span>
             </div>`;
         if (beside) beside.innerHTML = toolsHtml();
+        restoreFolds(el);
         keepReadHeight();
     }
 
@@ -1066,8 +1078,7 @@
     const marketLabel = (k) => { const r = state ? marketResults(state, quotes, screenerInfo)[k] : null; return r ? r.label : String(k).slice(2); };
     let chartNow = null;                             // where each point sits in the picture on show: the pointer reads values off it
     try {
-        const r = localStorage.getItem('stockiqPracticeChartRange');
-        if (CHART_RANGES[r]) chartRange = r;
+        localStorage.removeItem('stockiqPracticeChartRange');    // remembered until 24 Oct 2026: a page opened afresh shows All, as it shows All markets
         localStorage.removeItem('stockiqPracticeChartKey');      // remembered until 13 Oct 2026
     } catch (e) { /* a private window: the choice is simply not remembered */ }
     // The line above the picture: a moment, the figure then, and the change
@@ -1171,14 +1182,18 @@
         const perDay = {};
         series.points.forEach(point => { perDay[new Date(point.t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })] = point; });
         const against = (point) => { const gap = Math.round((point.value - point.fund) * 100) / 100; return gap === 0 ? 'level' : `<span style="color: ${tone(gap)}; font-weight: 600;">${gap > 0 ? 'ahead' : 'behind'} by <span style="white-space: nowrap;">${usd(Math.abs(gap))}</span></span>`; };
-        const rows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td${picture.fund ? ' class="pp-fig-part"' : ''}>${movedHtml(point.all)}</td>${picture.fund ? `<td class="pp-fig-part">${usd(point.fund)}</td><td class="pp-fig-vs">${against(point)}</td>` : ''}${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`).join('');
+        const allRows = Object.entries(perDay).slice(-60).reverse().map(([day, point]) => `<tr><td>${esc(day)}</td><td>${usd(point.value)}</td><td${picture.fund ? ' class="pp-fig-part"' : ''}>${movedHtml(point.all)}</td>${picture.fund ? `<td class="pp-fig-part">${usd(point.fund)}</td><td class="pp-fig-vs">${against(point)}</td>` : ''}${series.anyAi ? `<td class="pp-fig-part">${movedHtml(point.own)}</td><td class="pp-fig-part">${movedHtml(point.ai)}</td>` : ''}</tr>`);
+        // the newest 14 days (7 on a phone), then a button for the rest (24 Oct 2026, the owner: a long list should have a "show more")
+        const figsShown = (typeof window !== 'undefined' && window.innerWidth < 640) ? 7 : 14;
+        const hiddenRows = Math.max(0, allRows.length - figsShown);
+        const rows = (figsAll ? allRows : allRows.slice(0, figsShown)).join('');
         const undated = Math.abs(series.undated) > 0.5 ? ` The result of sold holdings that are no longer in the list (${moved(series.undated)}) has no dates left, so it is counted from the start.` : '';
         return `<div class="pp-chart">
             <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.filter(r => !longer(r)).map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('')}</span>${menu}</div>
             <div class="pp-chart-read" id="pp-chart-read"${readTallest ? ` style="min-height: ${readTallest}px"` : ''}>${chartRead(picture.placed[picture.placed.length - 1])}</div>
             ${picture.svg}
             <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund && !isMarket(chartKey) ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${isMarket(chartKey) ? partNote : undated}</div>
-            <details><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table></div></details>
+            <details id="pp-figs"><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table>${hiddenRows ? `<button type="button" class="pp-btn ghost" data-pp="figs-all" style="margin-top: 6px;">${figsAll ? 'Show only the latest ' + figsShown : 'Show all ' + allRows.length + ' days (' + hiddenRows + ' more)'}</button>` : ''}</div></details>
         </div>`;
     }
     function drawChart() {
@@ -1188,6 +1203,7 @@
         const pageAt = typeof window !== 'undefined' && typeof window.scrollY === 'number' ? window.scrollY : null;
         slot.style.minHeight = slot.offsetHeight ? slot.offsetHeight + 'px' : '';      // no collapse while it is drawn again
         slot.innerHTML = chartHtml();
+        restoreFolds(slot);
         slot.style.minHeight = '';
         keepReadHeight();
         const p1 = document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'); if (p1 && listAt) p1.scrollTop = listAt;
@@ -1285,10 +1301,10 @@
         }
         if (action === 'held-all') { allHeld = !allHeld; redraw(); return; }
         if (action === 'held-filter') { heldOpenOnly = t.getAttribute('data-id') === 'open'; redraw(); return; }
+        if (action === 'figs-all') { figsAll = !figsAll; openFolds.add('pp-figs'); drawChart(); return; }
         if (action === 'chart-key' || action === 'chart-range') {
             if (action === 'chart-key') { chartKey = t.getAttribute('data-id'); mktOpen = false; redraw(); return; }      // the lists follow the graph
             chartRange = t.getAttribute('data-id');
-            try { localStorage.setItem('stockiqPracticeChartRange', chartRange); } catch (err) { /* not remembered */ }
             drawChart();
             return;
         }
