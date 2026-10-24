@@ -79,8 +79,8 @@ gtag('config', 'G-WVETNMPF8V');
 html, body { background: #0f0f0f !important; transition: none !important; }
 [data-theme="light"] html, [data-theme="light"] body { background: #ffffff !important; }
 
-/* Prevent layout shift animation on mobile */
-.top-nav, .mobile-menu { transition: none !important; }
+/* Prevent layout shift animation on mobile (the header bar only: an !important rule on .mobile-menu stopped the menu gliding when let go) */
+.top-nav { transition: none !important; }
 
 /* Mobile paid user adjustments */
 @media (max-width: 768px) {
