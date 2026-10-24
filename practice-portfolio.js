@@ -682,10 +682,23 @@
         if (!/^[A-Z0-9^=.\-]{1,24}$/.test(typed)) return null;
         const t = await quoteForTrade(typed);
         if (!t) return null;
-        ppQuote = { symbol: typed, price: t.q.price, fx: t.fx, currency: t.q.currency, name: t.q.name };
+        ppQuote = { symbol: typed, price: t.q.price, fx: t.fx, currency: t.q.currency, name: t.q.name, kind: t.q.kind };
         fillOther();
         return ppQuote;
     }
+    // A code can be both a share or fund and a coin (24 Oct 2026: the owner typed BTC meaning Bitcoin and got the Grayscale Bitcoin
+    // Mini Trust, a fund that does not trade at weekends). coinTwin('BTC') is the quote of BTC-USD when that is a coin, else null.
+    const twins = {};
+    async function coinTwin(code) {
+        const c = String(code || '').trim().toUpperCase();
+        if (!/^[A-Z0-9]{2,10}$/.test(c)) return null;
+        if (!(c in twins)) twins[c] = fetchQuote(c + '-USD').then(q => (q && q.kind === 'CRYPTOCURRENCY' ? q : null)).catch(() => null);
+        return twins[c];
+    }
+    const KIND_WORDS = { ETF: 'a fund', MUTUALFUND: 'a fund', EQUITY: 'a share', CRYPTOCURRENCY: 'a coin, trades every day', INDEX: 'an index', CURRENCY: 'a currency' };
+    const kindWord = (q) => KIND_WORDS[(q && q.kind) || ''] || '';
+    const coinName = (q, code) => String((q && q.name) || code).replace(/\s+USD$/i, '');
+    let pickedSymbol = '';                          // the code last chosen from the suggestions (a typed code that is also a coin asks which)
     const openPlans = new Set();                  // the holdings whose plan is unfolded (kept across redraws)
     // The holdings table shows the latest 10, the rest behind a link (17 Oct 2026, the owner: 39 holdings were one long list;
     // as "What it has done" on the autopilot tab). Kept while the page is open, not remembered.
@@ -720,7 +733,7 @@
         const result = answer?.chart?.result?.[0], meta = result && result.meta;
         if (!meta || !(meta.regularMarketPrice > 0)) return null;
         // series: the month of daily prices that comes with every quote, for the graph of the account over time
-        return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol), range: range || '' };
+        return { price: meta.regularMarketPrice, currency: meta.currency || 'USD', name: meta.longName || meta.shortName || '', kind: meta.instrumentType || '', time: meta.regularMarketTime || 0, series: seriesOf(result, symbol), range: range || '' };
     }
     async function fetchQuote(symbol, range) {
         try {
@@ -1310,6 +1323,7 @@
         }
         if (action === 'pick') {
             const picked = t.getAttribute('data-symbol');
+            pickedSymbol = picked;
             document.getElementById('pp-symbol').value = picked;
             document.getElementById('pp-suggest').style.display = 'none';
             // show which company and price that code is, before anything is bought
@@ -1319,7 +1333,7 @@
                 if (!line || document.getElementById('pp-symbol').value !== picked) return;
                 const c = q && closedFor(picked, quotes[picked]);
                 if (c) line.style.color = '#ef4444';
-                line.textContent = !q ? `No price found for ${picked}` : `${picked}: ${q.name || 'no name available'}, latest price ${money(q.price, q.currency)}` + (c ? `. Its market is closed (last traded ${when(new Date(c.at).toISOString())}): it can be bought once it opens.` : '');
+                line.textContent = !q ? `No price found for ${picked}` : `${picked}: ${q.name || 'no name available'}${kindWord(q) ? ' (' + kindWord(q) + ')' : ''}, latest price ${money(q.price, q.currency)}` + (c ? `. Its market is closed (last traded ${when(new Date(c.at).toISOString())}): it can be bought once it opens.` : '');
             });
         } else if (action === 'clear') {
             document.getElementById('pp-symbol').value = '';
@@ -1332,6 +1346,14 @@
             const byQty = qty > 0 && (ppBasis === 'qty' || !(amount > 0));
             if (!byQty && !(amount > 0)) { say('Enter how many practice dollars to put in, or a quantity.', true); render(); document.getElementById('pp-symbol').value = text; return; }
             run(async () => {
+                const code = text.trim().toUpperCase();
+                if (code !== pickedSymbol) {
+                    const coin = await coinTwin(code);
+                    if (coin) {
+                        const other = await fetchQuote(code);
+                        if (other) throw new Error(`${code} is two different things. ${code} on its own is ${other.name || 'a share or fund'}${kindWord(other) ? ' (' + kindWord(other) + ')' : ''}; ${coinName(coin, code)} the coin is ${code}-USD. Type ${code}-USD for the coin, or pick ${code} from the list for the other.`);
+                    }
+                }
                 const r = await buy(text, byQty ? 0 : amount, note, undefined, byQty ? qty : 0);
                 ppBasis = 'usd'; ppQuote = null;
                 say(`Practice buy recorded: ${usd(r.holding.costUsd)} of ${r.holding.label} at ${money(r.holding.buyPrice, r.holding.currency)}.`);
@@ -1382,8 +1404,13 @@
             sug.innerHTML = `<div style="${row} color: var(--text-secondary);">Checking exchanges...</div>`;
             sug.style.display = 'block';
             try {
-                const res = await fetch(SEARCH_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: value }) });
-                const list = ((await res.json()).suggestions || []).filter(x => /^[A-Z0-9^=.\-]{1,24}$/.test(x.symbol || ''));
+                const [res, coin] = await Promise.all([fetch(SEARCH_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: value }) }), coinTwin(value)]);
+                let list = ((await res.json()).suggestions || []).filter(x => /^[A-Z0-9^=.\-]{1,24}$/.test(x.symbol || ''));
+                if (coin) {                                  // the coin first, and the same code's other meaning named for what it is
+                    const own = list.find(x => x.symbol === value), q = own ? await fetchQuote(value) : null;
+                    if (own && q) own.name = (q.name || own.name) + (kindWord(q) ? ', ' + kindWord(q) : '') + ' (' + own.name + ')';
+                    list = [{ symbol: value + '-USD', name: coinName(coin, value) + ', the coin (trades every day)' }].concat(list.filter(x => x.symbol !== value + '-USD'));
+                }
                 if (!still()) return;
                 sug.innerHTML = list.length
                     ? list.map(x => `<div data-pp="pick" data-symbol="${esc(x.symbol)}" style="${row} cursor: pointer;" onmouseover="this.style.background='rgba(0, 123, 255, 0.25)'" onmouseout="this.style.background='transparent'"><strong>${esc(x.symbol)}</strong> - ${esc(x.name)}</div>`).join('')
