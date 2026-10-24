@@ -5,3 +5,7 @@ stocks/
 .news_stats_history.json
 stocks-backup-before-restore/
 .DS_Store
+
+# The daily screener pages (update_screener_pages.py): generated every day, like stocks/; in the daily backup, not in git
+screener-*.html
+screeners-today.html
