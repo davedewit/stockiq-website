@@ -839,7 +839,7 @@ setInterval(continuousScroll, 50);
 <div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">💬 AI chat</div>
 <p style="color: var(--text-secondary); margin: 0; line-height: 1.55;">Ask what the data shows for a stock, or how your own dashboard is doing. It explains and points you to the right place; it does not tell you what to buy or sell.</p>
-<div class="feat-gos"><a class="feat-go" href="#" onclick="var b = document.getElementById('ai-chat-btn'); if (b) b.click(); return false;">Ask the chat &rarr;</a></div>
+<div class="feat-gos"><a class="feat-go" href="#" onclick="event.stopPropagation(); var b = document.getElementById('ai-chat-btn'); if (b) b.click(); return false;">Ask the chat &rarr;</a></div>
 </div>
 <div class="feat-card" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: left;">
 <div style="color: var(--text-primary); font-weight: 600; font-size: 1.05rem; margin-bottom: 8px;">💵 Practice portfolio</div>
