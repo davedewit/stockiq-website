@@ -25,8 +25,8 @@
     var FLICK = 0.3;        // px per ms: a quick flick decides whatever the distance
     var EDGE = 30;          // px from the left edge left alone when pushing the sidebar back: the browser's "back" swipe starts there
     var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var MS = still ? 1 : 260;
-    var EASE = 'ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+    var MS = still ? 1 : 300;
+    var EASE = 'ms cubic-bezier(0.22, 0.61, 0.36, 1)';   // eases out gently (it was a sharper curve that read as a snap)
 
     var timer = null;       // a panel is gliding to rest
     var drag = null;        // the touch in progress
@@ -66,8 +66,8 @@
             void p.panel.offsetWidth;
         },
         place: function (p, hidden, glide) {
-            p.panel.style.transition = glide ? 'transform ' + MS + EASE : 'none';
-            p.overlay.style.transition = glide ? 'opacity ' + MS + 'ms ease' : 'none';
+            p.panel.style.transition = glide ? 'transform ' + glide + EASE : 'none';
+            p.overlay.style.transition = glide ? 'opacity ' + glide + 'ms ease' : 'none';
             p.panel.style.transform = 'translate3d(' + Math.round(hidden) + 'px, 0, 0)';
             p.overlay.style.opacity = String(Math.max(0, Math.min(1, 1 - hidden / this.width(p))));
         },
@@ -99,17 +99,21 @@
                 if (nav) nav.style.transform = 'translateY(0)';
                 if (content) content.scrollTop = 0;
             }
-            // From here to rest() the menu is placed by inline styles; the classes are set once it has stopped.
+            // From here to rest() the menu is placed by inline styles (left 0 and a transform, which a phone moves without laying the
+            // menu out again each frame: with "left" it lagged behind the finger on an iPhone); the classes are set once it has stopped.
+            p.panel.style.transition = 'none';
+            p.panel.style.left = '0px';
+            p.panel.style.willChange = 'transform';
             this.place(p, this.out(p) ? 0 : this.width(p), false);
             if (p.overlay) { p.overlay.style.visibility = 'visible'; p.overlay.style.touchAction = 'none'; }
             p.panel.style.overscrollBehavior = 'contain';
             void p.panel.offsetWidth;
         },
         place: function (p, hidden, glide) {
-            p.panel.style.transition = glide ? 'left ' + MS + EASE : 'none';
-            p.panel.style.left = (-Math.round(hidden)) + 'px';
+            p.panel.style.transition = glide ? 'transform ' + glide + EASE : 'none';
+            p.panel.style.transform = 'translate3d(' + (-Math.round(hidden)) + 'px, 0, 0)';
             if (p.overlay) {
-                p.overlay.style.transition = glide ? 'opacity ' + MS + 'ms ease' : 'none';
+                p.overlay.style.transition = glide ? 'opacity ' + glide + 'ms ease' : 'none';
                 p.overlay.style.opacity = String(Math.max(0, Math.min(1, 1 - hidden / this.width(p))));
             }
         },
@@ -130,6 +134,8 @@
                 document.body.classList.remove('menu-open');
             }
             p.panel.style.left = '';
+            p.panel.style.transform = '';
+            p.panel.style.willChange = '';
             if (p.overlay) { p.overlay.style.opacity = ''; p.overlay.style.visibility = ''; }
             void p.panel.offsetWidth;
             p.panel.style.transition = '';
@@ -139,10 +145,20 @@
     };
 
     // ---------------------------------------------------------------- moving either of them
-    function settle(d, p, out) {
+    // The glide to rest carries on at the finger's own speed and slows down gently (its curve starts at about three times its
+    // average speed), so a pull that is let go does not snap; a button, or a finger that had stopped, glides by the distance left.
+    function glideTime(d, p, out, hidden, speed) {
+        if (still) return 1;
+        var w = d.width(p), left = out ? hidden : w - hidden;
+        if (left <= 1) return 120;
+        var ms = Math.abs(speed) > 0.05 ? 3 * left / Math.abs(speed) : 160 + 180 * left / w;
+        return Math.round(Math.max(160, Math.min(380, ms)));
+    }
+    function settle(d, p, out, ms) {
         clearTimeout(timer);
-        d.place(p, out ? 0 : d.width(p), true);
-        timer = setTimeout(function () { timer = null; d.rest(p, out); }, MS + 40);
+        ms = ms || MS;
+        d.place(p, out ? 0 : d.width(p), ms);
+        timer = setTimeout(function () { timer = null; d.rest(p, out); }, ms + 40);
     }
 
     function openSidebar() {
@@ -255,7 +271,7 @@
         else if (Math.abs(speed) > FLICK) out = speed * d.pull > 0;
         else out = g.wasOut ? hidden < w * SHARE : (w - hidden) >= w * SHARE;
         lastEnd = { panel: d.name, speed: Math.round(speed * 100) / 100, hidden: Math.round(hidden), width: Math.round(w), points: trail.length, out: out };
-        settle(d, p, out);
+        settle(d, p, out, glideTime(d, p, out, hidden, speed));
     }
 
     document.addEventListener('touchstart', onStart, { passive: true });
@@ -264,7 +280,7 @@
     document.addEventListener('touchcancel', onEnd, { passive: true });
 
     window.mobileSidebar = {
-        version: 2,
+        version: 3,
         open: openSidebar,
         close: closeSidebar,
         toggle: toggleSidebar,
