@@ -2840,9 +2840,11 @@ ${analysis.report}
         
         function showNotification(message, type = 'info', duration = 3000) {
             const notification = document.createElement('div');
+            // just under the header bar (24 Oct 2026: at 20px from the top it covered the usage count in the bar)
+            const bar = document.querySelector('.top-nav'), below = Math.round((bar ? bar.getBoundingClientRect().bottom : 65) + 12);
             notification.style.cssText = `
                 position: fixed;
-                top: 20px;
+                top: ${below}px;
                 right: 20px;
                 background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
                 color: white;
