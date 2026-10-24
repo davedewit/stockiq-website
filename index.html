@@ -280,6 +280,8 @@ document.documentElement.style.setProperty('--limited-banner-display', 'none');
   }
 }
 </style>
+<style>/* room for the market panel on a wide screen, in the head so the first draw has it (24 Oct 2026: set late in the body, a first visit drew the page at full width and then moved it left) */
+@media (min-width: 1401px) { body { padding-right: 350px; } }</style>
 </head>
 <body>
 <div id="promo-banner" class="promo-banner" onclick="viewPricingPlans()" style="background: var(--card-bg); color: var(--text-primary); text-align: center; padding: 10px 20px; font-weight: 500; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); position: fixed; top: 0; left: 0; right: 0; z-index: 9999; cursor: pointer; transition: background 0.2s; display: none;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='var(--card-bg)'">
@@ -639,7 +641,6 @@ body.no-cta-button #mobile-sidebar-toggle { bottom: 90px; }
 #quick-analysis-panel, #news-panel { display: none; }
 }
 @media (min-width: 1401px) {
-body { padding-right: 350px; }
 #quick-analysis-panel, #news-panel { display: block !important; }
 }
 /* Make cloned content visible in modal */

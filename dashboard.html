@@ -751,6 +751,8 @@ if (window.marketPanel) window.marketPanel.refresh();
       }
     }
     </style>
+<style>/* room for the market panel on a wide screen, in the head so the first draw has it (24 Oct 2026: set late in the body, a first visit drew the page at full width and then moved it left) */
+@media (min-width: 1401px) { body { padding-right: 350px; } }</style>
 </head>
 <body>
     <!-- Promotional Banner -->
@@ -966,7 +968,6 @@ if (window.marketPanel) window.marketPanel.refresh();
             #quick-analysis-panel, #news-panel { display: none; }
         }
         @media (min-width: 1401px) {
-            body { padding-right: 350px; }
             
             #market-tabs-sidebar {
                 mask-image: linear-gradient(to right, black calc(100% - 30px), transparent 100%);
@@ -4323,7 +4324,6 @@ ${analysis.report}
             #quick-analysis-panel, #news-panel { display: none; }
         }
         @media (min-width: 1401px) {
-            body { padding-right: 350px; }
         }
         /* Make cloned content visible in modal */
         #mobile-sidebar-content #quick-analysis-panel,
