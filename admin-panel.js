@@ -429,7 +429,7 @@
         const by = (w) => recent.filter(c => c.found === w).length;
         const tag = (c) => c.found === 'owner' ? '<span class="ad-tag" style="border-color: var(--ad-amber, #d97706);">you pointed it out</span>' : c.found === 'check' ? '<span class="ad-tag pub">found by a check</span>' : c.found === 'session' ? '<span class="ad-tag">found by a session</span>' : '';
         const when = (iso) => { const t = Date.parse(iso + 'T12:00:00Z'); return t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''; };
-        const li = (c) => `<li>${esc(c.what)} ${tag(c)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
+        const li = (c) => `<li>${esc(c.what)}${viewLink(c)} ${tag(c)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
         return `<div class="ad-section" id="ad-sec-fixes">Fixes and changes, newest first (${list.length})</div>
             <div class="ad-sub" style="margin-bottom: 6px;">Last 30 days: ${recent.length} changes. The problem behind ${by('owner')} of them was pointed out by you, ${by('check')} found by a check, ${by('session')} by a session${recent.length - by('owner') - by('check') - by('session') ? ` (${recent.length - by('owner') - by('check') - by('session')} not marked: from before 23 Oct 2026)` : ''}. The aim is that the checks and sessions find problems before you do; each one you point out also becomes a check.</div>
             <ul class="ad-plain">${list.slice(0, 8).map(li).join('')}</ul>${list.length > 8 ? `<details class="ad-more"><summary>${list.length - 8} earlier</summary><ul class="ad-plain">${list.slice(8).map(li).join('')}</ul></details>` : ''}`;
@@ -572,12 +572,14 @@
             ${probs.length ? `<ul style="margin: 0; padding-left: 18px;">${probs.map(row).join('')}</ul>` : '<div>✓ No problems found.</div>'}
             ${ideas.length ? `<details style="margin-top: 6px;"><summary class="ad-sub" style="cursor: pointer;">${ideas.length} idea${ideas.length === 1 ? '' : 's'}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${ideas.map(row).join('')}</ul></details>` : ''}</div>`;
     }
+    // A change's own link to where it can be seen (24 Oct 2026, the owner: "inform me of the change perhaps a link to it for viewing")
+    const viewLink = (c) => c.link && /^https:\/\/stockiq\.tech\//.test(c.link) ? ` <a href="${esc(c.link)}" target="_blank" rel="noopener" style="white-space: nowrap;">view ↗</a>` : '';
     // What the sessions changed, in plain words (check-tools/changes.json, copied in by admin.py; 18 Oct 2026, the owner: "easy for
     // me to read on admin page what is going on")
     function changesHtml(list) {
         if (!list || !list.length) return '';
         const when = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
-        const li = c => `<li>${esc(c.what)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
+        const li = c => `<li>${esc(c.what)}${viewLink(c)} <span class="ad-sub">${esc(when(c.at))}</span></li>`;
         return `<div class="ad-card" id="ad-changes"><span class="ad-label">🔧 What changed lately</span><ul class="ad-plain">${list.slice(0, 5).map(li).join('')}</ul>`
             + (list.length > 5 ? `<details><summary class="ad-sub" style="cursor: pointer;">${list.length - 5} earlier</summary><ul class="ad-plain">${list.slice(5).map(li).join('')}</ul></details>` : '') + '</div>';
     }

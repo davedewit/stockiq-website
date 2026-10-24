@@ -1369,6 +1369,25 @@ body {
     color: var(--text-secondary);
 }
 
+/* The shared menu by who is looking (classes set by theme.js; 24 Oct 2026) */
+.nav-signup { display: inline-flex; align-items: center; padding: 7px 16px; border-radius: 999px; background: #007bff; color: #fff !important;
+    font-weight: 600; font-size: 0.9rem; text-decoration: none !important; white-space: nowrap; margin-left: 4px; }
+.nav-signup:hover { background: #0062cc; }
+.desktop-nav .nav-login { margin-left: auto; white-space: nowrap; }
+html.signed-in .nav-login, html.signed-in .nav-signup { display: none !important; }
+html:not(.signed-in) .nav-account { display: none !important; }
+html.paid-user .nav-pricing, html.paid-user .mobile-pricing { display: none !important; }
+
+/* The strip across the top on a desktop (shared_parts.py writes it; its script shows it to anyone not on a paid plan) */
+.site-strip { position: fixed; top: 0; left: 0; right: 0; height: 41px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+    padding: 0 20px; background: var(--card-bg); color: var(--text-primary); border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+.site-strip[hidden] { display: none; }
+.site-strip strong { color: #22c55e; }
+.site-strip:hover { background: var(--hover-bg); }
+html.has-strip .top-nav { top: 41px !important; }
+html.has-strip body { padding-top: 105px !important; }
+
 /* A menu entry stays on one line ("Asia-Pacific Markets" wrapped in two) */
 .desktop-nav .dropdown-menu a { white-space: nowrap; }
 

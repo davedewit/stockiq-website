@@ -117,6 +117,10 @@ gtag('config', 'G-WVETNMPF8V');
 </script>
 </head>
 <body>
+<!-- SHARED_STRIP_START: the strip across the top on a desktop, written by stockiq/shared_parts.py: change it there, not here -->
+<a id="site-strip" class="site-strip" href="signup.html" hidden></a>
+<script>(function () { try { var d = document.documentElement, s = document.getElementById('site-strip'), u = localStorage.getItem('userId'), signed = !!u && u !== 'anonymous'; if (window.innerWidth <= 768 || (signed && localStorage.getItem('userPaidStatus_' + u) === 'paid')) { s.remove(); d.style.setProperty('--nav-top', '0px'); return; } s.innerHTML = '<span>' + (signed ? 'Plans from <strong>$4.99/month</strong>: more analyses a day, and the AI autopilot (Beta) for your practice portfolio' : 'Free 3-day trial: <strong>15 analyses</strong>, no credit card needed') + '</span>'; if (signed) s.href = 'index.html#pricing'; s.hidden = false; d.classList.add('has-strip'); d.style.setProperty('--nav-top', '41px'); } catch (e) { } })();</script>
+<!-- SHARED_STRIP_END -->
     <nav class="top-nav">
         <div class="nav-container">
             <div class="nav-brand">
@@ -131,8 +135,10 @@ gtag('config', 'G-WVETNMPF8V');
 <a href="index.html" class="nav-item home-link" style="text-decoration: none !important; color: inherit; display: flex; align-items: center;">Home</a>
 <div class="nav-item dropdown" onclick="showDropdown('analysis-dropdown', event)">Analysis <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="analysis-dropdown"><a href="analysis.html?option=1">Stock &amp; ETF Analysis</a><a href="analysis.html?option=2">Trading Signals</a></div></div>
 <div class="nav-item dropdown" onclick="showDropdown('screeners-dropdown', event)">Screeners <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="screeners-dropdown"><a href="screeners-today.html">📊 Today&rsquo;s top 10s</a><a href="analysis.html?option=3">🇺🇸 US Markets</a><a href="analysis.html?option=4">🇪🇺 Europe Markets</a><a href="analysis.html?option=5">🌏 Asia-Pacific Markets</a><a href="analysis.html?option=6">🌎 Americas Markets</a><a href="analysis.html?option=7">🪙 Crypto (540 coins)</a></div></div>
-<a href="index.html#pricing" class="nav-item home-link" style="text-decoration: none !important; color: inherit; display: flex; align-items: center;">Pricing</a>
-<div class="nav-item dropdown" onclick="showDropdown('account-dropdown', event)" style="margin-left: auto;">Account <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="account-dropdown"><a href="signup.html">Register</a><a href="login.html">Login</a></div></div>
+<a href="index.html#pricing" class="nav-item home-link nav-pricing" style="text-decoration: none !important; color: inherit; display: flex; align-items: center;">Pricing</a>
+<a href="login.html" class="nav-item home-link nav-login">Log in</a>
+<a href="signup.html" class="nav-signup">Sign up free</a>
+<div class="nav-item dropdown nav-account" onclick="showDropdown('account-dropdown', event)" style="margin-left: auto;">Account <span class="dropdown-arrow">▼</span><div class="dropdown-menu" id="account-dropdown"><a href="signup.html">Register</a><a href="login.html">Login</a></div></div>
 <!-- SHARED_MENU_END -->
                 <button class="notification-bell" id="notification-bell" onclick="goToNotifications()" title="Notifications" aria-label="View notifications" style="display: none; position: relative; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-primary); margin-right: 10px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

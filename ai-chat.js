@@ -312,7 +312,7 @@
                             });
                         }
                     } else if (result.data.response) {
-                        addMessage(result.data.response, 'ai');
+                        typeOut(addMessage(result.data.response, 'ai'));
                         
                         // Track message sent
                         if (typeof gtag !== 'undefined') {
@@ -354,6 +354,25 @@
             if (e.key === 'Enter') sendMessage();
         });
         
+        // A new reply types itself out over about a second (24 Oct 2026; the owner: appearing all at once "feels cheap ... like an
+        // automated reply"). The reply is complete when it arrives; this only reveals its text, links included, a little at a time.
+        function typeOut(msgId) {
+            var el = msgId && document.getElementById(msgId);
+            if (!el || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [], n;
+            while ((n = walker.nextNode())) nodes.push([n, n.nodeValue]);
+            var total = nodes.reduce(function (a, x) { return a + x[1].length; }, 0);
+            if (total < 20) return;
+            nodes.forEach(function (x) { x[0].nodeValue = ''; });
+            var ms = Math.min(1400, Math.max(500, total * 6)), t0 = performance.now();
+            (function step(now) {
+                var shown = Math.min(total, Math.ceil(total * Math.min(1, (now - t0) / ms))), left = shown;
+                nodes.forEach(function (x) { var take = Math.max(0, Math.min(x[1].length, left)); x[0].nodeValue = x[1].slice(0, take); left -= take; });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                if (shown < total) requestAnimationFrame(step);
+            })(t0);
+        }
+
         // Add message to chat
         function addMessage(text, sender, isTyping = false) {
             const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);

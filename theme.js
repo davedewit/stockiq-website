@@ -1,3 +1,16 @@
+// Who is looking, marked on the page before it is drawn (24 Oct 2026): html.signed-in for a signed-in visitor, html.paid-user for a
+// paying one (the same note the pages' own strip code reads). The shared menu shows "Log in" / "Sign up free" or the Account menu,
+// and hides Pricing for a paying member, by these two classes (styles.css).
+(function () {
+    try {
+        var u = localStorage.getItem('userId');
+        if (u && u !== 'anonymous') {
+            document.documentElement.classList.add('signed-in');
+            if (localStorage.getItem('userPaidStatus_' + u) === 'paid') document.documentElement.classList.add('paid-user');
+        }
+    } catch (e) { /* storage blocked: shown as signed out */ }
+})();
+
 // Auto theme switching based on time
 function getAutoTheme() {
     const hour = new Date().getHours();
