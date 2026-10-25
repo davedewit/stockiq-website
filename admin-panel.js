@@ -465,12 +465,17 @@
         const fmt = (t) => new Date(t).toLocaleDateString(undefined, Object.assign({ weekday: 'short', day: 'numeric', month: 'short' }, new Date(t).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}));
         const items = [];
         if (needNow === 'urgent') items.push([now, '<b>Your next check-in: now</b> (see above)']);
-        else if (last) items.push([Math.max(now, at(last.at) + 7 * DAY), needNow ? '<b>Your next check-in</b>: when you can, by this day at the latest (see above)' : '<b>Your next check-in</b>: say hi by then (7 days after the last session)']);
+        else if (last) items.push([Math.max(now, at(last.at) + 7 * DAY), needNow ? '<b>Your next check-in</b> (a session with Claude: say hi): when you can, by this day at the latest (see above)' : '<b>Your next check-in</b> (a session with Claude: say hi): say hi by then (7 days after the last session)']);
         else items.push([now, '<b>Your next check-in</b>: when you can']);
-        if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The next full check of the site, by itself (with the daily update), emailed to you']);
-        if (d.nextReview) items.push([at(d.nextReview), "The autopilot's next weekly review, by itself"]);
+        if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The full check of the site <span class="ad-sub">(automatic, a script on your Mac with the daily update; emailed to you)</span>']);
+        if (d.nextReview) items.push([at(d.nextReview), 'The autopilot reviews its own trades <span class="ad-sub">(automatic, on AWS; no session needed)</span>']);
+        // the next daily update: Mon to Sat, from 7am on the Mac, once a day (25 Oct 2026, the owner asked what runs when)
+        { const ran = (plan.dailyRuns || []).map(r => r.date), t = new Date(); let n = 0;
+          const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+          while (n < 8 && (t.getDay() === 0 || (n === 0 && ran.includes(iso(t))))) { t.setDate(t.getDate() + 1); n++; }
+          items.push([n === 0 ? now : t.setHours(9, 0, 0, 0), 'The daily update <span class="ad-sub">(automatic, on your Mac Mon to Sat while it is on: news, stock pages, the site check; emailed to you)</span>']); }
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
-            .forEach(x => items.push([at(x.decide), 'Decision due: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80))]));
+            .forEach(x => items.push([at(x.decide), 'A trial is decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80)) + ' <span class="ad-sub">(at the next session, on its figures)</span>']));
         if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
         const label = (t) => t <= now ? 'Today' : fmt(t), byDay = [];
         items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).forEach(([t, text]) => {      // two things on one day share its line (23 Oct 2026)
@@ -543,7 +548,10 @@
         const ago = (iso) => { if (!iso) return 'not yet'; const m = (now - Date.parse(iso)) / 60000; return m < 90 ? Math.max(1, Math.round(m)) + ' min ago' : m < 48 * 60 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
         const fresh = (iso, hours) => iso && now - Date.parse(iso) <= hours * 3600000;
         const trials = ((plan.items || []).filter(x => x.status === 'running')).length;
+        const runs = (plan.dailyRuns || []).slice(-3).reverse();
+        const runsTxt = runs.length ? runs.map(r => `${r.ok ? '✅' : '⚠️'} ${new Date(r.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${r.ok ? '' : ': ' + r.issue}`).join(' · ') : 'no run recorded yet';
         const jobs = [
+            [runs.length ? runs[0].ok && fresh(runs[0].date + 'T12:00:00Z', 4 * 24) : false, `The daily update: news, stock pages, the daily screener pages, the site check, backups, GitHub. Last runs: ${runsTxt}`, 'Mon to Sat, once a day from 7am, while your Mac is on; emailed to you', null],
             [fresh(h && h.at, 2), 'The autopilot: trades, with the half-hourly stop watch; its budget follows its results', 'every 30 minutes', h && h.at],
             [fresh(a && a.at, 4 * 24), 'The site check: links, search basics, stale pages, made-up figures', 'with every daily update (Mon to Sat, while your Mac is on)', a && a.at],
             [fresh(plan.dailyReview ? plan.dailyReview + 'T23:59:00Z' : null, 4 * 24), 'The daily review by Claude: reads the site, puts proposals here', 'once a day, after the daily update', plan.dailyReview ? plan.dailyReview + 'T12:00:00Z' : null],
