@@ -679,11 +679,29 @@ class AuthManager {
                 })
             });
             const data = await response.json();
-            return parseInt(data.usage) || 0;
+            return Math.max(parseInt(data.usage) || 0, this.localAnonymousUsage());
         } catch (error) {
             console.warn('Failed to get anonymous usage count:', error);
-            return 0;
+            return this.localAnonymousUsage();
         }
+    }
+
+    // The server counts anonymous uses by IP address, and a phone on mobile data changes address often, so each new
+    // address looked like a fresh visitor (25 Oct 2026). The browser keeps its own count for the UTC day as well, and
+    // the larger of the two counts.
+    localAnonymousUsage() {
+        try {
+            const note = JSON.parse(localStorage.getItem('stockiqAnonUsed') || '{}');
+            return note.date === new Date().toISOString().split('T')[0] ? (parseInt(note.n) || 0) : 0;
+        } catch (e) { return 0; }
+    }
+
+    noteAnonymousUsage(usage) {
+        try {
+            const n = Math.max(usage || 0, this.localAnonymousUsage() + 1);
+            localStorage.setItem('stockiqAnonUsed', JSON.stringify({ date: new Date().toISOString().split('T')[0], n: n }));
+            return n;
+        } catch (e) { return usage || 0; }
     }
 
     async incrementAnonymousUsage() {
@@ -699,14 +717,14 @@ class AuthManager {
                 })
             });
             const data = await response.json();
-            const usage = data.usage || 0;
+            const usage = this.noteAnonymousUsage(data.usage || 0);
             if (usage >= 1) {
                 localStorage.setItem('showStickyRegister', 'true');
             }
             return usage;
         } catch (error) {
             console.warn('Failed to increment anonymous usage:', error);
-            return 0;
+            return this.noteAnonymousUsage(0);
         }
     }
 
