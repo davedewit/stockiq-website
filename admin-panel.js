@@ -497,8 +497,13 @@
         const u = d.usage || {};
         if (u.costStockiq >= 1.5 || ((u.costExplorer || 0) - (u.costExplorerKnown || 0)) > 0.02) urgent.push('the AWS bill needs a look');
         else if (typeof u.costStockiq === 'number') good.push(`the bill is in order (StockIQ's running cost $${Number(u.costStockiq).toFixed(2)} this month)`);
-        const open = (d.open || []).length;
+        // a proposal for a session is built by the next session whatever the answer (the standing mandate, 18 Oct 2026), so it does not
+        // call him in; only a change to a setting waits for his yes (25 Oct 2026: the card was amber for three session proposals)
+        const openAll = d.open || [], open = openAll.filter(p => p.kind !== 'session').length, forSession = openAll.length - open;
         if (open) soon.push(`${open} decision${open === 1 ? '' : 's'} waiting for your yes or no below`);
+        const stale = openAll.filter(p => p.kind === 'session' && daysSince(p.at) >= 7).length;
+        if (stale) soon.push(`${stale} proposal${stale === 1 ? ' has' : 's have'} waited a week or more for a session to build ${stale === 1 ? 'it' : 'them'}`);
+        else if (forSession) good.push(`${forSession} proposal${forSession === 1 ? '' : 's'} below for the next session to build (your yes or no is welcome, not needed)`);
         const a = plan.audit;
         if (a && a.problems) soon.push(`the site check has ${a.problems} problem${a.problems === 1 ? '' : 's'}`);
         const last = (plan.changes || [])[0], since = last ? daysSince(last.at) : null;
