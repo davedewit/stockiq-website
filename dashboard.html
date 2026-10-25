@@ -4142,27 +4142,18 @@ ${analysis.report}
                 }
             } else {
                 try {
-                    const ipResponse = await fetch('https://api.ipify.org?format=json');
-                    const ipData = await ipResponse.json();
-                    const usageResponse = await fetch('https://dcegrxwikpuwup7qas24dubloq0ohurf.lambda-url.us-east-1.on.aws/', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            action: 'get_usage',
-                            ip_address: ipData.ip,
-                            date: new Date().toISOString().split('T')[0]
-                        })
-                    });
-                    const usageData = await usageResponse.json();
-                    const used = usageData.usage || 0;
+                    // The one anonymous count (auth.js): the server's by IP and the browser's own note, the larger
+                    // (25 Oct 2026: this page asked the server alone, so a phone with a new address read 1/1 here)
+                    const used = await authManager.getAnonymousUsageCount();
                     const remaining = Math.max(0, 1 - used);
                     
                     trialDisplay.innerHTML = `${remaining}/1 Analyses/screeners remaining today`;
                     trialDisplay.style.color = remaining > 0 ? '#22c55e' : '#ef4444';
                     trialDisplay.style.opacity = '1';
                 } catch (error) {
-                    trialDisplay.innerHTML = '1/1 Analyses/screeners remaining today';
-                    trialDisplay.style.color = '#22c55e';
+                    const left = (typeof authManager !== 'undefined' && authManager.localAnonymousUsage && authManager.localAnonymousUsage() >= 1) ? 0 : 1;
+                    trialDisplay.innerHTML = `${left}/1 Analyses/screeners remaining today`;
+                    trialDisplay.style.color = left > 0 ? '#22c55e' : '#ef4444';
                     trialDisplay.style.opacity = '1';
                 }
             }
