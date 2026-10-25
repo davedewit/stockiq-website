@@ -30,6 +30,8 @@
         body { padding-top: var(--body-padding, 105px) !important; }
         .mobile-menu { top: var(--mobile-menu-top, 105px) !important; height: var(--mobile-menu-height, calc(100vh - 105px)) !important; }
         #trial-status-display { display: none !important; }
+        /* a phone never shows the strip, so only the bar's 64px: the strip's 41px read as a black band (25 Oct 2026) */
+        @media (max-width: 768px) { body { padding-top: 64px !important; } }
     </style>
     <script>
         // Apply theme immediately before any rendering
