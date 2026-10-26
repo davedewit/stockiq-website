@@ -372,6 +372,18 @@
         const se = n > 1 ? Math.sqrt(gaps.reduce((a, b) => a + (b - avg) ** 2, 0) / (n - 1) / n) : 0;
         return { days: n, ahead: gaps.filter(g => g > 0).length, avg, se, gaps: gaps.map(g => Math.round(g * 1000) / 1000) };     // gaps: each day's, for the dial's line
     }
+    // The fund's own day (26 Oct 2026, the owner: to set beside the account's "Today"): the same rule as dayMove, since the previous
+    // close, or its last session while the US market is shut. `value` is what the fund holding is worth now. Null without its prices.
+    function fundDay(quotes, value) {
+        const q = quotes[BENCHMARK], s = q && q.series;
+        if (!q || !(q.price > 0) || !s || s.length < 2 || !(value > 0)) return null;
+        const last = s[s.length - 1][0];
+        let base = null;
+        for (let i = s.length - 2; i >= 0; i--) if (s[i][0] <= last - 5 * 3600000) { base = s[i]; break; }
+        if (!base || !(base[1] > 0)) return null;
+        const pct = (q.price / base[1] - 1) * 100;
+        return { usd: value - value / (1 + pct / 100), pct };
+    }
     // The account against that fund right now: what the fund would be worth, and how far the account is ahead of it
     // (gapUsd above zero) or behind it. Null when the fund cannot be worked out.
     function versusStart(state, quotes, now) {
@@ -512,7 +524,7 @@
             + `A practice ${verb === 'sold' ? 'sale' : 'buy'} is made only at a price that has traded in the last ${FRESH_HOURS} hours, as the autopilot's are, so that it is a price someone could really have traded at. Try again once its market is open.`;
     }
 
-    const pure = { marketOf, marketResults, homeGap, HOME_INDEX, pickOf, closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart, versusDays };
+    const pure = { marketOf, marketResults, homeGap, HOME_INDEX, pickOf, closedFor, closedText, FRESH_HOURS, newState, fxFor, fxRate, versusMarket, applyBuy, applySell, applyClearSold, soldSummary, partOf, valueOf, summarize, splitGain, planLine, moved, movedHtml, usd, pct, money, esc, TRADE_COST_PCT, STARTING_CASH, DEFAULT_AMOUNT, seriesOf, valueAt, dayMove, valueSeries, axisTicks, chartSvg, usOpensIn, fundRange, fundKnots, versusStart, versusDays, fundDay };
     if (typeof module !== 'undefined' && module.exports) module.exports = pure;
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -970,7 +982,9 @@
         // box): how the account stands against the same starting money in an S&P 500 fund, as the graph shows it. Without the
         // fund's prices back to the start it falls back to what is still held against the fund over the same days.
         const start = usd(state.startingCash).replace(/\.00$/, '');
-        const fundCard = vs ? card('If in the S&amp;P 500 instead', usd(vs.value), `${movedHtml(behind, behind / state.startingCash * 100)}: your account is ${behind === 0 ? 'level with it' : behind > 0 ? 'ahead of it' : 'behind it'} (${usd(s.accountValue)}); the same ${start} put in an S&amp;P 500 fund at the start`, behind)
+        const fd = vs ? fundDay(quotes, vs.value) : null, usShut = typeof usOpensIn === 'function' && usOpensIn(Date.now()) !== null;
+        const fundToday = fd ? `<span class="pp-fund-day">${usShut ? 'Last trading day' : 'Today'} ${movedHtml(fd.usd, fd.pct)}</span><br>` : '';
+        const fundCard = vs ? card('If in the S&amp;P 500 instead', usd(vs.value), `${fundToday}${movedHtml(behind, behind / state.startingCash * 100)}: your account is ${behind === 0 ? 'level with it' : behind > 0 ? 'ahead of it' : 'behind it'} (${usd(s.accountValue)}); the same ${start} put in an S&amp;P 500 fund at the start`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
