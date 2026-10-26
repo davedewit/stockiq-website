@@ -489,6 +489,8 @@
         out += `<line class="pp-base" x1="${m.l}" x2="${W - m.r}" y1="${y(base).toFixed(1)}" y2="${y(base).toFixed(1)}"/>`;
         // f, fy: the fund at that moment and where it sits (only on the account's own picture, and only when it could be worked out)
         const placed = pts.map(p => Object.assign({ t: p.t, v: p[key], all: p.all, x: +x(p.t).toFixed(1), y: +y(p[key]).toFixed(1) }, both ? { f: p[fk], fy: +y(p[fk]).toFixed(1) } : {}));
+        // a click and drag across the picture shades the stretch between two moments (26 Oct 2026): drawn by showMeasure
+        out += `<rect id="pp-band" class="pp-band" x="${m.l}" y="${m.t}" width="0" height="${h}" style="display:none"/><line id="pp-cross-a" class="pp-cross" x1="${m.l}" x2="${m.l}" y1="${m.t}" y2="${m.t + h}" style="display:none"/>`;
         if (both) out += `<path class="pp-fund" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.fy).join('')}"/>`;      // under the account's line
         out += `<path class="pp-line" d="${placed.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.y).join('')}"/>`;
         const end = placed[placed.length - 1];
@@ -602,6 +604,8 @@
         #practice-portfolio .pp-axis { fill: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
         #practice-portfolio .pp-line { fill: none; stroke: var(--pp-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
         #practice-portfolio .pp-cross { stroke: var(--text-secondary); stroke-width: 1; }
+        #practice-portfolio .pp-band { fill: rgba(127, 127, 127, 0.12); } #practice-portfolio .pp-band.up { fill: rgba(22, 163, 74, 0.13); } #practice-portfolio .pp-band.down { fill: rgba(239, 68, 68, 0.13); }
+        #practice-portfolio .pp-chart-svg { -webkit-user-select: none; user-select: none; }
         #practice-portfolio .pp-dot { fill: var(--pp-line); stroke: var(--bg-primary); stroke-width: 2; }
         #practice-portfolio .pp-fund { fill: none; stroke: var(--pp-fund); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
         #practice-portfolio .pp-dot-fund { fill: var(--pp-fund); stroke: var(--bg-primary); stroke-width: 2; }
@@ -830,6 +834,7 @@
         const panel = () => document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'), listAt = panel() ? panel().scrollTop : 0;
         const pageAt = typeof window !== 'undefined' && typeof window.scrollY === 'number' ? window.scrollY : null;
         render();
+        reMeasure();
         if (panel() && listAt) panel().scrollTop = listAt;
         if (pageAt !== null && window.scrollY !== pageAt && window.scrollTo) window.scrollTo(0, pageAt);
         keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el && v) el.value = v; });
@@ -1103,6 +1108,7 @@
     }
     const isMarket = (k) => /^[gs]:/.test(String(k || ''));
     const marketLabel = (k) => { const r = state ? marketResults(state, quotes, screenerInfo)[k] : null; return r ? r.label : String(k).slice(2); };
+    let drag = null, measured = null;              // a click and drag across the graph, and the stretch it measured (showMeasure)
     let chartNow = null;                             // where each point sits in the picture on show: the pointer reads values off it
     try {
         localStorage.removeItem('stockiqPracticeChartRange');    // remembered until 24 Oct 2026: a page opened afresh shows All, as it shows All markets
@@ -1116,7 +1122,7 @@
             const gap = Math.round((point.v - point.f) * 100) / 100;
             const verdict = gap === 0 ? 'level with it' : `<strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))}</strong>`;
             return `<div>${moment}</div>
-            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${esc(marketLabel(chartKey))}</span><span>${movedHtml(point.v)}</span></div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${/^s:/.test(chartKey) ? `🤖 The autopilot’s buys from the ${esc(marketLabel(chartKey))} screener` : `🤖 The autopilot’s buys in ${esc(marketLabel(chartKey))}`}</span><span>${movedHtml(point.v)}</span></div>
             <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key fund" aria-hidden="true"></span>The same money in an S&amp;P 500 fund, same days</span><span>${movedHtml(point.f)} · ${verdict}</span></div>`;
         }
         if (chartKey !== 'value') return `${moment}${movedHtml(point.v)}`;
@@ -1241,6 +1247,7 @@
         slot.style.minHeight = '';
         keepReadHeight();
         const p1 = document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'); if (p1 && listAt) p1.scrollTop = listAt;
+        reMeasure();
         if (pageAt !== null && window.scrollY !== pageAt && window.scrollTo) window.scrollTo(0, pageAt);
     }
     // The pointer over the picture: a line at that moment, and its figures above
@@ -1259,7 +1266,84 @@
         const at = ((touch ? touch.clientX : e.clientX) - rect.left) * chartNow.width / (rect.width || chartNow.width);
         let best = chartNow.placed[0];
         chartNow.placed.forEach(point => { if (Math.abs(point.x - at) < Math.abs(best.x - at)) best = point; });
+        if (measured) return;                 // a stretch measured stays until the graph is clicked again
+        hideMeasure();
         chartShow(best, true);
+    }
+    // Click and drag across the graph (a finger on a phone): the change between the two moments, for the line on show and for the
+    // S&P 500 fund over the same stretch (26 Oct 2026, the owner: "click and drag across, to show the % change between")
+    function nearestAt(e) {
+        const svg = document.getElementById('pp-chart-svg');
+        if (!svg || !chartNow) return null;
+        const rect = svg.getBoundingClientRect(), touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+        const at = ((touch ? touch.clientX : e.clientX) - rect.left) * chartNow.width / (rect.width || chartNow.width);
+        let best = chartNow.placed[0];
+        chartNow.placed.forEach(point => { if (Math.abs(point.x - at) < Math.abs(best.x - at)) best = point; });
+        return best;
+    }
+    function measureRead(a, b) {
+        if (b.t < a.t) [a, b] = [b, a];
+        const when = (t) => new Date(t).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const days = (b.t - a.t) / 864e5, span = days >= 1.5 ? Math.round(days) + ' days' : Math.max(1, Math.round(days * 24)) + ' hours';
+        const isValue = chartKey === 'value', share = (d, base) => isValue && base > 0 ? d / base * 100 : null;
+        const who = isValue ? 'Your account' : isMarket(chartKey) ? (/^s:/.test(chartKey) ? `🤖 The autopilot’s buys from the ${esc(marketLabel(chartKey))} screener` : `🤖 The autopilot’s buys in ${esc(marketLabel(chartKey))}`) : chartKey === 'ai' ? '🤖 AI autopilot' : 'Your own buys';
+        const touchy = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        const dv = b.v - a.v;
+        let out = `<div><span class="pp-chart-when">${esc(when(a.t))} → ${esc(when(b.t))} (${span})</span> <span style="color: var(--text-secondary); font-size: 0.8rem;">· ${touchy ? 'tap' : 'click'} the graph to clear</span></div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${who}</span><span>${movedHtml(dv, share(dv, a.v))} over this stretch</span></div>`;
+        if (typeof a.f === 'number' && typeof b.f === 'number') {
+            const df = b.f - a.f, gap = Math.round((dv - df) * 100) / 100;
+            const fund = isValue ? `The same ${usd(state ? state.startingCash : STARTING_CASH).replace(/\.00$/, '')} in an S&amp;P 500 fund` : 'The same money in an S&amp;P 500 fund, same days';
+            const verdict = gap === 0 ? 'level with it' : `<strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))}${isValue && a.v > 0 ? ' (' + Math.abs(gap / a.v * 100).toFixed(2) + '%)' : ''}</strong>`;
+            out += `<div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key fund" aria-hidden="true"></span>${fund}</span><span>${movedHtml(df, share(df, a.f))} · ${verdict}</span></div>`;
+        }
+        return out;
+    }
+    function showMeasure(a, b) {
+        const band = document.getElementById('pp-band'), start = document.getElementById('pp-cross-a'), read = document.getElementById('pp-chart-read');
+        if (!band || !read) return;
+        const [p, q] = a.t <= b.t ? [a, b] : [b, a], up = q.v - p.v;
+        band.setAttribute('x', Math.min(a.x, b.x)); band.setAttribute('width', Math.max(1, Math.abs(b.x - a.x)));
+        band.setAttribute('class', 'pp-band' + (up > 0.004 ? ' up' : up < -0.004 ? ' down' : '')); band.style.display = '';
+        if (start) { start.setAttribute('x1', a.x); start.setAttribute('x2', a.x); start.style.display = ''; }
+        chartShow(b, true);
+        read.innerHTML = measureRead(a, b);
+        keepReadHeight();
+    }
+    function hideMeasure() {
+        ['pp-band', 'pp-cross-a'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    }
+    // the graph is drawn again every minute with fresh prices: a stretch measured is put back on the same two moments
+    function reMeasure() {
+        if (!measured || !chartNow) return;
+        const find = (t) => chartNow.placed.find(p => p.t === t);
+        const a = find(measured.a.t), b = find(measured.b.t);
+        if (a && b) { measured = { a, b }; showMeasure(a, b); } else measured = null;
+    }
+    function dragStart(e) {
+        if (e.button > 0 || !(e.target && e.target.closest && e.target.closest('#pp-chart-svg'))) return;
+        const a = nearestAt(e);
+        if (!a) return;
+        const touch = e.touches && e.touches[0];
+        drag = { a, b: a, x0: touch ? touch.clientX : e.clientX, moved: false };
+        if (measured) { measured = null; hideMeasure(); }
+        if (!touch) e.preventDefault();       // no text selected while dragging
+        chartShow(a, true);
+    }
+    function dragMove(e) {
+        if (!drag) return false;
+        const touch = e.touches && e.touches[0], x = touch ? touch.clientX : e.clientX;
+        if (!drag.moved && Math.abs(x - drag.x0) < (touch ? 10 : 5)) return true;
+        drag.moved = true;
+        const b = nearestAt(e);
+        if (b) { drag.b = b; showMeasure(drag.a, b); }
+        return true;
+    }
+    function dragEnd() {
+        if (!drag) return;
+        if (drag.moved && drag.b.t !== drag.a.t) measured = { a: drag.a, b: drag.b };
+        else hideMeasure();
+        drag = null;
     }
 
     async function run(task, key) {
@@ -1276,10 +1360,14 @@
         if (!ok || (key !== 'buy' && key !== 'reset')) { restore(); showClear(); }
     }
 
-    document.addEventListener('mousemove', chartPoint);
-    document.addEventListener('touchstart', chartPoint, { passive: true });
-    document.addEventListener('touchmove', chartPoint, { passive: true });
+    document.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', (e) => { if (!dragMove(e)) chartPoint(e); });
+    document.addEventListener('mouseup', dragEnd);
+    document.addEventListener('touchstart', (e) => { dragStart(e); if (!drag) chartPoint(e); }, { passive: true });
+    document.addEventListener('touchmove', (e) => { if (!dragMove(e)) chartPoint(e); }, { passive: true });
+    document.addEventListener('touchend', dragEnd, { passive: true });
     document.addEventListener('mouseout', (e) => {
+        if (drag || measured) return;         // a drag may leave the picture for a moment; a measured stretch stays
         const from = e.target && e.target.closest && e.target.closest('#pp-chart-svg'), to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#pp-chart-svg');
         if (from && !to && chartNow) chartShow(chartNow.placed[chartNow.placed.length - 1], false);
     });
