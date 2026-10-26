@@ -1090,7 +1090,8 @@
     // "Your own buys" or "AI autopilot" does not move the picture up (24 Oct 2026, the owner: "things move alot")
     function keepReadHeight() {
         const read = document.getElementById('pp-chart-read');
-        if (read && read.offsetHeight) { readTallest = Math.max(readTallest, read.offsetHeight); read.style.minHeight = readTallest + 'px'; }
+        // rounded up: offsetHeight rounds 66.3 down to 66, so the taller read-out still moved the picture by a fraction (26 Oct 2026)
+        if (read && read.offsetHeight) { readTallest = Math.max(readTallest, Math.ceil(read.getBoundingClientRect().height)); read.style.minHeight = readTallest + 'px'; }
     }
     // 'g:<market>' / 's:<screener>': one market's part of the autopilot (the menu beside the buttons, 23 Oct 2026). screenerInfo:
     // the screeners' names and markets, handed over by the autopilot panel (setPlans); without it there is no menu.
