@@ -1223,6 +1223,13 @@
             <details id="pp-figs"><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table>${hiddenRows ? `<button type="button" class="pp-btn ghost" data-pp="figs-all" style="margin-top: 6px;">${figsAll ? 'Show only the latest ' + figsShown : 'Show all ' + allRows.length + ' days (' + hiddenRows + ' more)'}</button>` : ''}</div></details>
         </div>`;
     }
+    // The market list opens on the row that is chosen, not at its top (26 Oct 2026, the owner): it stands a third of the way down
+    function showChosen() {
+        const panel = document.querySelector && document.querySelector('#pp-mkt .pp-mkt-panel'), on = panel && panel.querySelector('.pp-mkt-row.on');
+        if (!panel || !on || !on.getBoundingClientRect) return;
+        const at = on.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop;
+        panel.scrollTop = Math.max(0, at - panel.clientHeight / 3);
+    }
     function drawChart() {
         const slot = document.getElementById('pp-chart');
         if (!slot || !state || !loaded) return;
@@ -1314,7 +1321,7 @@
         if (mktOpen && !(e.target.closest && e.target.closest('#pp-mkt'))) { mktOpen = false; drawChart(); if (!t) return; }
         if (!t) { const sug = document.getElementById('pp-suggest'); if (sug && !e.target.closest('#pp-suggest, #pp-symbol')) sug.style.display = 'none'; return; }
         const action = t.getAttribute('data-pp');
-        if (action === 'mkt-toggle') { mktOpen = !mktOpen; drawChart(); return; }      // only the graph is redrawn: the page does not move (23 Oct 2026)
+        if (action === 'mkt-toggle') { mktOpen = !mktOpen; drawChart(); if (mktOpen) showChosen(); return; }      // only the graph is redrawn: the page does not move (23 Oct 2026)
         if (action === 'market') { chartKey = t.getAttribute('data-id') || 'value'; mktOpen = false; redraw(); return; }      // '', 'value', 'own' or a market
         if (t.tagName === 'A') e.preventDefault();
         // a holding or a sale clicked: its full analysis, in the background (23 Oct 2026, the owner: "make it so my holdings and sold can
