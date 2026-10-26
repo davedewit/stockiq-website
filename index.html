@@ -378,11 +378,12 @@ banner.innerHTML = 'Free 3-day trial: <strong style="color: #22c55e;">15 analyse
 <div style="display: flex; gap: 6px; position: relative;">
 <div style="position: relative; flex: 1; display: flex;">
 <input type="text" id="side-stock-search" placeholder="Search tickers or companies" style="flex: 1; padding: 8px 30px 8px 8px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: var(--card-bg); color: var(--text-primary);">
-<span id="side-search-clear" onclick="document.getElementById('side-stock-search').value=''; this.style.display='none'; document.getElementById('side-symbol-suggestions').style.display='none';" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); font-size: 18px; padding: 0 3px;">&times;</span>
+<span id="side-search-clear" onclick="document.getElementById('side-stock-search').value=''; this.style.display='none'; document.getElementById('side-symbol-suggestions').style.display='none'; if (window.symbolNews) symbolNews.hide(document.getElementById('side-symbol-news'));" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); font-size: 18px; padding: 0 3px;">&times;</span>
 <div id="side-symbol-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; margin-top: 4px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
 </div>
 <button id="side-search-btn" onclick="sideSearchStock()" style="background: #007bff; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: background 0.2s; touch-action: manipulation;" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">🚀 Analyze</button>
 </div>
+<div id="side-symbol-news" class="sn-box" aria-live="polite"></div>
 <script>
 function sideSearchStock() {
 const input = document.getElementById('side-stock-search');
@@ -760,11 +761,13 @@ setInterval(continuousScroll, 50);
 <div class="search-container">
 <div style="position: relative; flex: 1; display: flex;">
 <input type="text" id="stock-search" placeholder="Search for tickers or companies" class="search-input" aria-label="Enter stock symbol" style="flex: 1; padding-right: 35px;">
-<span id="stock-search-clear" onclick="document.getElementById('stock-search').value=''; this.style.display='none'; document.getElementById('home-symbol-suggestions').style.display='none';" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); font-size: 20px; padding: 0 5px;">&times;</span>
+<span id="stock-search-clear" onclick="document.getElementById('stock-search').value=''; this.style.display='none'; document.getElementById('home-symbol-suggestions').style.display='none'; if (window.symbolNews) symbolNews.hide(document.getElementById('home-symbol-news'));" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-secondary); font-size: 20px; padding: 0 5px;">&times;</span>
 <div id="home-symbol-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; margin-top: 4px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
 </div>
 <button onclick="searchStock()" class="search-btn" id="search-btn"><script>document.write((localStorage.getItem('userId') && localStorage.getItem('userId') !== 'anonymous') ? 'Analyze Stock' : 'Run Free Analysis Now');</script></button>
 </div>
+<div id="home-symbol-news" class="sn-box" aria-live="polite"></div>
+<script src="symbol-news.js?v=1"></script>
 
 </section>
 
@@ -2022,6 +2025,8 @@ if (homeStockInput && homeSuggestionsDiv) {
     homeStockInput.addEventListener('input', function(e) {
         clearTimeout(debounceTimer);
         const value = e.target.value.trim().toUpperCase();
+        // a typed code with a stock page shows its news, unless suggestions are waiting to be picked (picking one shows it too)
+        if (window.symbolNews) { symbolNews.hide(document.getElementById('home-symbol-news')); if (value) setTimeout(() => { const sug = document.getElementById('home-symbol-suggestions'); if (e.target.value.trim().toUpperCase() !== value || (sug.style.display !== 'none' && sug.querySelector('[onclick]'))) return; symbolNews.show(value, document.getElementById('home-symbol-news')).then(ok => { if (ok) sug.style.display = 'none'; }); }, 1300); }
         
         // Show/hide clear button
         const clearBtn = document.getElementById('stock-search-clear');
@@ -2056,7 +2061,7 @@ if (homeStockInput && homeSuggestionsDiv) {
                         `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background 0.2s;" 
                               onmouseover="this.style.background='rgba(0, 123, 255, 0.25)'" 
                               onmouseout="this.style.background='transparent'"
-                              onclick="document.getElementById('stock-search').value='${s.symbol}'; document.getElementById('home-symbol-suggestions').style.display='none';">
+                              onclick="document.getElementById('stock-search').value='${s.symbol}'; document.getElementById('home-symbol-suggestions').style.display='none'; if (window.symbolNews) symbolNews.show('${s.symbol}', document.getElementById('home-symbol-news'));">
                             <strong>${s.symbol}</strong> - ${s.name}
                         </div>`
                     ).join('');
@@ -2086,6 +2091,8 @@ if (sideStockInput && sideSuggestionsDiv) {
     sideStockInput.addEventListener('input', function(e) {
         clearTimeout(debounceTimer);
         const value = e.target.value.trim().toUpperCase();
+        // a typed code with a stock page shows its news, unless suggestions are waiting to be picked (picking one shows it too)
+        if (window.symbolNews) { symbolNews.hide(document.getElementById('side-symbol-news')); if (value) setTimeout(() => { const sug = document.getElementById('side-symbol-suggestions'); if (e.target.value.trim().toUpperCase() !== value || (sug.style.display !== 'none' && sug.querySelector('[onclick]'))) return; symbolNews.show(value, document.getElementById('side-symbol-news')).then(ok => { if (ok) sug.style.display = 'none'; }); }, 1300); }
         
         // Show/hide clear button
         const clearBtn = document.getElementById('side-search-clear');
@@ -2120,7 +2127,7 @@ if (sideStockInput && sideSuggestionsDiv) {
                         `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background 0.2s;" 
                               onmouseover="this.style.background='rgba(0, 123, 255, 0.25)'" 
                               onmouseout="this.style.background='transparent'"
-                              onclick="document.getElementById('side-stock-search').value='${s.symbol}'; document.getElementById('side-symbol-suggestions').style.display='none';">
+                              onclick="document.getElementById('side-stock-search').value='${s.symbol}'; document.getElementById('side-symbol-suggestions').style.display='none'; if (window.symbolNews) symbolNews.show('${s.symbol}', document.getElementById('side-symbol-news'));">
                             <strong>${s.symbol}</strong> - ${s.name}
                         </div>`
                     ).join('');
