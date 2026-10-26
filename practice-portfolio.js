@@ -1270,7 +1270,7 @@
         hideMeasure();
         chartShow(best, true);
     }
-    // Click and drag across the graph (a finger on a phone): the change between the two moments, for the line on show and for the
+    // Hold and drag across the graph (a finger on a phone): while held, the change between the two moments, for the line on show and for the
     // S&P 500 fund over the same stretch (26 Oct 2026, the owner: "click and drag across, to show the % change between")
     function nearestAt(e) {
         const svg = document.getElementById('pp-chart-svg');
@@ -1287,9 +1287,8 @@
         const days = (b.t - a.t) / 864e5, span = days >= 1.5 ? Math.round(days) + ' days' : Math.max(1, Math.round(days * 24)) + ' hours';
         const isValue = chartKey === 'value', share = (d, base) => isValue && base > 0 ? d / base * 100 : null;
         const who = isValue ? 'Your account' : isMarket(chartKey) ? (/^s:/.test(chartKey) ? `🤖 The autopilot’s buys from the ${esc(marketLabel(chartKey))} screener` : `🤖 The autopilot’s buys in ${esc(marketLabel(chartKey))}`) : chartKey === 'ai' ? '🤖 AI autopilot' : 'Your own buys';
-        const touchy = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
         const dv = b.v - a.v;
-        let out = `<div><span class="pp-chart-when">${esc(when(a.t))} → ${esc(when(b.t))} (${span})</span> <span style="color: var(--text-secondary); font-size: 0.8rem;">· ${touchy ? 'tap' : 'click'} the graph to clear</span></div>
+        let out = `<div><span class="pp-chart-when">${esc(when(a.t))} → ${esc(when(b.t))} (${span})</span></div>
             <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${who}</span><span>${movedHtml(dv, share(dv, a.v))} over this stretch</span></div>`;
         if (typeof a.f === 'number' && typeof b.f === 'number') {
             const df = b.f - a.f, gap = Math.round((dv - df) * 100) / 100;
@@ -1339,11 +1338,13 @@
         if (b) { drag.b = b; showMeasure(drag.a, b); }
         return true;
     }
+    // let go and it clears, as broker apps do (26 Oct 2026, the owner): the read-out goes back to the moment under the pointer
     function dragEnd() {
         if (!drag) return;
-        if (drag.moved && drag.b.t !== drag.a.t) measured = { a: drag.a, b: drag.b };
-        else hideMeasure();
-        drag = null;
+        const b = drag.b;
+        drag = null; measured = null;
+        hideMeasure();
+        chartShow(b, true);
     }
 
     async function run(task, key) {
