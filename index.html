@@ -2025,8 +2025,7 @@ if (homeStockInput && homeSuggestionsDiv) {
     homeStockInput.addEventListener('input', function(e) {
         clearTimeout(debounceTimer);
         const value = e.target.value.trim().toUpperCase();
-        // a typed code with a stock page shows its news, unless suggestions are waiting to be picked (picking one shows it too)
-        if (window.symbolNews) { symbolNews.hide(document.getElementById('home-symbol-news')); if (value) setTimeout(() => { const sug = document.getElementById('home-symbol-suggestions'); if (e.target.value.trim().toUpperCase() !== value || (sug.style.display !== 'none' && sug.querySelector('[onclick]'))) return; symbolNews.show(value, document.getElementById('home-symbol-news')).then(ok => { if (ok) sug.style.display = 'none'; }); }, 1300); }
+        if (window.symbolNews) symbolNews.hide(document.getElementById('home-symbol-news'));      // news shows when a suggestion is picked
         
         // Show/hide clear button
         const clearBtn = document.getElementById('stock-search-clear');
@@ -2091,8 +2090,7 @@ if (sideStockInput && sideSuggestionsDiv) {
     sideStockInput.addEventListener('input', function(e) {
         clearTimeout(debounceTimer);
         const value = e.target.value.trim().toUpperCase();
-        // a typed code with a stock page shows its news, unless suggestions are waiting to be picked (picking one shows it too)
-        if (window.symbolNews) { symbolNews.hide(document.getElementById('side-symbol-news')); if (value) setTimeout(() => { const sug = document.getElementById('side-symbol-suggestions'); if (e.target.value.trim().toUpperCase() !== value || (sug.style.display !== 'none' && sug.querySelector('[onclick]'))) return; symbolNews.show(value, document.getElementById('side-symbol-news')).then(ok => { if (ok) sug.style.display = 'none'; }); }, 1300); }
+        if (window.symbolNews) symbolNews.hide(document.getElementById('side-symbol-news'));      // news shows when a suggestion is picked
         
         // Show/hide clear button
         const clearBtn = document.getElementById('side-search-clear');
