@@ -1118,12 +1118,12 @@
     // The line above the picture: a moment, the figure then, and the change
     function chartRead(point) {
         const moment = `<span class="pp-chart-when">${esc(new Date(point.t).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`;
-        if (isMarket(chartKey) && typeof point.f === 'number') {
+        if (chartKey !== 'value' && typeof point.f === 'number') {
             // one market: its result, and the same dollars in an S&P 500 fund on the same days
             const gap = Math.round((point.v - point.f) * 100) / 100;
             const verdict = gap === 0 ? 'level with it' : `<strong style="color: ${tone(gap)}; white-space: nowrap;">${gap > 0 ? 'ahead of' : 'behind'} it by ${usd(Math.abs(gap))}</strong>`;
             return `<div>${moment}</div>
-            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${/^s:/.test(chartKey) ? `🤖 The autopilot’s buys from the ${esc(marketLabel(chartKey))} screener` : `🤖 The autopilot’s buys in ${esc(marketLabel(chartKey))}`}</span><span>${movedHtml(point.v)}</span></div>
+            <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key" aria-hidden="true"></span>${chartKey === 'ai' ? '🤖 The autopilot’s buys, every market' : chartKey === 'own' ? 'Your own buys' : /^s:/.test(chartKey) ? `🤖 The autopilot’s buys from the ${esc(marketLabel(chartKey))} screener` : `🤖 The autopilot’s buys in ${esc(marketLabel(chartKey))}`}</span><span>${movedHtml(point.v)}</span></div>
             <div class="pp-chart-row"><span class="pp-chart-who"><span class="pp-key fund" aria-hidden="true"></span>The same money in an S&amp;P 500 fund, same days</span><span>${movedHtml(point.f)} · ${verdict}</span></div>`;
         }
         if (chartKey !== 'value') return `${moment}${movedHtml(point.v)}`;
@@ -1142,10 +1142,10 @@
         const now = Date.now(), age = now - (Date.parse(state.createdAt) || now);
         const ranges = Object.keys(CHART_RANGES), longer = (r) => r !== 'all' && age < CHART_RANGES[r][1];   // longer than the account's life: greyed
         if (!CHART_RANGES[chartRange] || longer(chartRange)) chartRange = 'all';
-        const series = valueSeries(state, quotes, now, autoRealized, chartRange === 'all' ? 0 : now - CHART_RANGES[chartRange][1], isMarket(chartKey) ? pickOf(chartKey, screenerInfo) : null);
+        const series = valueSeries(state, quotes, now, autoRealized, chartRange === 'all' ? 0 : now - CHART_RANGES[chartRange][1], isMarket(chartKey) ? pickOf(chartKey, screenerInfo) : chartKey === 'ai' ? (h) => h.by === 'ai' : chartKey === 'own' ? (h) => h.by !== 'ai' : null);      // 'ai' / 'own': each part's buys, with the fund's line beside them (26 Oct 2026)
         if (!series.anyAi) chartKey = 'value';
         const el = box(), width = Math.min(1100, Math.max(260, ((el && el.clientWidth) || 750) - 30));
-        const picture = chartSvg(series, isMarket(chartKey) ? 'part' : chartKey, width, width < 480 ? 180 : 220);
+        const picture = chartSvg(series, chartKey !== 'value' ? 'part' : chartKey, width, width < 480 ? 180 : 220);
         chartNow = { placed: picture.placed, width: picture.width };
         const tab = (kind, id, text, on) => `<button type="button" data-pp="chart-${kind}" data-id="${id}" aria-pressed="${on}">${text}</button>`;
         const kinds = series.anyAi ? [['value', 'All markets'], ['own', 'Your own buys'], ['ai', '🤖 AI autopilot']] : [];
@@ -1226,7 +1226,7 @@
             <div class="pp-chart-head"><span class="pp-chart-title">${title}</span><span class="pp-chart-tabs">${kinds.map(([id, text]) => tab('key', id, text, chartKey === id)).join('')}${ranges.filter(r => !longer(r)).map(r => tab('range', r, CHART_RANGES[r][0], chartRange === r)).join('')}</span>${menu}</div>
             <div class="pp-chart-read" id="pp-chart-read"${readTallest ? ` style="min-height: ${readTallest}px"` : ''}>${chartRead(picture.placed[picture.placed.length - 1])}</div>
             ${picture.svg}
-            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${picture.fund && !isMarket(chartKey) ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${isMarket(chartKey) ? partNote : undated}</div>
+            <div class="pp-chart-note">Fake money. Dashed line: ${chartKey === 'value' ? 'the ' + usd(state.startingCash) + ' it started with' : 'no gain or loss'}. A holding still held is valued at its daily prices and its latest price now; one that was sold is drawn as a straight line from buying to selling.${(chartKey === 'ai' || chartKey === 'own') && picture.fund ? ` The gold line is the same money put into an S&amp;P 500 fund on the day each ${chartKey === 'ai' ? 'of the autopilot’s holdings' : 'of your own buys'} was bought and taken out the day it was sold (or now), with no trading cost taken off the fund and no dividends counted. ${chartKey === 'ai' ? 'Your own buys are not in this view.' : 'The autopilot’s buys are not in this view.'}` : ''}${picture.fund && chartKey === 'value' ? ` The S&amp;P 500 line is the same ${usd(state.startingCash).replace(/\.00$/, '')} put into an S&amp;P 500 index fund (SPY) at the moment this account began and left there, at the fund’s daily closing prices, with no trading cost taken off and no dividends counted.` : ''}${isMarket(chartKey) ? partNote : undated}</div>
             <details id="pp-figs"><summary style="cursor: pointer;">Show the figures</summary><div style="overflow-x: auto;"><table><tr><th>End of</th><th>Account</th><th${picture.fund ? ' class="pp-fig-part"' : ''}>Since the start</th>${picture.fund ? '<th class="pp-fig-part">S&amp;P 500 fund</th><th class="pp-fig-vs">Against the fund</th>' : ''}${series.anyAi ? '<th class="pp-fig-part">Your own buys</th><th class="pp-fig-part">AI autopilot</th>' : ''}</tr>${rows}</table>${hiddenRows ? `<button type="button" class="pp-btn ghost" data-pp="figs-all" style="margin-top: 6px;">${figsAll ? 'Show only the latest ' + figsShown : 'Show all ' + allRows.length + ' days (' + hiddenRows + ' more)'}</button>` : ''}</div></details>
         </div>`;
     }
