@@ -30,7 +30,7 @@
     async function articles(symbol) {
         if (cache[symbol]) return cache[symbol];
         const r = await fetch('stocks/' + encodeURIComponent(symbol) + '.html');
-        if (!r.ok) return (cache[symbol] = []);
+        if (!r.ok) throw new Error('HTTP ' + r.status);     // not cached: a later pick tries again
         const html = await r.text(), a = html.indexOf('<!-- NEWS_SECTION_START -->'), b = html.indexOf('<!-- NEWS_SECTION_END -->');
         if (a < 0 || b < a) return (cache[symbol] = []);
         const doc = new DOMParser().parseFromString('<div>' + html.slice(a, b) + '</div>', 'text/html');
@@ -52,13 +52,13 @@
         if (!el) return false;
         const ticket = ++shown;
         if (!symbol || !(await pageList()).has(symbol)) { hide(el); return false; }
-        let list = [];
-        try { list = await articles(symbol); } catch (e) { list = []; }
+        let list = [], failed = false;       // failed: the page could not be fetched (offline, a local preview), not "no news"
+        try { list = await articles(symbol); } catch (e) { failed = true; }
         if (ticket !== shown) return false;     // another share was picked meanwhile
         const page = 'stocks/' + encodeURIComponent(symbol) + '.html';
         el.innerHTML = `<div class="sn-head">📰 Latest news on ${esc(symbol)}</div>`
             + (list.length ? list.map(n => `<a class="sn-item" href="${esc(n.href)}" target="_blank" rel="noopener nofollow">${esc(n.title)}<span class="sn-when">${esc(ago(n.t))}</span></a>`).join('')
-                : `<div class="sn-none">No recent articles for ${esc(symbol)}.</div>`)
+                : `<div class="sn-none">${failed ? `Could not load the news for ${esc(symbol)} just now.` : `No recent articles for ${esc(symbol)}.`}</div>`)
             + `<a class="sn-page" href="${page}">${esc(symbol)}'s page: its data snapshot and all its news →</a>`;
         el.style.display = 'block';
         return true;
