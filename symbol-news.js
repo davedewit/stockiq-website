@@ -61,6 +61,10 @@
                 : `<div class="sn-none">No recent articles for ${esc(symbol)}.</div>`)
             + `<a class="sn-page" href="${page}">${esc(symbol)}'s page: its data snapshot and all its news →</a>`;
         el.style.display = 'block';
+        // as wide as the search row above it, and centred under it (26 Oct 2026, the owner: it ran the page's full width)
+        const row = el.previousElementSibling;
+        if (row && row.getBoundingClientRect().width) el.style.maxWidth = Math.round(row.getBoundingClientRect().width) + 'px';
+        el.style.marginLeft = el.style.marginRight = 'auto';
         return true;
     }
     function hide(el) { if (el) { shown++; el.style.display = 'none'; el.innerHTML = ''; } }
