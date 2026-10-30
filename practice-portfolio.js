@@ -1085,10 +1085,13 @@
         const higher = (n) => { const a = Math.round(n * 100) / 100; return a === 0 ? 'Your account is level with it'
             : `Your account is <strong style="color: ${tone(a)};">${usd(Math.abs(a))} (${Math.abs(a / state.startingCash * 100).toFixed(2)}%) ${a > 0 ? 'higher' : 'lower'}</strong>`; };
         const coins = vs ? coinsVsSpy(state, quotes) : null;
-        const coinNote = coins && Math.abs(coins.gap) >= 1 ? `<span class="pp-card-note">Without the autopilot’s ${coins.trades} coin trades: ${higher(behind - coins.gap).replace(/^Your account is /, '')}</span>` : '';
+        // the gap to the S&P 500 sits in the line under the cards (31 Oct 2026, the owner: the cards show which is higher; the exact gap
+        // in each card was clutter, and it is the main figure to see), so the three cards read alike: the value, today, since the start
+        const coinNote = coins && Math.abs(coins.gap) >= 1 ? ` (without the autopilot’s ${coins.trades} coin trades: ${higher(behind - coins.gap).replace(/^Your account is /, '').replace(/^level with it$/, 'level')})` : '';
+        const vsLine = vs ? `${higher(behind)}${Math.round(behind * 100) ? ' than' : ''} the S&amp;P 500${coinNote} · ` : '';
         // its own change since the start too (30 Oct 2026, the owner: the card did not say how much the fund was down since the $100,000)
         const fundCard = vs ? card('If all in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
-            `${movedHtml(vs.gainUsd, vs.gainUsd / state.startingCash * 100)} since the start · ${higher(behind)}${coinNote}`, behind)
+            `${movedHtml(vs.gainUsd, vs.gainUsd / state.startingCash * 100)} since the start`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
@@ -1107,7 +1110,7 @@
                 ${card('Your account', `${usd(s.accountValue)}${dayChip(s.dayUsd, dayOfAccount, s.dayClosed)}`, `${movedHtml(s.gainUsd, s.gainPct)} since it started with ${usd(state.startingCash).replace(/\.00$/, '')} · fake money`, s.gainUsd)}
                 ${fundCard}${homeCard}
             </div>
-            <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
+            <div class="pp-facts">${vsLine}Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
             <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: profit and loss, yours and the autopilot’s, and the index fund</summary>
             ${breakdownHtml(s, split)}
             </details>
