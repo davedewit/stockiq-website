@@ -1085,7 +1085,7 @@
         const higher = (n) => { const a = Math.round(n * 100) / 100; return a === 0 ? 'Your account is level with it'
             : `Your account is <strong style="color: ${tone(a)};">${usd(Math.abs(a))} (${Math.abs(a / state.startingCash * 100).toFixed(2)}%) ${a > 0 ? 'higher' : 'lower'}</strong>`; };
         const coins = vs ? coinsVsSpy(state, quotes) : null;
-        const coinNote = coins && Math.abs(coins.gap) >= 1 ? `<span class="pp-card-note">Without the autopilot’s ${coins.trades} coin trades (it no longer buys coins on its own): ${higher(behind - coins.gap).replace(/^Your account is /, '')}</span>` : '';
+        const coinNote = coins && Math.abs(coins.gap) >= 1 ? `<span class="pp-card-note">Without the autopilot’s ${coins.trades} coin trades: ${higher(behind - coins.gap).replace(/^Your account is /, '')}</span>` : '';
         // its own change since the start too (30 Oct 2026, the owner: the card did not say how much the fund was down since the $100,000)
         const fundCard = vs ? card('If all in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
             `${movedHtml(vs.gainUsd, vs.gainUsd / state.startingCash * 100)} since the start · ${higher(behind)}${coinNote}`, behind)
