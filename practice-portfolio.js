@@ -1099,7 +1099,7 @@
         if (anyAiBuy) ensureIndexes();
         const om = anyAiBuy ? ownMarkets(state, quotes) : null;
         const homeCard = !om ? '' : indexWait && om.missing ? card('Same markets, no AI', '…', 'getting each market’s index', 0)
-            : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start · ${higher(om.gap)}`, om.gap);
+            : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start`, om.gap);   // the gap is the card's edge colour (the owner, 31 Oct 2026: the line was clutter)
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
