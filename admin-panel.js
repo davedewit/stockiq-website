@@ -207,6 +207,14 @@
             <details class="ad-sub" style="margin-top: 2px;"><summary>Why</summary>${esc(last.why)}</details>
             ${list.length > 1 ? `<div class="ad-sub" style="margin-top: 2px;">Earlier: ${list.slice(0, -1).reverse().slice(0, 6).map(e => `${esc(when(e.at))} ${e.pct}%`).join(' · ')}</div>` : ''}</div>`;
     }
+    // Where the gap to the S&P 500 comes from (30 Oct 2026, with the Practice tab's third card): choosing shares (the account against the
+    // same markets with no AI) and choosing markets (those markets against the S&P 500). The two add up to the whole gap.
+    function splitHtml(f) {
+        if (!(f.ownValue > 0) || !(f.fundValue > 0)) return '';
+        const shares = f.accountValue - f.ownValue, markets = f.ownValue - f.fundValue;
+        const part = (n) => `<b class="${n >= 0 ? 'ok' : 'red'}">${n >= 0 ? '▲' : '▼'} ${usd(Math.abs(n))}</b>`;
+        return `<div style="margin-top: 8px;"><b>Where the gap to the S&amp;P 500 comes from:</b> choosing shares ${part(shares)} (the account against the same markets with no AI) · choosing markets ${part(markets)} (those markets, and the coins it once bought, against the S&amp;P 500) = ${part(shares + markets)} in all.</div>`;
+    }
     function decisionHtml() {
         const f = liveAccount();
         if (!f || !f.versus || !(f.fundValue > 0) || !f.createdAt) return '';
@@ -229,6 +237,7 @@
             <div class="ad-sub" style="margin-top: 4px;">${verdict[2]}</div>
             <ul style="list-style: none; padding: 0; margin: 8px 0 0; line-height: 1.7;">${checks.map(row).join('')}</ul>
             <div style="margin-top: 6px;"><b>The money it needs on the day:</b> at least what the same $100,000 in an S&P 500 fund is worth then, plus ${LEAD_A_YEAR}%. If the day were today: the fund ${usd(f.fundValue)} → at least <b>${usd(f.fundValue * (1 + LEAD_A_YEAR / 100))}</b>; the account is <span class="${f.accountValue >= f.fundValue * (1 + LEAD_A_YEAR / 100) ? 'ok' : 'red'}">${usd(f.accountValue)}</span>. <span class="ad-sub">In a year the S&P rises 10%, that is about $115,500.</span></div>
+            ${splitHtml(f)}
             ${estimateHtml()}
             ${confidenceHtml(f.versus)}
             <div class="ad-sub" style="margin-top: 6px;">Fixed in advance on 19 Oct 2026, so a lucky stretch cannot decide it. Practice money cannot show real fills, fees, currency costs or tax; a licensed adviser is worth a short session before real money. Not financial advice.</div></div>`;

@@ -866,6 +866,9 @@
     const symbolsKey = () => 'stockiqPracticeSymbols_' + userId();
     const rangeKey = () => 'stockiqPracticeFundRange_' + userId();
     function knownRange() { try { const r = localStorage.getItem(rangeKey()) || ''; return /^(3mo|6mo|1y|2y|5y)$/.test(r) ? r : ''; } catch (e) { return ''; } }
+    // the indexes of its markets likewise (30 Oct 2026, the owner: the third card came about a second after the other two)
+    const indexKey = () => 'stockiqPracticeIndexes_' + userId();
+    function knownIndexes() { try { const k = JSON.parse(localStorage.getItem(indexKey()) || '[]'); return Array.isArray(k) ? k.filter(x => typeof x === 'string').slice(0, 40) : []; } catch (e) { return []; } }
     function knownSymbols() { try { const k = JSON.parse(localStorage.getItem(symbolsKey()) || '[]'); return Array.isArray(k) ? k.filter(x => typeof x === 'string').slice(0, 80) : []; } catch (e) { return []; } }
     const askedAt = {};                                    // when each symbol's price was last asked for (the refresh by itself, below)
     async function refreshQuotes(have, only) {
@@ -885,7 +888,8 @@
         if (!userId()) { loaded = true; render(); return; }
         if (!loaded) render();                             // the spinner until the portfolio and its prices are in
         // on the first load, the prices of what it held last time are asked for while the portfolio itself is on its way
-        const ahead = loaded ? null : fetchQuotes(knownSymbols(), sym => sym === BENCHMARK ? knownRange() : '').catch(() => []);
+        const indexes = loaded ? [] : knownIndexes();
+        const ahead = loaded ? null : fetchQuotes(knownSymbols().concat(indexes), sym => sym === BENCHMARK || indexes.includes(sym) ? knownRange() : '').catch(() => []);
         try {
             const r = await api('get');
             state = r.portfolio || newState(new Date().toISOString());
@@ -893,6 +897,7 @@
         } catch (e) { loadError = e.message; }
         const have = new Set();
         if (ahead) (await ahead).forEach(([sym, q]) => { if (q) { quotes[sym] = q; have.add(sym); } });
+        if (indexes.length && indexes.every(sym => have.has(sym))) indexAt = Date.now();      // fetched with the rest: not asked for again for 15 minutes
         // Nothing is shown before the latest prices are in: holdings valued at what was paid looked, for a moment, like a
         // different account value. If the prices are slow, it is shown after 4 seconds anyway and again when they arrive.
         const prices = state ? refreshQuotes(have) : Promise.resolve();
@@ -1069,7 +1074,7 @@
         const higher = (n) => { const a = Math.round(n * 100) / 100; return a === 0 ? 'Your account is level with it'
             : `Your account is <strong style="color: ${tone(a)};">${usd(Math.abs(a))} (${Math.abs(a / state.startingCash * 100).toFixed(2)}%) ${a > 0 ? 'higher' : 'lower'}</strong>`; };
         // its own change since the start too (30 Oct 2026, the owner: the card did not say how much the fund was down since the $100,000)
-        const fundCard = vs ? card('If in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
+        const fundCard = vs ? card('If all in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
             `${movedHtml(vs.gainUsd, vs.gainUsd / state.startingCash * 100)} since the start · ${higher(behind)}`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
@@ -1190,6 +1195,7 @@
         const want = new Set();
         state.holdings.concat(state.closed).forEach(h => { if (h.by === 'ai' && HOME_INDEX[h.screener]) want.add(HOME_INDEX[h.screener][0]); });
         if (!want.size) return;
+        try { localStorage.setItem(indexKey(), JSON.stringify([...want])); } catch (e) {}
         indexWait = true; indexAt = Date.now();
         const span = fundRange(state.createdAt, Date.now());
         Promise.all([...want].map(sym => fetchQuote(sym, span).then(q => { if (q) quotes[sym] = q; }).catch(() => {})))
@@ -1680,7 +1686,11 @@
         let fundValue = null;
         try { const vs = versusStart(state, quotes, Date.now()); fundValue = vs ? vs.value : null; } catch (e) { fundValue = null; }
         const topGains = (state.closed || []).map(h => (h.proceedsUsd || 0) - (h.costUsd || 0)).filter(g => g > 0).sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0);
-        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now(), versus, fundValue, createdAt: state.createdAt, topGains };
+        // the third card (30 Oct 2026): the account had each buy's money been in its own market; with fundValue it splits the gap to the
+        // S&P 500 into choosing shares (account against these markets) and choosing markets (these markets against the S&P 500)
+        let ownValue = null;
+        try { ownValue = state.holdings.concat(state.closed).some(h => h.by === 'ai') && !(indexWait) ? ownMarkets(state, quotes).value : null; } catch (e) { ownValue = null; }
+        return { accountValue: s.accountValue, gainUsd: s.gainUsd, gainPct: s.gainPct, startingCash: state.startingCash, at: Date.now(), versus, fundValue, ownValue, createdAt: state.createdAt, topGains };
     }
     window.practicePortfolio = { reload: load, setPlans, summary, figures, autoRefresh };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
