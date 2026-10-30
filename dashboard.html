@@ -2172,6 +2172,7 @@ ${analysis.report}
 
         
         async function subscribeToPlan(planType) {
+            if (window.stockiqTrack) stockiqTrack('begin_checkout', { plan: planType });
             // Find the button in the card and update its text
             const button = event.target.tagName === 'BUTTON' ? event.target : event.currentTarget.querySelector('button');
             let originalText = '';
@@ -4330,11 +4331,11 @@ ${analysis.report}
         }
     </style>
     <script src="news.js"></script>
-    <script src="practice-portfolio.js?v=68"></script>
+    <script src="practice-portfolio.js?v=69"></script>
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
-    <script src="practice-autopilot.js?v=72"></script>
-    <script src="admin-panel.js?v=49"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
+    <script src="practice-autopilot.js?v=73"></script>
+    <script src="admin-panel.js?v=50"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
     <script src="ai-chat.js?v=3"></script>
     <script src="js/timezone-converter.js"></script>
     <script>
@@ -4402,5 +4403,35 @@ ${analysis.report}
         });
     }
     </script>
+<!-- The return from Stripe (30 Oct 2026, Admin #11): a thank-you or a word that nothing was charged, and the purchase recorded once -->
+<script>
+(function () {
+    try {
+        var q = new URLSearchParams(location.search), p = q.get('payment');
+        if (p !== 'success' && p !== 'cancelled') return;
+        if (p === 'success' && !sessionStorage.getItem('stockiqPurchaseSeen')) {
+            sessionStorage.setItem('stockiqPurchaseSeen', '1');
+            if (window.stockiqTrack) stockiqTrack('purchase', { currency: 'USD' });
+        }
+        q.delete('payment');
+        history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+        var box = document.createElement('div');
+        box.setAttribute('role', 'status');
+        box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--body-padding, 105px) + 12px);z-index:3000;' +
+            'max-width:min(560px, calc(100vw - 32px));padding:14px 44px 14px 18px;border-radius:10px;font-size:15px;line-height:1.45;' +
+            'box-shadow:0 6px 24px rgba(0,0,0,.25);color:#fff;background:' + (p === 'success' ? '#15803d' : '#475569');
+        box.textContent = p === 'success'
+            ? '✅ Thank you for subscribing. Your plan is being switched on: it shows in "Your plan" below within a minute (refresh if not). The AI autopilot and your new daily allowance come with it.'
+            : 'Checkout was cancelled: nothing was charged. The plans are below whenever you want one.';
+        var x = document.createElement('button');
+        x.textContent = '×'; x.setAttribute('aria-label', 'Close');
+        x.style.cssText = 'position:absolute;right:10px;top:8px;background:none;border:0;color:#fff;font-size:22px;cursor:pointer;line-height:1';
+        x.onclick = function () { box.remove(); };
+        box.appendChild(x);
+        var show = function () { document.body.appendChild(box); setTimeout(function () { box.remove(); }, 20000); };
+        if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+    } catch (e) { /* a notice must never stop the page */ }
+})();
+</script>
 </body>
 </html>

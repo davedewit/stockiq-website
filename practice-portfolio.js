@@ -646,6 +646,7 @@
         #practice-portfolio .pp-card.up { border-top-color: #16a34a; } #practice-portfolio .pp-card.down { border-top-color: #ef4444; }
         #practice-portfolio .pp-card-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
         #practice-portfolio .pp-card-value { font-size: 1.45rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+        #practice-portfolio .pp-card-word { font-size: 0.7em; font-weight: 600; color: var(--text-secondary); }
         #practice-portfolio .pp-card-sub { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
         #practice-portfolio .pp-pl { margin-bottom: 8px; }
         #practice-portfolio .pp-pl td { border-bottom: 1px solid var(--border-color); }
@@ -989,7 +990,10 @@
         const start = usd(state.startingCash).replace(/\.00$/, '');
         const fd = vs ? fundDay(quotes, vs.value) : null, usShut = typeof usOpensIn === 'function' && usOpensIn(Date.now()) !== null;
         const fundToday = fd ? `<span class="pp-fund-day">${usShut ? 'Last trading day' : 'Today'} ${movedHtml(fd.usd, fd.pct)}</span><br>` : '';
-        const fundCard = vs ? card('If in the S&amp;P 500 instead', usd(vs.value), `${fundToday}${movedHtml(behind, behind / state.startingCash * 100)}: your account is ${behind === 0 ? 'level with it' : behind > 0 ? 'ahead of it' : 'behind it'} (${usd(s.accountValue)}); the same ${start} put in an S&amp;P 500 fund at the start`, behind)
+        // Every big number is about the user's own account (30 Oct 2026, the owner: "everytime i look it i have to think for a minute
+        // what is up or down"): the gap to the fund is the big figure, said in words; the fund's own value is the small print.
+        const fundCard = vs ? card('Against the S&amp;P 500', behind === 0 ? 'level' : `${big(behind)} <span class="pp-card-word">${behind > 0 ? 'ahead' : 'behind'}</span>`,
+            `${behind === 0 ? 'level with' : Math.abs(behind / state.startingCash * 100).toFixed(2) + '% ' + (behind > 0 ? 'ahead of' : 'behind')} the same ${start} put in an S&amp;P 500 fund at the start, which would be ${usd(vs.value)} now${fd ? ` (${usShut ? 'its last trading day' : 'today'} ${movedHtml(fd.usd, fd.pct)})` : ''}`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
@@ -997,7 +1001,7 @@
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
             <div class="pp-top">
-                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since the start · fake money, it started with ${usd(state.startingCash)}`, s.gainUsd)}
+                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since it started with ${usd(state.startingCash).replace(/\.00$/, '')} · fake money`, s.gainUsd)}
                 ${card(s.dayClosed ? 'Last trading day' : 'Today', s.dayUsd === null ? '–' : big(s.dayUsd), s.dayUsd === null ? 'nothing held' : share(dayOfAccount) + ' of the account · ' + (s.dayClosed ? `its markets are closed now: each holding's last session${s.dayLast ? ' (latest prices ' + esc(when(new Date(s.dayLast).toISOString())) + ')' : ''}` : 'what it holds now'), s.dayUsd === null ? 0 : s.dayUsd)}
                 ${fundCard}
             </div>
@@ -1186,9 +1190,14 @@
             // result since the start, and the account against the same money in an S&P 500 fund since the start
             const bought = state.holdings.concat(state.closed).reduce((n, h) => n + (h.costUsd || 0), 0), start = state.startingCash || STARTING_CASH;
             const gainAll = summarize(state, quotes).accountValue - start;
+            // Every market's holdings together, on the same holdings both ways (30 Oct 2026, the owner: "so i can see overall if ... the s&p
+            // beats holding vs holding in all indicies"): against an S&P 500 fund on the same days, and against each holding's own index
+            const sumOf = (k) => groups.reduce((n, r) => n + (r[k] || 0), 0), spPct = sumOf('compared') > 0 ? (sumOf('gainCompared') - sumOf('fundUsd')) / sumOf('compared') * 100 : null;
+            const hmPct = sumOf('homeCost') > 0 ? sumOf('homeGap') / sumOf('homeCost') * 100 : null, sign = (p) => `${p > 0.05 ? '▲ ' : p < -0.05 ? '▼ ' : ''}${Math.abs(p).toFixed(1)}%`;
+            const bothHtml = spPct === null ? '' : `<small class="pp-home">the autopilot’s holdings: against the S&amp;P 500 ${sign(spPct)}${hmPct === null ? (indexWait ? ' · their own indexes: …' : '') : ` · against their own indexes ${sign(hmPct)}${sumOf('homeCost') >= sumOf('homeable') - 0.01 ? '' : ' (part)'}`}</small>`;
             const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>the whole account since the start, against the same ${usd(start).replace(/\.00$/, '')} in an S&amp;P 500 fund</small></span>`
                 + `<span class="pp-mkt-in" data-label="Total bought">${usd(bought).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(gainAll, gainAll / start * 100)}</span>`
-                + `<span class="pp-mkt-vs" data-label="Against the S&amp;P 500">${vs ? vsHtml({ aheadUsd: vs.gapUsd, aheadPct: Math.abs(vs.gapUsd) / start * 100 }) : '–'}</span></button>`;
+                + `<span class="pp-mkt-vs" data-label="Against the S&amp;P 500">${vs ? vsHtml({ aheadUsd: vs.gapUsd, aheadPct: Math.abs(vs.gapUsd) / start * 100 }) : '–'}${bothHtml}</span></button>`;
             const tally = vs && idle !== null ? `<div class="pp-mkt-tally"><div class="pp-mkt-sum" style="margin-top: 6px;"><strong>How they add up</strong> (the percentages against the S&amp;P 500 here are of the ${usd(state.startingCash).replace(/\.00$/, '')} it started with)</div>`
                 + sumRow('The autopilot’s markets', 'the rows above, added up', groups.reduce((n, r) => n + r.aheadUsd, 0))
                 + (own ? row(Object.assign({}, own, { label: 'Your own buys', aheadPct: own.aheadUsd / (state.startingCash || STARTING_CASH) * 100 }), false) : '')

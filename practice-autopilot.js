@@ -446,7 +446,7 @@
         if (!s.screeners.length) return 'On, but no screener is chosen yet. Tick at least one below and it will start at the next check-in.';
         const r = withHoldings(data.options.risk[String(s.risk)] || {}, s);
         const t = data.themes && data.themes.on ? data.themes : null, forShares = t ? s.budgetUsd * (1 - t.share) : s.budgetUsd;
-        const holding = data.holding ? ` Holding ${data.holding.count} of up to ${r.positions}: ${usd0(data.holding.investedUsd)} of the ${usd0(forShares)} ${t ? 'for shares' : 'budget'} is invested.`
+        const holding = data.holding ? ` Holding ${data.holding.count}${data.holding.count > r.positions ? ` (its number of holdings is now ${r.positions}, so it buys again once fewer are held)` : ` of up to ${r.positions}`}: ${usd0(data.holding.investedUsd)} of the ${usd0(forShares)} ${t ? 'for shares' : 'budget'} is invested.`
             + (t ? ` The sector funds (trial) hold ${t.held.length} fund${t.held.length === 1 ? '' : 's'} (${usd0(t.invested)} of its ${usd0(t.target)}).` : '') : '';
         const next = data.nextCheck && data.nextCheck.at
             ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${andList(data.nextCheck.markets)} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
@@ -1289,7 +1289,7 @@
             return;
         }
         saveError = null;
-        if (id === 'ap-enabled') { if (e.type === 'change') flush(); return; }           // the switch saves at once
+        if (id === 'ap-enabled') { if (e.type === 'change') { if (e.target.checked && window.stockiqTrack) stockiqTrack('autopilot_on'); flush(); } return; }           // the switch saves at once
         queueSave(e.type === 'change' ? 150 : 900);                                      // ticks and menus quickly; typing after a pause
     };
     document.addEventListener('input', changed);

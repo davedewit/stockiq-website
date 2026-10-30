@@ -11,6 +11,13 @@
     } catch (e) { /* storage blocked: shown as signed out */ }
 })();
 
+// One way to record a step on the way to signing up and paying, in Google Analytics (30 Oct 2026, Admin #11): sign_up,
+// analysis_run, autopilot_on, begin_checkout, purchase. Sent with a beacon so a redirect straight after does not lose it.
+// No address or name is ever sent. A page without the Google tag simply records nothing.
+window.stockiqTrack = function (name, params) {
+    try { if (typeof gtag === 'function') gtag('event', name, Object.assign({ transport_type: 'beacon' }, params || {})); } catch (e) {}
+};
+
 // Auto theme switching based on time
 function getAutoTheme() {
     const hour = new Date().getHours();

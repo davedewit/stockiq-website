@@ -587,6 +587,7 @@
                 }
                 authManager.checkAuthStatus();
             }
+            if (window.stockiqTrack) stockiqTrack('sign_up', { method: 'facebook' });
             
             // Redirect to dashboard
             window.location.href = 'dashboard.html';
@@ -726,6 +727,7 @@
                 }
                 
                 console.log('✅ Google user signed up successfully:', googleUser);
+                if (window.stockiqTrack) stockiqTrack('sign_up', { method: 'google' });
                 
                 // Redirect to dashboard
                 console.log('🔵 Redirecting to dashboard...');
@@ -792,6 +794,7 @@
                 if (typeof authManager !== 'undefined' && authManager.signUp) {
                     const result = await authManager.signUp(userData.email, userData.password, userData.fullName);
                     if (result.success) {
+                        if (window.stockiqTrack) stockiqTrack('sign_up', { method: 'email' });
                         alert('Registration successful! Please check your email for verification.');
                         // Show verification modal or redirect
                         showVerificationModal(userData.email);

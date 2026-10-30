@@ -326,6 +326,7 @@ async function checkDailyUsageLimit() {
 }
 
 async function incrementDailyUsage() {
+    if (window.stockiqTrack) stockiqTrack('analysis_run', { signed_in: !!(typeof authManager !== 'undefined' && authManager.isAuthenticated && authManager.isAuthenticated()) });
     if (typeof authManager !== 'undefined') {
         if (authManager.isAuthenticated()) {
             console.log('📊 Incrementing usage for user:', authManager.currentUser?.email);
