@@ -469,11 +469,11 @@
         else items.push([now, '<b>Your next check-in</b>: when you can']);
         if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The full check of the site <span class="ad-sub">(automatic, a script on your Mac with the daily update; emailed to you)</span>']);
         if (d.nextReview) items.push([at(d.nextReview), 'The autopilot reviews its own trades <span class="ad-sub">(automatic, on AWS; no session needed)</span>']);
-        // the next daily update: Mon to Sat, from 7am on the Mac, once a day (25 Oct 2026, the owner asked what runs when)
+        // the next daily update: every day, whenever the Mac is on, once a day (updated 29 Oct 2026)
         { const ran = (plan.dailyRuns || []).map(r => r.date), t = new Date(); let n = 0;
           const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
           while (n < 8 && (t.getDay() === 0 || (n === 0 && ran.includes(iso(t))))) { t.setDate(t.getDate() + 1); n++; }
-          items.push([n === 0 ? now : t.setHours(9, 0, 0, 0), 'The daily update <span class="ad-sub">(automatic, on your Mac Mon to Sat while it is on: news, stock pages, the site check; emailed to you)</span>']); }
+          items.push([n === 0 ? now : t.setHours(9, 0, 0, 0), 'The daily update <span class="ad-sub">(automatic, on your Mac every day while it is on: news, stock pages, the site check; emailed to you)</span>']); }
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
             .forEach(x => items.push([at(x.decide), 'A trial is decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80)) + ' <span class="ad-sub">(at the next session, on its figures)</span>']));
         if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
@@ -551,9 +551,9 @@
         const runs = (plan.dailyRuns || []).slice(-3).reverse();
         const runsTxt = runs.length ? runs.map(r => `${r.ok ? '✅' : '⚠️'} ${new Date(r.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${r.ok ? '' : ': ' + r.issue}`).join(' · ') : 'no run recorded yet';
         const jobs = [
-            [runs.length ? runs[0].ok && fresh(runs[0].date + 'T12:00:00Z', 4 * 24) : false, `The daily update: news, stock pages, the daily screener pages, the site check, backups, GitHub. Last runs: ${runsTxt}`, 'Mon to Sat, once a day from 7am, while your Mac is on; emailed to you', null],
+            [runs.length ? runs[0].ok && fresh(runs[0].date + 'T12:00:00Z', 4 * 24) : false, `The daily update: news, stock pages, the daily screener pages, the site check, backups, GitHub. Last runs: ${runsTxt}`, 'Every day, once a day, while your Mac is on; emailed to you', null],
             [fresh(h && h.at, 2), 'The autopilot: trades, with the half-hourly stop watch; its budget follows its results', 'every 30 minutes', h && h.at],
-            [fresh(a && a.at, 4 * 24), 'The site check: links, search basics, stale pages, made-up figures', 'with every daily update (Mon to Sat, while your Mac is on)', a && a.at],
+            [fresh(a && a.at, 4 * 24), 'The site check: links, search basics, stale pages, made-up figures', 'with every daily update (every day, while your Mac is on)', a && a.at],
             [fresh(plan.dailyReview ? plan.dailyReview + 'T23:59:00Z' : null, 4 * 24), 'The daily review by Claude: reads the site, puts proposals here', 'once a day, after the daily update', plan.dailyReview ? plan.dailyReview + 'T12:00:00Z' : null],
             [fresh(w && w.at, 9 * 24) && w && w.passed === w.total, 'The full check of the site: test suites, figures across pages, a rotating set of buttons; emailed to you', 'every 7 days, with the daily update', w && w.at],
             [fresh(r && r.at, 8 * 24), 'The autopilot\'s weekly review: written by itself, shown in the row above', 'every 7 days', r && r.at],
@@ -580,7 +580,7 @@
         if (!a || !a.findings) return '';
         const row = (f) => `<li style="margin: 4px 0;"><span class="ad-pill ${f.level === 'problem' ? 'bad' : 'info'}" style="margin-right: 6px;">${f.level === 'problem' ? 'problem' : 'idea'}</span>${f.new ? '<strong style="color: var(--ad-amber);">new</strong> ' : ''}${esc(f.text)}${f.where ? ` <span class="ad-sub">${esc(f.where)}</span>` : ''}</li>`;
         const probs = a.findings.filter(f => f.level === 'problem'), ideas = a.findings.filter(f => f.level !== 'problem');
-        return `<div class="ad-card${probs.length ? ' run bad' : ' run'}"><span class="ad-label">🔎 Site check <span class="ad-sub">with the daily update (Mon to Sat, while your Mac is on) · last ${esc(day(a.at))} · ${probs.length} problem${probs.length === 1 ? '' : 's'}, ${ideas.length} idea${ideas.length === 1 ? '' : 's'}${a.new ? ` · ${a.new} new` : ''}${a.gone ? ` · ${a.gone} put right` : ''}</span></span>
+        return `<div class="ad-card${probs.length ? ' run bad' : ' run'}"><span class="ad-label">🔎 Site check <span class="ad-sub">with the daily update (every day, while your Mac is on) · last ${esc(day(a.at))} · ${probs.length} problem${probs.length === 1 ? '' : 's'}, ${ideas.length} idea${ideas.length === 1 ? '' : 's'}${a.new ? ` · ${a.new} new` : ''}${a.gone ? ` · ${a.gone} put right` : ''}</span></span>
             <div class="ad-sub" style="margin: 4px 0 6px;">The site's pages and scripts tested for faults a person would otherwise have to spot: links, search basics, copied code, made-up visuals, pages that grew heavy. A session works through these; nothing here changes the site by itself.</div>
             ${probs.length ? `<ul style="margin: 0; padding-left: 18px;">${probs.map(row).join('')}</ul>` : '<div>✓ No problems found.</div>'}
             ${ideas.length ? `<details style="margin-top: 6px;"><summary class="ad-sub" style="cursor: pointer;">${ideas.length} idea${ideas.length === 1 ? '' : 's'}</summary><ul style="margin: 4px 0 0; padding-left: 18px;">${ideas.map(row).join('')}</ul></details>` : ''}</div>`;
