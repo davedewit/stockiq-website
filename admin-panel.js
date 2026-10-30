@@ -213,7 +213,7 @@
         if (!(f.ownValue > 0) || !(f.fundValue > 0)) return '';
         const shares = f.accountValue - f.ownValue, markets = f.ownValue - f.fundValue;
         const part = (n) => `<b class="${n >= 0 ? 'ok' : 'red'}">${n >= 0 ? '▲' : '▼'} ${usd(Math.abs(n))}</b>`;
-        return `<div style="margin-top: 8px;"><b>Where the gap to the S&amp;P 500 comes from:</b> choosing shares ${part(shares)} (the account against the same markets with no AI) · choosing markets ${part(markets)} (those markets, and the coins it once bought, against the S&amp;P 500) = ${part(shares + markets)} in all.</div>`;
+        return `<div style="margin-top: 8px;"><b>Where the gap to the S&amp;P 500 comes from:</b> choosing shares ${part(shares)} (the account against the same markets with no AI) · choosing markets ${part(markets)} (those markets against the S&amp;P 500${typeof f.coinGap === 'number' && Math.abs(f.coinGap) >= 1 ? `; the coin trades ${part(f.coinGap)} of it` : ''}) = ${part(shares + markets)} in all.</div>`;
     }
     function decisionHtml() {
         const f = liveAccount();
