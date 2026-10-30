@@ -1159,24 +1159,38 @@
         // Its own list, not a plain menu: a plain one cannot colour part of a line, and phones and Macs show it without colour. Each row:
         // what was put in, the result since then, and against the same money in an S&P 500 fund on the same days, the last coloured
         // (green ahead, red behind: the owner's goal is to beat the S&P 500). Ahead first, the largest lead at the top (23 Oct 2026).
-        const vsHtml = (r) => {
-            if (r.aheadUsd === null) return '<span class="pp-vs">–</span>';
-            const a = Math.round(r.aheadUsd);
-            return a === 0 ? '<span class="pp-vs">level</span>' : `<span class="pp-vs ${a > 0 ? 'up' : 'down'}">${a > 0 ? '▲' : '▼'} ${usd(Math.abs(a)).replace(/\.00$/, '')} (${Math.abs(r.aheadPct).toFixed(1)}%) ${a > 0 ? 'ahead' : 'behind'}</span>`;
+        // Each row: our result against the same money put into that row's own index on the same days it bought and sold (30 Oct 2026,
+        // the owner: "our result, vs result if we had just invested in x fund": the Dow 30's buys against the Dow, the NASDAQ 100's against
+        // the NASDAQ 100). The sector funds and the owner's own buys have no index of their own: the S&P 500 is theirs. Coins have none.
+        // The S&P 500 stays as a grey line under each badge, the top card and the graph's gold line. Ahead first.
+        const coinRow = (r) => r.group === 'Coins' || r.key === 's:7-1';
+        const bench = (r) => {
+            if (r.homeable) return r.homeCost > 0 ? { usd: r.homeGap, pct: r.homeGap / r.homeCost * 100, name: r.homeNames.length === 1 ? r.homeNames[0] : 'their own indexes', part: !r.homeAll } : (indexWait ? 'wait' : null);
+            if (coinRow(r) || r.aheadUsd === null) return null;
+            return { usd: r.aheadUsd, pct: r.aheadPct, name: 'S&P 500', part: false };
         };
+        const badge = (b) => {
+            if (b === 'wait') return '<span class="pp-vs">…</span>';
+            if (!b) return '<span class="pp-vs">–</span>';
+            const a = Math.round(b.usd);
+            return a === 0 ? '<span class="pp-vs">level</span>' : `<span class="pp-vs ${a > 0 ? 'up' : 'down'}">${a > 0 ? '▲' : '▼'} ${usd(Math.abs(a)).replace(/\.00$/, '')} (${Math.abs(b.pct).toFixed(1)}%) ${a > 0 ? 'ahead' : 'behind'}</span>`;
+        };
+        const vsHtml = (r) => badge(bench(r));
+        const spWords = (n) => { const a = Math.round(n); return a === 0 ? 'level' : `${a > 0 ? '▲' : '▼'} ${usd(Math.abs(a)).replace(/\.00$/, '')}`; };
         const row = (r, sub) => `<button type="button" class="pp-mkt-row${sub ? ' sub' : ''}${chartKey === r.key ? ' on' : ''}" data-pp="market" data-id="${esc(r.key)}" aria-pressed="${chartKey === r.key}">`
             + `<span class="pp-mkt-name">${esc(r.label)}<small>${r.trades} ${r.trades === 1 ? 'holding' : 'holdings'}${r.held ? `, ${r.held} still held` : ''}</small></span>`
             + `<span class="pp-mkt-in" data-label="Total bought">${usd(r.cost).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(r.gainUsd, r.cost ? r.gainUsd / r.cost * 100 : null)}</span>`
-            + `<span class="pp-mkt-vs" data-label="Against the S&amp;P 500">${vsHtml(r)}${homeHtml(r)}</span></button>`;
-        // its own index, in its own currency: smaller and grey under the S&P 500's badge (the S&P stays the figure to decide by)
-        const homeHtml = (r) => {
-            if (!r.homeable) return '';                                   // coins and the sector funds have no home index
-            if (r.homePct === null) return indexWait ? '<small class="pp-home">its own index: …</small>' : '';
-            const p = Math.round(r.homePct * 10) / 10, who = r.homeNames.length === 1 ? 'the ' + esc(r.homeNames[0]) : 'their own indexes';
-            return `<small class="pp-home">against ${who}: ${p > 0 ? '▲ ' : p < 0 ? '▼ ' : ''}${Math.abs(p).toFixed(1)}%${r.homeAll ? '' : ' (part)'}</small>`;
+            + `<span class="pp-mkt-vs" data-label="Against its own index">${vsHtml(r)}${greyHtml(r)}</span></button>`;
+        // under the badge: which index it is, and the S&P 500 for the same money, small and grey
+        const greyHtml = (r) => {
+            const b = bench(r), sp = r.aheadUsd !== null && !(b && b !== 'wait' && /^S&P 500/.test(b.name)) ? ` · S&amp;P 500: ${spWords(r.aheadUsd)}` : '';
+            if (b === 'wait') return `<small class="pp-home">its own index: …${sp}</small>`;
+            if (!b) return coinRow(r) ? '<small class="pp-home">coins have no index here</small>' : '';
+            return `<small class="pp-home">${b.name === 'their own indexes' ? 'against their own indexes' : `if in the ${esc(b.name)} instead`}${b.part ? ' (part)' : ''}${sp}</small>`;
         };
         if (mktOpen) ensureIndexes();
-        const order = (a, b) => (b.aheadUsd === null ? -1e12 : b.aheadUsd) - (a.aheadUsd === null ? -1e12 : a.aheadUsd);
+        const gapOf = (r) => { const b = bench(r); return b && b !== 'wait' ? b.usd : -1e12; };
+        const order = (a, b) => gapOf(b) - gapOf(a);
         const menu = !results ? '' : (() => {
             const groups = Object.values(results).filter(r => r.key[0] === 'g').sort(order);
             // How the rows add up to the account's own gap to the fund (the owner checked the sum, 23 Oct 2026): the markets, the
@@ -1186,37 +1200,31 @@
             const covered = parts.every(r => r.aheadUsd !== null && r.compared >= r.cost - 0.01);
             const idle = vs && covered ? vs.gapUsd - parts.reduce((n, r) => n + r.aheadUsd, 0) : null;
             const sumRow = (label, sub, amount, key) => `<${key !== undefined ? `button type="button" data-pp="market" data-id="${key}"` : 'div'} class="pp-mkt-row sumrow${key === 'value' && !isMarket(chartKey) && chartKey === 'value' ? ' on' : ''}"><span class="pp-mkt-name">${label}<small>${sub}</small></span><span class="pp-mkt-in"></span><span class="pp-mkt-res"></span><span class="pp-mkt-vs">${vsHtml({ aheadUsd: amount, aheadPct: Math.abs(amount) / (state.startingCash || STARTING_CASH) * 100 })}</span></${key !== undefined ? 'button' : 'div'}>`;
-            // the totals, on the first row (23 Oct 2026, the owner: "this will be the main thing i always look at"): every buy, the account's
-            // result since the start, and the account against the same money in an S&P 500 fund since the start
-            const bought = state.holdings.concat(state.closed).reduce((n, h) => n + (h.costUsd || 0), 0), start = state.startingCash || STARTING_CASH;
-            const gainAll = summarize(state, quotes).accountValue - start;
-            // Every market's holdings together, on the same holdings both ways (30 Oct 2026, the owner: "so i can see overall if ... the s&p
-            // beats holding vs holding in all indicies"): against an S&P 500 fund on the same days, and against each holding's own index
-            const sumOf = (k) => groups.reduce((n, r) => n + (r[k] || 0), 0), spPct = sumOf('compared') > 0 ? (sumOf('gainCompared') - sumOf('fundUsd')) / sumOf('compared') * 100 : null;
-            // in dollars both ways (30 Oct 2026, the owner: "0.2% a dollar" meant nothing; a percent here is of every dollar traded, several
-            // times the $100,000, and read wrongly beside the badge's percent of the $100,000)
-            const money = (n) => { const r = Math.round(n); return r === 0 ? 'level with' : `${r > 0 ? '▲' : '▼'} ${usd(Math.abs(r)).replace(/\.00$/, '')} ${r > 0 ? 'ahead of' : 'behind'}`; };
-            const homeUsd = sumOf('homeCost') > 0 ? sumOf('homeGap') : null;
-            const bothHtml = spPct === null ? '' : `<small class="pp-home">the autopilot’s buys: ${money(sumOf('gainCompared') - sumOf('fundUsd'))} the S&amp;P 500${homeUsd === null ? (indexWait ? ' · their own markets: …' : '') : ` · ${money(homeUsd)} their own markets’ indexes${sumOf('homeCost') >= sumOf('homeable') - 0.01 ? '' : ' (part)'}`}</small>`;
-            const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>the whole account since the start, against the same ${usd(start).replace(/\.00$/, '')} in an S&amp;P 500 fund</small></span>`
-                + `<span class="pp-mkt-in" data-label="Total bought">${usd(bought).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(gainAll, gainAll / start * 100)}</span>`
-                + `<span class="pp-mkt-vs" data-label="Against the S&amp;P 500">${vs ? vsHtml({ aheadUsd: vs.gapUsd, aheadPct: Math.abs(vs.gapUsd) / start * 100 }) : '–'}${bothHtml}</span></button>`;
-            const tally = vs && idle !== null ? `<div class="pp-mkt-tally"><div class="pp-mkt-sum" style="margin-top: 6px;"><strong>How they add up</strong> (the percentages against the S&amp;P 500 here are of the ${usd(state.startingCash).replace(/\.00$/, '')} it started with)</div>`
+            // All markets (the owner's main view): every market row added up, each against its own index, the same money on the same days
+            const sumOf = (k) => groups.reduce((n, r) => n + (r[k] || 0), 0);
+            const gb = groups.map(bench), waiting = gb.some(b => b === 'wait'), have = gb.filter(b => b && b !== 'wait');
+            const allGap = have.reduce((n, b) => n + b.usd, 0), allCost = groups.filter((r, i) => gb[i] && gb[i] !== 'wait').reduce((n, r) => n + (r.homeable ? r.homeCost : r.compared), 0);
+            const allBadge = waiting ? badge('wait') : have.length ? badge({ usd: allGap, pct: allCost > 0 ? allGap / allCost * 100 : 0 }) : badge(null);
+            const spAll = sumOf('gainCompared') - sumOf('fundUsd'), aiCost = sumOf('cost'), aiGain = sumOf('gainUsd');
+            const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>every buy of the autopilot, against the same money in each one's own index on the same days</small></span>`
+                + `<span class="pp-mkt-in" data-label="Total bought">${usd(aiCost).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(aiGain, aiCost ? aiGain / aiCost * 100 : null)}</span>`
+                + `<span class="pp-mkt-vs" data-label="Against its own index">${allBadge}<small class="pp-home">if in their own indexes instead${groups.some(coinRow) ? ' (coins left out)' : ''} · S&amp;P 500: ${spWords(spAll)}</small></span></button>`;
+            const tally = vs && idle !== null ? `<details class="pp-mkt-tally"><summary class="pp-mkt-sum" style="margin-top: 6px; cursor: pointer;"><strong>Against the S&amp;P 500 instead:</strong> how the whole account's ${spWords(vs.gapUsd)} adds up (percentages of the ${usd(state.startingCash).replace(/\.00$/, '')} it started with)</summary>`
                 + sumRow('The autopilot’s markets', 'the rows above, added up', groups.reduce((n, r) => n + r.aheadUsd, 0))
                 + (own ? row(Object.assign({}, own, { label: 'Your own buys', aheadPct: own.aheadUsd / (state.startingCash || STARTING_CASH) * 100 }), false) : '')
                 + sumRow('Money kept as cash', `cash does not move; ${(versusStart(state, quotes, Date.now()) || {}).gainUsd < 0 ? 'the fund fell while this money waited, so this part is ahead of it' : 'the fund rose while this money waited, so this part is behind it'} (the time before each buy, and money not yet put back in after a sale)`, idle)
                 + sumRow('All markets together', `the whole account, against the same ${usd(state.startingCash).replace(/\.00$/, '')} in an S&amp;P 500 fund since the start: the three lines above added up`, vs.gapUsd, 'value')
-                + `</div>` : '';
+                + `</details>` : '';
             const subs = (g) => Object.values(results).filter(r => r.key[0] === 's' && r.group === g.group).sort(order);
-            const all = Object.values(results).filter(r => r.key[0] === 's' && r.aheadUsd !== null), up = all.filter(r => Math.round(r.aheadUsd) > 0), down = all.filter(r => Math.round(r.aheadUsd) < 0);
-            const total = (list) => usd(Math.abs(list.reduce((n, r) => n + r.aheadUsd, 0))).replace(/\.\d\d$/, '');
+            const all = Object.values(results).filter(r => r.key[0] === 's' && gapOf(r) > -1e11), up = all.filter(r => Math.round(gapOf(r)) > 0), down = all.filter(r => Math.round(gapOf(r)) < 0);
+            const total = (list) => usd(Math.abs(list.reduce((n, r) => n + gapOf(r), 0))).replace(/\.\d\d$/, '');
             const few = Object.values(results).filter(r => r.trades < 30).length;
             const now = isMarket(chartKey) && results[chartKey] ? results[chartKey] : null;
             return `<div class="pp-mkt${mktOpen ? ' open' : ''}" id="pp-mkt">
                 <button type="button" class="pp-mkt-btn" data-pp="mkt-toggle" aria-expanded="${mktOpen}">By market: <strong>${now ? esc(now.label) : chartKey === 'own' ? 'Your own buys' : 'All markets'}</strong>${now ? ' ' + vsHtml(now) : ''} <span aria-hidden="true">▾</span></button>
                 <div class="pp-mkt-panel"${mktOpen ? '' : ' hidden'}>
-                    <div class="pp-mkt-sum">Against the S&amp;P 500, screener by screener: <span class="pp-vs up">${up.length} ahead, by ${total(up)} together</span> · <span class="pp-vs down">${down.length} behind, by ${total(down)}</span>.${few ? ` <strong>Under 30 holdings is too few to tell skill from luck.</strong>` : ''} <details class="pp-mkt-how"><summary>How it is worked out</summary>Each holding is set against the same money put into an S&amp;P 500 fund the day it was bought and taken out the day it was sold (or now), with no trading cost taken off the fund; sold and still held together, ahead first. "Total bought" adds up every buy: the money from a sale is used again for the next buy, so it keeps growing whether the trades win or lose (it is not money lost or at risk). The result's percent is of it: what each dollar traded made on average. The grey line is each holding against its own market's index (an ASX share against the ASX 200), in that market's own currency, so a currency's move is left out: it says whether the picks did better than their market, while the S&amp;P 500 figure says whether the market was worth the money. The index's price at the moment of a buy or a sale is read between its daily closes, so that line is an approximation.</details></div>
-                    <div class="pp-mkt-head" aria-hidden="true"><span>Market and screener</span><span>Total bought</span><span>Result</span><span>Against the S&amp;P 500</span></div>
+                    <div class="pp-mkt-sum">Against its own index, screener by screener: <span class="pp-vs up">${up.length} ahead, by ${total(up)} together</span> · <span class="pp-vs down">${down.length} behind, by ${total(down)}</span>.${few ? ` <strong>Under 30 holdings is too few to tell skill from luck.</strong>` : ''} <details class="pp-mkt-how"><summary>How it is worked out</summary>Each holding is set against the same money put into its own market's index the day it was bought and taken out the day it was sold (or now): a Dow 30 buy against the Dow, an ASX share against the ASX 200, in that market's own currency, so a currency's move is left out. The sector funds and your own buys are set against the S&amp;P 500, coins against nothing. Sold and still held together, ahead first; no trading cost is taken off the index. "Total bought" adds up every buy: the money from a sale is used again for the next buy, so it keeps growing whether the trades win or lose (it is not money lost or at risk). The result's percent is of it: what each dollar traded made on average. The grey line gives the same money in an S&amp;P 500 fund instead, in dollars: whether the market itself was worth being in. An index's price at the moment of a buy or a sale is read between its daily closes, so these figures are an approximation.</details></div>
+                    <div class="pp-mkt-head" aria-hidden="true"><span>Market and screener</span><span>Total bought</span><span>Result</span><span>Against its own index</span></div>
                     ${allRow}
                     ${groups.map(g => row(g, false) + (subs(g).length > 1 ? subs(g).map(r => row(r, true)).join('') : '')).join('')}
                     ${tally}
