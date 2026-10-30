@@ -59,6 +59,10 @@
         #admin-panel .ad-tl li:first-child { border-top: 0; }
         #admin-panel .ad-tl-day { color: var(--text-secondary); white-space: nowrap; }
         #admin-panel .ad-tl-items { display: flex; flex-direction: column; gap: 2px; }
+        #admin-panel a.ad-go { color: inherit; text-decoration: underline; text-decoration-color: var(--border-color); text-underline-offset: 3px; }
+        #admin-panel a.ad-go:hover { text-decoration-color: currentColor; }
+        #admin-panel .ad-card, #admin-panel details.ad-row { scroll-margin-top: calc(var(--body-padding, 105px) + 12px); }
+        #admin-panel .ad-flash { outline: 2px solid #3b82f6; outline-offset: 4px; border-radius: 8px; transition: outline-color 1s; }
         #admin-panel .ad-sub { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
         #admin-panel .ad-goal { padding: 10px 0; border-top: 1px solid var(--border-color); } #admin-panel .ad-goal:first-of-type { border-top: none; padding-top: 2px; }
         #admin-panel .ad-goal-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
@@ -236,7 +240,7 @@
             <span><span class="ad-goal-now">${now}</span> <span class="ad-pill ${met ? 'good' : 'warn'}">${met ? '✓ target ' : 'target '}${goal}</span></span></div>
             ${fill === null ? '' : `<div class="ad-bar${met ? ' met' : ''}"><span style="width: ${Math.max(2, Math.min(100, fill)).toFixed(0)}%;"></span></div>`}</div>`;
         const avgOk = g.n > 0 && g.avg > g.avgGoal;
-        return `<div class="ad-card goal"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft} days left</span></span>
+        return `<div class="ad-card goal" id="ad-month"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft} days left</span></span>
             ${row('Finished trades in all', String(g.trades), g.tradesGoal, g.trades >= g.tradesGoal, g.trades / g.tradesGoal * 100)}
             ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(${g.n} trades; the real average is probably between ${signed(g.avg - 2 * g.se, 2)}% and ${signed(g.avg + 2 * g.se, 2)}%)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
             ${row(g.live ? 'The practice account, at the latest prices' : g.waiting ? 'The practice account (getting the latest prices)' : 'The practice account, about (an estimate: the latest prices did not come in)', g.waiting ? '…' : `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.waiting ? null : Math.max(0, (g.value - START) / (g.valueGoal - START) * 100))}
@@ -470,38 +474,40 @@
         const plan = d.plan || {}, now = Date.now(), DAY = 86400000, at = (iso) => Date.parse(iso.length === 10 ? iso + 'T12:00:00Z' : iso);
         const fmt = (t) => new Date(t).toLocaleDateString(undefined, Object.assign({ weekday: 'short', day: 'numeric', month: 'short' }, new Date(t).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}));
         const items = [];
+        // each line jumps to its detail further down (30 Oct 2026, the owner: "so i can click things and it takes me to the detail")
+        const go = (target, html) => `<a href="#" class="ad-go" data-ad-go="${target}">${html}</a>`;
         if (needNow === 'urgent') items.push([now, '<b>Your next check-in: now</b> (see above)']);
         else if (last) items.push([Math.max(now, at(last.at) + 7 * DAY), needNow ? '<b>Your next check-in</b> (a session with Claude: say hi): when you can, by this day at the latest (see above)' : '<b>Your next check-in</b> (a session with Claude: say hi): say hi by then (7 days after the last session)']);
         else items.push([now, '<b>Your next check-in</b>: when you can']);
-        if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, 'The full check of the site <span class="ad-sub">(automatic, a script on your Mac with the daily update; emailed to you)</span>']);
-        if (d.nextReview) items.push([at(d.nextReview), 'The autopilot reviews its own trades <span class="ad-sub">(automatic, on AWS; no session needed)</span>']);
+        if (plan.weekly) items.push([at(plan.weekly.at) + 7 * DAY, go('row:weekly', 'The full check of the site') + ' <span class="ad-sub">(automatic, a script on your Mac with the daily update; emailed to you)</span>']);
+        if (d.nextReview) items.push([at(d.nextReview), go('row:review', 'The autopilot reviews its own trades') + ' <span class="ad-sub">(automatic, on AWS; no session needed)</span>']);
         // the next daily update: every day, whenever the Mac is on, once a day (updated 29 Oct 2026)
         { const ran = (plan.dailyRuns || []).map(r => r.date), t = new Date(); let n = 0;
           const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
           while (n < 8 && (t.getDay() === 0 || (n === 0 && ran.includes(iso(t))))) { t.setDate(t.getDate() + 1); n++; }
-          items.push([n === 0 ? now : t.setHours(9, 0, 0, 0), 'The daily update <span class="ad-sub">(automatic, on your Mac every day while it is on: news, stock pages, the site check; emailed to you)</span>']); }
+          items.push([n === 0 ? now : t.setHours(9, 0, 0, 0), go('row:selfrun', 'The daily update') + ' <span class="ad-sub">(automatic, on your Mac every day while it is on: news, stock pages, the site check; emailed to you)</span>']); }
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
-            .forEach(x => items.push([at(x.decide), 'A trial is decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80)) + ' <span class="ad-sub">(at the next session, on its figures)</span>']));
-        if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
+            .forEach(x => items.push([at(x.decide), go('view:improvements', 'A trial is decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80))) + ' <span class="ad-sub">(at the next session, on its figures)</span>']));
+        if (d.goal && d.goal.due) items.push([at(d.goal.due), go('goal', esc(d.goal.name) + ' is due')]);
         // Both lists as a timeline: the day on the left, one line per item (30 Oct 2026, the owner: "the context looks kinda shit"; the
         // items of a day had run on in one line joined by dots). Coming up first, then what was done in the last 3 days.
         const dayKey = (t) => new Date(t).toDateString(), dayName = (t) => dayKey(t) === dayKey(now) ? 'Today' : fmt(t);
         const group = (list) => { const out = []; list.forEach(([t, text]) => { const last = out[out.length - 1]; if (last && dayKey(last[0]) === dayKey(t)) last[1].push(text); else out.push([t, [text]]); }); return out; };
         const block = (title, days) => days.length ? `<div class="ad-tl-head">${title}</div><ul class="ad-tl">`
-            + days.map(([t, texts]) => `<li><span class="ad-tl-day">${esc(dayName(t))}</span><span class="ad-tl-items">${texts.map(x => `<span>${x}</span>`).join('')}</span></li>`).join('') + '</ul>' : '';
+            + days.map(([t, texts]) => `<li><span class="ad-tl-day">${esc(dayName(t))}</span><span class="ad-tl-items">${texts.map(x => `<div>${x}</div>`).join('')}</span></li>`).join('') + '</ul>' : '';
         const coming = group(items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0])).slice(0, 6);
         // What was done in the last 3 days (30 Oct 2026, the owner: "show what was complete the past 2 or 3 days"). A weekly check-in
         // (a "hi" session that ran the full review) is named as such, apart from a small session and from the unattended daily review.
         const done = [], checkins = new Set(plan.checkins || []), iso = (t) => { const x = new Date(t); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
-        (plan.dailyRuns || []).forEach(r => done.push([at(r.date), r.ok ? '✅ The daily update' : r.fixed ? '✅ The daily update <span class="ad-sub">(it had a warning; since fixed)</span>' : '⚠️ The daily update <span class="ad-sub">(something to look at: in its email)</span>']));
+        (plan.dailyRuns || []).forEach(r => done.push([at(r.date), r.ok ? go('row:selfrun', '✅ The daily update') : r.fixed ? go('row:selfrun', '✅ The daily update') + ' <span class="ad-sub">(it had a warning; since fixed)</span>' : go('row:selfrun', '⚠️ The daily update') + ' <span class="ad-sub">(something to look at: in its email)</span>']));
         const perDay = {};
         (plan.changes || []).forEach(c => { const t = Date.parse(c.at); if (t >= now - 3 * DAY) { const k = dayKey(t); perDay[k] = perDay[k] || [t, 0]; perDay[k][1]++; } });
         Object.values(perDay).forEach(([t, n]) => done.push([t, checkins.has(iso(t))
-            ? `👋 <b>Your weekly check-in with Claude</b> <span class="ad-sub">(the full review; ${n} change${n === 1 ? '' : 's'}, in "What changed lately")</span>`
-            : `🔧 A session with Claude <span class="ad-sub">(${n} change${n === 1 ? '' : 's'}, in "What changed lately")</span>`]));
-        if (plan.weekly) done.push([at(plan.weekly.at), `🧪 The full check of the site <span class="ad-sub">(${plan.weekly.passed} of ${plan.weekly.total} passed)</span>`]);
-        if (d.review) done.push([at(d.review.at), '📋 The autopilot reviewed its own trades']);
-        if (plan.dailyReview) done.push([at(plan.dailyReview), '🔍 The daily review by Claude <span class="ad-sub">(unattended: reads the site, leaves proposals)</span>']);
+            ? go('changes', '👋 <b>Your weekly check-in with Claude</b>') + ` <span class="ad-sub">(the full review; ${n} change${n === 1 ? '' : 's'}, in "What changed lately")</span>`
+            : go('changes', '🔧 A session with Claude') + ` <span class="ad-sub">(${n} change${n === 1 ? '' : 's'}, in "What changed lately")</span>`]));
+        if (plan.weekly) done.push([at(plan.weekly.at), go('row:weekly', '🧪 The full check of the site') + ` <span class="ad-sub">(${plan.weekly.passed} of ${plan.weekly.total} passed)</span>`]);
+        if (d.review) done.push([at(d.review.at), go('row:review', '📋 The autopilot reviewed its own trades')]);
+        if (plan.dailyReview) done.push([at(plan.dailyReview), go('row:selfrun', '🔍 The daily review by Claude') + ' <span class="ad-sub">(unattended: reads the site, leaves proposals)</span>']);
         const recent = group(done.filter(([t]) => t >= now - 3 * DAY && t <= now + DAY).sort((a, b) => b[0] - a[0]));
         return block('Coming up', coming)
             + `<div class="ad-sub" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.85rem;">Further off: <b>${esc(fmt(at(JUDGE_ON)))}</b>, real money: the decision</div>`
@@ -662,6 +668,17 @@
         const v = e.target.closest && e.target.closest('#admin-panel [data-ad-view]');
         const vName = v && v.getAttribute('data-ad-view');
         if (vName === 'overview' || vName === 'improvements') { e.preventDefault(); view = vName; try { localStorage.setItem('stockiqAdminView', view); } catch (x) {} render(); return; }
+        const g = e.target.closest && e.target.closest('#admin-panel [data-ad-go]'), goTo = g && g.getAttribute && g.getAttribute('data-ad-go');
+        if (goTo) {
+            e.preventDefault();
+            const panel = document.getElementById('admin-panel');
+            if (goTo === 'view:improvements') { view = 'improvements'; try { localStorage.setItem('stockiqAdminView', view); } catch (x) {} render(); if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+            let el = null;
+            if (goTo.indexOf('row:') === 0) { el = panel && panel.querySelector(`details[data-ad-row="${goTo.slice(4)}"]`); if (el) { el.open = true; adOpen.add(goTo.slice(4)); } }
+            else el = document.getElementById(goTo === 'changes' ? 'ad-changes' : goTo === 'goal' ? 'ad-month' : goTo);
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('ad-flash'); setTimeout(() => el.classList.remove('ad-flash'), 1600); }
+            return;
+        }
         // the jump links at the top of the Improvements view: scroll there, without changing the address (the dashboard's tabs read it)
         const j = e.target.closest && e.target.closest('#admin-panel [data-ad-jump]');
         const jid = j && j.getAttribute ? j.getAttribute('data-ad-jump') : null;
