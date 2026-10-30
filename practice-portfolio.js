@@ -646,7 +646,9 @@
         #practice-portfolio .pp-card.up { border-top-color: #16a34a; } #practice-portfolio .pp-card.down { border-top-color: #ef4444; }
         #practice-portfolio .pp-card-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
         #practice-portfolio .pp-card-value { font-size: 1.45rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-        #practice-portfolio .pp-card-word { font-size: 0.7em; font-weight: 600; color: var(--text-secondary); }
+        #practice-portfolio .pp-card-day { display: inline-block; font-size: 0.5em; font-weight: 600; margin-left: 10px; white-space: nowrap; vertical-align: middle; }
+        @media (max-width: 640px) { #practice-portfolio .pp-top .pp-card { flex: 1 1 100%; } #practice-portfolio .pp-card-day { margin-left: 0; display: block; font-size: 0.55em; } }
+        #practice-portfolio .pp-card-day .pp-delta { font-weight: 600 !important; }
         #practice-portfolio .pp-card-sub { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
         #practice-portfolio .pp-pl { margin-bottom: 8px; }
         #practice-portfolio .pp-pl td { border-bottom: 1px solid var(--border-color); }
@@ -976,7 +978,7 @@
         // The top answers three questions at a glance: what is it worth, how is today, how is it since the start. Everything else
         // (cash, what is in holdings, the index fund, sold and still held, whose result is whose) was on show at once, about
         // seventeen figures with several of them twice: it is one line now, and the full breakdown one click away.
-        const big = (n) => movedHtml(n, null), share = (p) => (p === null || p === undefined || !isFinite(p)) ? '' : Math.abs(p).toFixed(2) + '%';
+        const share = (p) => (p === null || p === undefined || !isFinite(p)) ? '' : Math.abs(p).toFixed(2) + '%';
         const dayOfAccount = s.dayUsd !== null && s.accountValue - s.dayUsd > 0 ? s.dayUsd / (s.accountValue - s.dayUsd) * 100 : null;
         const gap = s.openGainPct !== null && s.marketPct !== null ? s.openGainPct - s.marketPct : null;
         // The one line says what the graph says: the whole account against the starting amount left in an S&P 500 fund since
@@ -989,11 +991,14 @@
         // fund's prices back to the start it falls back to what is still held against the fund over the same days.
         const start = usd(state.startingCash).replace(/\.00$/, '');
         const fd = vs ? fundDay(quotes, vs.value) : null, usShut = typeof usOpensIn === 'function' && usOpensIn(Date.now()) !== null;
-        const fundToday = fd ? `<span class="pp-fund-day">${usShut ? 'Last trading day' : 'Today'} ${movedHtml(fd.usd, fd.pct)}</span><br>` : '';
-        // Every big number is about the user's own account (30 Oct 2026, the owner: "everytime i look it i have to think for a minute
-        // what is up or down"): the gap to the fund is the big figure, said in words; the fund's own value is the small print.
-        const fundCard = vs ? card('Against the S&amp;P 500', behind === 0 ? 'level' : `${big(behind)} <span class="pp-card-word">${behind > 0 ? 'ahead' : 'behind'}</span>`,
-            `${behind === 0 ? 'level with' : Math.abs(behind / state.startingCash * 100).toFixed(2) + '% ' + (behind > 0 ? 'ahead of' : 'behind')} the same ${start} put in an S&amp;P 500 fund at the start, which would be ${usd(vs.value)} now${fd ? ` (${usShut ? 'its last trading day' : 'today'} ${movedHtml(fd.usd, fd.pct)})` : ''}`, behind)
+        // Two figures side by side, each with its own day beside it (30 Oct 2026, the owner: "hows my automation doing total and today, and
+        // hows s&p doing compared to it ... is its total higher or lower and how much up or down today"): the account, and what the same
+        // starting money in an S&P 500 fund would be worth now; under the second, how much higher or lower the account is.
+        const dayChip = (u, p, closed) => u === null || u === undefined ? '' : `<span class="pp-card-day">${movedHtml(u, p)} ${closed ? 'last trading day' : 'today'}</span>`;
+        const vsWords = behind === 0 ? 'Your account is level with it'
+            : `Your account is <strong style="color: ${tone(behind)};">${usd(Math.abs(behind))} (${Math.abs(behind / state.startingCash * 100).toFixed(2)}%) ${behind > 0 ? 'higher' : 'lower'}</strong>`;
+        const fundCard = vs ? card('If in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
+            `${vsWords} · the same ${start} put in an S&amp;P 500 fund at the start`, behind)
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
@@ -1001,8 +1006,7 @@
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
             <div class="pp-top">
-                ${card('Account value', usd(s.accountValue), `${movedHtml(s.gainUsd, s.gainPct)} since it started with ${usd(state.startingCash).replace(/\.00$/, '')} · fake money`, s.gainUsd)}
-                ${card(s.dayClosed ? 'Last trading day' : 'Today', s.dayUsd === null ? '–' : big(s.dayUsd), s.dayUsd === null ? 'nothing held' : share(dayOfAccount) + ' of the account · ' + (s.dayClosed ? `its markets are closed now: each holding's last session${s.dayLast ? ' (latest prices ' + esc(when(new Date(s.dayLast).toISOString())) + ')' : ''}` : 'what it holds now'), s.dayUsd === null ? 0 : s.dayUsd)}
+                ${card('Your account', `${usd(s.accountValue)}${dayChip(s.dayUsd, dayOfAccount, s.dayClosed)}`, `${movedHtml(s.gainUsd, s.gainPct)} since it started with ${usd(state.startingCash).replace(/\.00$/, '')} · fake money`, s.gainUsd)}
                 ${fundCard}
             </div>
             <div class="pp-facts">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
