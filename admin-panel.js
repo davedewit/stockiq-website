@@ -53,6 +53,12 @@
         #admin-panel .ad-card.ask { border-left-color: var(--ad-green); } #admin-panel .ad-card.ask.waiting { border-left-color: var(--ad-amber); background: var(--ad-amber-bg); }
         #admin-panel .ad-card.run { border-left-color: var(--ad-green); } #admin-panel .ad-card.run.bad { border-left-color: var(--ad-red); }
         #admin-panel .ad-label { display: block; font-weight: 800; font-size: 1.05rem; margin-bottom: 10px; color: var(--text-primary); }
+        #admin-panel .ad-tl-head { margin-top: 12px; font-weight: 700; font-size: 0.9rem; color: var(--text-primary); }
+        #admin-panel .ad-tl { list-style: none; margin: 4px 0 0; padding: 0; font-size: 0.88rem; line-height: 1.5; }
+        #admin-panel .ad-tl li { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--border-color); }
+        #admin-panel .ad-tl li:first-child { border-top: 0; }
+        #admin-panel .ad-tl-day { color: var(--text-secondary); white-space: nowrap; }
+        #admin-panel .ad-tl-items { display: flex; flex-direction: column; gap: 2px; }
         #admin-panel .ad-sub { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
         #admin-panel .ad-goal { padding: 10px 0; border-top: 1px solid var(--border-color); } #admin-panel .ad-goal:first-of-type { border-top: none; padding-top: 2px; }
         #admin-panel .ad-goal-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
@@ -477,33 +483,29 @@
         (plan.items || []).filter(x => x.status === 'running' && x.decide).sort((a, b) => a.decide.localeCompare(b.decide)).slice(0, 2)
             .forEach(x => items.push([at(x.decide), 'A trial is decided: ' + esc(String(x.what).split(/[:(]/)[0].trim().slice(0, 80)) + ' <span class="ad-sub">(at the next session, on its figures)</span>']));
         if (d.goal && d.goal.due) items.push([at(d.goal.due), esc(d.goal.name) + ' is due']);
-        const label = (t) => t <= now ? 'Today' : fmt(t), byDay = [];
-        items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0]).forEach(([t, text]) => {      // two things on one day share its line (23 Oct 2026)
-            const last = byDay[byDay.length - 1];
-            if (last && label(last[0]) === label(t)) last[1] += ' · ' + text; else byDay.push([t, text]);
-        });
-        const rows = byDay.slice(0, 6), li = ([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${esc(label(t))}</span> ${text}</li>`;
-        // What was done in the last 3 days, newest first (30 Oct 2026, the owner: "show what was complete the past 2 or 3 days"): the
-        // daily updates, the sessions (their lines in "What changed lately", counted a day), the full check, the reviews
-        const dayKey = (t) => new Date(t).toDateString(), done = [];
-        (plan.dailyRuns || []).forEach(r => done.push([at(r.date), r.ok ? '✅ The daily update' : '⚠️ The daily update (something to look at: in its email)']));
+        // Both lists as a timeline: the day on the left, one line per item (30 Oct 2026, the owner: "the context looks kinda shit"; the
+        // items of a day had run on in one line joined by dots). Coming up first, then what was done in the last 3 days.
+        const dayKey = (t) => new Date(t).toDateString(), dayName = (t) => dayKey(t) === dayKey(now) ? 'Today' : fmt(t);
+        const group = (list) => { const out = []; list.forEach(([t, text]) => { const last = out[out.length - 1]; if (last && dayKey(last[0]) === dayKey(t)) last[1].push(text); else out.push([t, [text]]); }); return out; };
+        const block = (title, days) => days.length ? `<div class="ad-tl-head">${title}</div><ul class="ad-tl">`
+            + days.map(([t, texts]) => `<li><span class="ad-tl-day">${esc(dayName(t))}</span><span class="ad-tl-items">${texts.map(x => `<span>${x}</span>`).join('')}</span></li>`).join('') + '</ul>' : '';
+        const coming = group(items.filter(([t]) => t >= now - DAY).sort((a, b) => a[0] - b[0])).slice(0, 6);
+        // What was done in the last 3 days (30 Oct 2026, the owner: "show what was complete the past 2 or 3 days"). A weekly check-in
+        // (a "hi" session that ran the full review) is named as such, apart from a small session and from the unattended daily review.
+        const done = [], checkins = new Set(plan.checkins || []), iso = (t) => { const x = new Date(t); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+        (plan.dailyRuns || []).forEach(r => done.push([at(r.date), r.ok ? '✅ The daily update' : r.fixed ? '✅ The daily update <span class="ad-sub">(it had a warning; since fixed)</span>' : '⚠️ The daily update <span class="ad-sub">(something to look at: in its email)</span>']));
         const perDay = {};
         (plan.changes || []).forEach(c => { const t = Date.parse(c.at); if (t >= now - 3 * DAY) { const k = dayKey(t); perDay[k] = perDay[k] || [t, 0]; perDay[k][1]++; } });
-        Object.values(perDay).forEach(([t, n]) => done.push([t, `🔧 A session with Claude: ${n} change${n === 1 ? '' : 's'} (in "What changed lately")`]));
-        if (plan.weekly) done.push([at(plan.weekly.at), `🧪 The full check: ${plan.weekly.passed} of ${plan.weekly.total} passed`]);
+        Object.values(perDay).forEach(([t, n]) => done.push([t, checkins.has(iso(t))
+            ? `👋 <b>Your weekly check-in with Claude</b> <span class="ad-sub">(the full review; ${n} change${n === 1 ? '' : 's'}, in "What changed lately")</span>`
+            : `🔧 A session with Claude <span class="ad-sub">(${n} change${n === 1 ? '' : 's'}, in "What changed lately")</span>`]));
+        if (plan.weekly) done.push([at(plan.weekly.at), `🧪 The full check of the site <span class="ad-sub">(${plan.weekly.passed} of ${plan.weekly.total} passed)</span>`]);
         if (d.review) done.push([at(d.review.at), '📋 The autopilot reviewed its own trades']);
-        if (plan.dailyReview) done.push([at(plan.dailyReview), '🔍 The daily review by Claude']);
-        const doneDays = [];
-        done.filter(([t]) => t >= now - 3 * DAY && t <= now + DAY).sort((a, b) => b[0] - a[0]).forEach(([t, text]) => {
-            const last = doneDays[doneDays.length - 1];
-            if (last && dayKey(last[0]) === dayKey(t)) last[1] += ' · ' + text; else doneDays.push([t, text]);
-        });
-        const dayName = (t) => dayKey(t) === dayKey(now) ? 'Today' : fmt(t);
-        const doneHtml = doneDays.length ? `<div style="margin-top: 10px; font-weight: 600; font-size: 0.9rem;">Done in the last 3 days</div><ul style="list-style: none; margin: 2px 0 0; padding: 0; line-height: 1.55; font-size: 0.88rem;">`
-            + doneDays.map(([t, text]) => `<li><span class="ad-sub" style="display: inline-block; min-width: 92px;">${esc(dayName(t))}</span> ${text}</li>`).join('') + '</ul>' : '';
-        return doneHtml + `<div style="margin-top: 10px; font-weight: 600; font-size: 0.9rem;">Coming up</div><ul style="list-style: none; margin: 2px 0 0; padding: 0; line-height: 1.55; font-size: 0.88rem;">`
-            + rows.map(li).join('') + '</ul>'
-            + `<div class="ad-sub" style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.85rem;">Further off: <b>${esc(fmt(at(JUDGE_ON)))}</b>, real money: the decision</div>`;
+        if (plan.dailyReview) done.push([at(plan.dailyReview), '🔍 The daily review by Claude <span class="ad-sub">(unattended: reads the site, leaves proposals)</span>']);
+        const recent = group(done.filter(([t]) => t >= now - 3 * DAY && t <= now + DAY).sort((a, b) => b[0] - a[0]));
+        return block('Coming up', coming)
+            + `<div class="ad-sub" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.85rem;">Further off: <b>${esc(fmt(at(JUDGE_ON)))}</b>, real money: the decision</div>`
+            + block('Done in the last 3 days', recent);
     }
     function needMeHtml(d) {
         const plan = d.plan || {}, now = Date.now(), daysSince = (iso) => iso ? Math.floor((now - Date.parse(iso)) / 86400000) : null;
