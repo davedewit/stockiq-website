@@ -1082,13 +1082,8 @@
         // hows s&p doing compared to it ... is its total higher or lower and how much up or down today"): the account, and what the same
         // starting money in an S&P 500 fund would be worth now; under the second, how much higher or lower the account is.
         const dayChip = (u, p, closed) => u === null || u === undefined ? '' : `<span class="pp-card-day">${movedHtml(u, p).trim()} ${closed ? 'last trading day' : 'today'}</span>`;
-        const higher = (n) => { const a = Math.round(n * 100) / 100; return a === 0 ? 'Your account is level with it'
-            : `Your account is <strong style="color: ${tone(a)};">${usd(Math.abs(a))} (${Math.abs(a / state.startingCash * 100).toFixed(2)}%) ${a > 0 ? 'higher' : 'lower'}</strong>`; };
-        const coins = vs ? coinsVsSpy(state, quotes) : null;
         // the gap to the S&P 500 sits in the line under the cards (31 Oct 2026, the owner: the cards show which is higher; the exact gap
         // in each card was clutter, and it is the main figure to see), so the three cards read alike: the value, today, since the start
-        const coinNote = coins && Math.abs(coins.gap) >= 1 ? ` (without the autopilot’s ${coins.trades} coin trades: ${higher(behind - coins.gap).replace(/^Your account is /, '').replace(/^level with it$/, 'level')})` : '';
-        const vsLine = vs ? `${higher(behind)}${Math.round(behind * 100) ? ' than' : ''} the S&amp;P 500${coinNote} · ` : '';
         // its own change since the start too (30 Oct 2026, the owner: the card did not say how much the fund was down since the $100,000)
         const fundCard = vs ? card('If all in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
             `${movedHtml(vs.gainUsd, vs.gainUsd / state.startingCash * 100)} since the start`, behind)
@@ -1103,12 +1098,17 @@
         const om = anyAiBuy ? ownMarkets(state, quotes) : null;
         const homeCard = !om ? '' : indexWait && om.missing ? card('Same markets, no AI', '…', 'getting each market’s index', 0)
             : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start`, om.gap);   // the gap is the card's edge colour (the owner, 31 Oct 2026: the line was clutter)
+        // the account against both on one line (31 Oct 2026, the owner: "maybe this should be comparing vs all markets not AI"): the same
+        // markets with no AI is the test of the AI's picks; the S&P 500 is the bar for real money (it decides which markets as well)
+        const vsParts = [om && !(indexWait && om.missing) ? `Against the same markets, no AI: ${movedHtml(om.gap, om.gap / state.startingCash * 100)}` : '',
+                         vs ? `Against the S&amp;P 500: ${movedHtml(behind, behind / state.startingCash * 100)}` : ''].filter(Boolean);
+        const vsLine = vsParts.map(x => x + '<br>').join('');   // a line each, cash and holdings under them (the owner)
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
             <div class="pp-top">
                 ${card('Your account', `${usd(s.accountValue)}${dayChip(s.dayUsd, dayOfAccount, s.dayClosed)}`, `${movedHtml(s.gainUsd, s.gainPct)} since it started with ${usd(state.startingCash).replace(/\.00$/, '')} · fake money`, s.gainUsd)}
-                ${fundCard}${homeCard}
+                ${homeCard}${fundCard}
             </div>
             <div class="pp-facts">${vsLine}Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
             <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: profit and loss, yours and the autopilot’s, and the index fund</summary>
