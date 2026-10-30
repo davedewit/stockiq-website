@@ -138,11 +138,31 @@
         const gain = h.soldAt ? h.proceedsUsd - h.costUsd : valueOf(h, quotes).gainUsd;
         return { kind: 'spy', name: 'S&P 500', gap: gain - h.costUsd * (end / h.spyAtBuy - 1) };
     }
+    // An index's own day, as dayMove reads a holding's: since its previous close (a point five hours or more before its latest), in percent
+    function indexDayPct(q) {
+        const s = q && q.series;
+        if (!q || !(q.price > 0) || !s || s.length < 2) return null;
+        const last = s[s.length - 1][0];
+        for (let i = s.length - 2; i >= 0; i--) if (s[i][0] <= last - 5 * 3600000) return s[i][1] > 0 ? (q.price / s[i][1] - 1) * 100 : null;
+        return null;
+    }
     function ownMarkets(state, quotes) {
-        let gap = 0, missing = 0;
+        let gap = 0, missing = 0, dayUsd = 0, days = 0;
         state.holdings.concat(state.closed).forEach(h => { const b = homeBench(h, quotes); if (b) gap += b.gap; else missing++; });
+        // its day (30 Oct 2026, beside the other two cards' "today"): what is held now, each holding's money as it stands in its own market,
+        // moved by that market's day (a coin, or a holding without its index, by its own day; one bought since that close, by all of it)
+        state.holdings.forEach(h => {
+            const d = dayMove(h, quotes);
+            if (!d) return;
+            const b = homeBench(h, quotes), ix = HOME_INDEX[h.screener], q = b && b.kind === 'index' ? quotes[ix[0]] : b && b.kind === 'spy' ? quotes[BENCHMARK] : null;
+            const worth = valueOf(h, quotes).valueUsd - (b ? b.gap : 0), pct = q ? indexDayPct(q) : null;
+            days++;
+            if (!q || b.kind === 'coin') dayUsd += d.usd;
+            else if (d.since === 'bought') dayUsd += worth - h.costUsd;
+            else if (pct !== null) dayUsd += worth - worth / (1 + pct / 100);
+        });
         const value = summarize(state, quotes).accountValue - gap;
-        return { gap, value, missing, gainUsd: value - state.startingCash };
+        return { gap, value, missing, gainUsd: value - state.startingCash, dayUsd: days ? dayUsd : null, dayPct: days && value - dayUsd > 0 ? dayUsd / (value - dayUsd) * 100 : null };
     }
     function marketOf(h, info) {
         if (!h || h.by !== 'ai') return null;
@@ -623,9 +643,6 @@
         #practice-portfolio .pp-mkt-btn strong { color: var(--text-primary); }
         #practice-portfolio .pp-mkt-panel { margin-top: 6px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--card-bg, var(--bg-color, #fff)); padding: 8px; max-height: 420px; overflow-y: auto; }
         #practice-portfolio .pp-mkt-sum { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; margin: 2px 4px 8px; }
-        #practice-portfolio .pp-mkt-tally { margin-top: 8px; border-top: 2px solid var(--border-color); }
-        #practice-portfolio .pp-mkt-tally .pp-mkt-row { cursor: default; } #practice-portfolio .pp-mkt-tally button.pp-mkt-row { cursor: pointer; }
-        #practice-portfolio .pp-mkt-tally .pp-mkt-row:last-child .pp-mkt-name { font-weight: 700; }
         #practice-portfolio .pp-mkt-how { margin-top: 4px; }
         #practice-portfolio .pp-home { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; } #practice-portfolio .pp-mkt-how summary { cursor: pointer; }
         #practice-portfolio .pp-mkt-head, #practice-portfolio .pp-mkt-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 150px 170px; gap: 8px; align-items: center; }
@@ -700,8 +717,8 @@
         #practice-portfolio .pp-card.up { border-top-color: #16a34a; } #practice-portfolio .pp-card.down { border-top-color: #ef4444; }
         #practice-portfolio .pp-card-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
         #practice-portfolio .pp-card-value { font-size: 1.45rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-        #practice-portfolio .pp-card-day { display: inline-block; font-size: 0.5em; font-weight: 600; margin-left: 10px; white-space: nowrap; vertical-align: middle; }
-        @media (max-width: 640px) { #practice-portfolio .pp-top .pp-card { flex: 1 1 100%; } #practice-portfolio .pp-card-day { margin-left: 0; display: block; font-size: 0.55em; } }
+        #practice-portfolio .pp-card-day { display: block; font-size: 0.5em; font-weight: 600; margin-top: 2px; white-space: nowrap; }
+        @media (max-width: 640px) { #practice-portfolio .pp-top .pp-card { flex: 1 1 100%; } #practice-portfolio .pp-card-day { font-size: 0.55em; } }
         #practice-portfolio .pp-card-day .pp-delta { font-weight: 600 !important; }
         #practice-portfolio .pp-card-sub { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
         #practice-portfolio .pp-pl { margin-bottom: 8px; }
@@ -1048,7 +1065,7 @@
         // Two figures side by side, each with its own day beside it (30 Oct 2026, the owner: "hows my automation doing total and today, and
         // hows s&p doing compared to it ... is its total higher or lower and how much up or down today"): the account, and what the same
         // starting money in an S&P 500 fund would be worth now; under the second, how much higher or lower the account is.
-        const dayChip = (u, p, closed) => u === null || u === undefined ? '' : `<span class="pp-card-day">${movedHtml(u, p)} ${closed ? 'last trading day' : 'today'}</span>`;
+        const dayChip = (u, p, closed) => u === null || u === undefined ? '' : `<span class="pp-card-day">${movedHtml(u, p).trim()} ${closed ? 'last trading day' : 'today'}</span>`;
         const higher = (n) => { const a = Math.round(n * 100) / 100; return a === 0 ? 'Your account is level with it'
             : `Your account is <strong style="color: ${tone(a)};">${usd(Math.abs(a))} (${Math.abs(a / state.startingCash * 100).toFixed(2)}%) ${a > 0 ? 'higher' : 'lower'}</strong>`; };
         // its own change since the start too (30 Oct 2026, the owner: the card did not say how much the fund was down since the $100,000)
@@ -1064,7 +1081,7 @@
         if (anyAiBuy) ensureIndexes();
         const om = anyAiBuy ? ownMarkets(state, quotes) : null;
         const homeCard = !om ? '' : indexWait && om.missing ? card('Same markets, no AI', '…', 'getting each market’s index', 0)
-            : card('Same markets, no AI', usd(om.value), `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start: each buy’s money in its market’s index (Hang Seng, Dow…), yours in the S&amp;P 500 · ${higher(om.gap)}`, om.gap);
+            : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start · ${higher(om.gap)}`, om.gap);
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
@@ -1235,7 +1252,8 @@
         // Each row: our result against the same money put into that row's own index on the same days it bought and sold (30 Oct 2026,
         // the owner: "our result, vs result if we had just invested in x fund": the Dow 30's buys against the Dow, the NASDAQ 100's against
         // the NASDAQ 100). The sector funds and the owner's own buys have no index of their own: the S&P 500 is theirs. Coins have none.
-        // The S&P 500 stays as a grey line under each badge, the top card and the graph's gold line. Ahead first.
+        // Since the evening of 30 Oct the last column is the index's own result, beside ours (the owner: "just show how much its up or down
+        // same as mine"); the S&P 500 is the second card at the top, so the list does not repeat it. Those that beat their index first.
         const coinRow = (r) => r.group === 'Coins' || r.key === 's:7-1';
         const bench = (r) => {
             if (r.homeable) return r.homeCost > 0 ? { usd: r.homeGap, pct: r.homeGap / r.homeCost * 100, name: r.homeNames.length === 1 ? r.homeNames[0] : 'their own indexes', part: !r.homeAll } : (indexWait ? 'wait' : null);
@@ -1248,7 +1266,6 @@
             const a = Math.round(b.usd);
             return a === 0 ? '<span class="pp-vs">level</span>' : `<span class="pp-vs ${a > 0 ? 'up' : 'down'}">${a > 0 ? '▲' : '▼'} ${usd(Math.abs(a)).replace(/\.00$/, '')} (${Math.abs(b.pct).toFixed(1)}%) ${a > 0 ? 'ahead' : 'behind'}</span>`;
         };
-        const vsHtml = (r) => badge(bench(r));
         // the last column (30 Oct 2026, the owner: not a gap to his result, but what the index itself made with the same money, up or down,
         // so the two results stand side by side): our result less the gap; a holding without its index's prices counts at its own result
         const idxHtml = (r, gainUsd, gapUsd, cost) => {
@@ -1258,58 +1275,44 @@
             const g = (r ? r.gainUsd : gainUsd) - b.usd, c = r ? r.cost : cost;
             return movedHtml(g, c ? g / c * 100 : null);
         };
-        const spWords = (n) => { const a = Math.round(n); return a === 0 ? 'level' : `${a > 0 ? '▲' : '▼'} ${usd(Math.abs(a)).replace(/\.00$/, '')}`; };
         const row = (r, sub) => `<button type="button" class="pp-mkt-row${sub ? ' sub' : ''}${chartKey === r.key ? ' on' : ''}" data-pp="market" data-id="${esc(r.key)}" aria-pressed="${chartKey === r.key}">`
             + `<span class="pp-mkt-name">${esc(r.label)}<small>${r.trades} ${r.trades === 1 ? 'holding' : 'holdings'}${r.held ? `, ${r.held} still held` : ''}</small></span>`
             + `<span class="pp-mkt-in" data-label="Total bought">${usd(r.cost).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(r.gainUsd, r.cost ? r.gainUsd / r.cost * 100 : null)}</span>`
             + `<span class="pp-mkt-vs" data-label="If in its own index">${idxHtml(r)}${greyHtml(r)}</span></button>`;
-        // under the badge: which index it is, and the S&P 500 for the same money, small and grey
+        // under it, small and grey: which index it is
         const greyHtml = (r) => {
-            const b = bench(r), sp = r.aheadUsd !== null && !(b && b !== 'wait' && /^S&P 500/.test(b.name)) ? ` · S&amp;P 500: ${spWords(r.gainUsd - r.aheadUsd)}` : '';
-            if (b === 'wait') return `<small class="pp-home">its own index: …${sp}</small>`;
+            const b = bench(r);
+            if (b === 'wait') return '<small class="pp-home">its own index: …</small>';
             if (!b) return coinRow(r) ? '<small class="pp-home">coins have no index here</small>' : '';
-            return `<small class="pp-home">${b.name === 'their own indexes' ? 'in their own indexes' : `in the ${esc(b.name)}`}${b.part ? ' (part)' : ''}${sp}</small>`;
+            return `<small class="pp-home">${b.name === 'their own indexes' ? 'in their own indexes' : `in the ${esc(b.name)}`}${b.part ? ' (part)' : ''}</small>`;
         };
         const gapOf = (r) => { const b = bench(r); return b && b !== 'wait' ? b.usd : -1e12; };
         const order = (a, b) => gapOf(b) - gapOf(a);
         const menu = !results ? '' : (() => {
             const groups = Object.values(results).filter(r => r.key[0] === 'g').sort(order);
-            // How the rows add up to the account's own gap to the fund (the owner checked the sum, 23 Oct 2026): the markets, the
-            // user's own buys, and money not invested while the fund moved (cash, and the time before a buy) make the account's gap.
-            const vs = versusStart(state, quotes, Date.now()), own = results.own;
-            const parts = groups.concat(own ? [own] : []);
-            const covered = parts.every(r => r.aheadUsd !== null && r.compared >= r.cost - 0.01);
-            const idle = vs && covered ? vs.gapUsd - parts.reduce((n, r) => n + r.aheadUsd, 0) : null;
-            const sumRow = (label, sub, amount, key) => `<${key !== undefined ? `button type="button" data-pp="market" data-id="${key}"` : 'div'} class="pp-mkt-row sumrow${key === 'value' && !isMarket(chartKey) && chartKey === 'value' ? ' on' : ''}"><span class="pp-mkt-name">${label}<small>${sub}</small></span><span class="pp-mkt-in"></span><span class="pp-mkt-res"></span><span class="pp-mkt-vs">${vsHtml({ aheadUsd: amount, aheadPct: Math.abs(amount) / (state.startingCash || STARTING_CASH) * 100 })}</span></${key !== undefined ? 'button' : 'div'}>`;
+            const own = results.own;
             // All markets (the owner's main view, the graph's first button): every buy in the account, the autopilot's against each one's own
             // index and the owner's own against an S&P 500 fund, the same money on the same days: the graph's gold line and the third card
             const every = groups.concat(own ? [own] : []);
             const sumOf = (k) => every.reduce((n, r) => n + (r[k] || 0), 0);
             const gb = every.map(bench), waiting = gb.some(b => b === 'wait'), have = gb.filter(b => b && b !== 'wait');
             const allGap = have.reduce((n, b) => n + b.usd, 0);
-            const spAll = sumOf('gainCompared') - sumOf('fundUsd'), aiCost = sumOf('cost'), aiGain = sumOf('gainUsd');
+            const aiCost = sumOf('cost'), aiGain = sumOf('gainUsd');
             const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>every buy${own ? ', the autopilot’s and yours (yours beside the S&amp;P 500)' : ''}</small></span>`
                 + `<span class="pp-mkt-in" data-label="Total bought">${usd(aiCost).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(aiGain, aiCost ? aiGain / aiCost * 100 : null)}</span>`
-                + `<span class="pp-mkt-vs" data-label="If in its own index">${waiting ? badge('wait') : have.length ? idxHtml(null, aiGain, allGap, aiCost) : badge(null)}<small class="pp-home">in each one’s own index${groups.some(coinRow) ? ' (coins at their own result)' : ''} · S&amp;P 500: ${spWords(aiGain - spAll)}</small></span></button>`;
-            const tally = vs && idle !== null ? `<details class="pp-mkt-tally"><summary class="pp-mkt-sum" style="margin-top: 6px; cursor: pointer;"><strong>Against the S&amp;P 500 instead:</strong> how the whole account's ${spWords(vs.gapUsd)} adds up (percentages of the ${usd(state.startingCash).replace(/\.00$/, '')} it started with)</summary>`
-                + sumRow('The autopilot’s markets', 'the rows above, added up', groups.reduce((n, r) => n + r.aheadUsd, 0))
-                + (own ? row(Object.assign({}, own, { label: 'Your own buys', aheadPct: own.aheadUsd / (state.startingCash || STARTING_CASH) * 100 }), false) : '')
-                + sumRow('Money kept as cash', `cash does not move; ${(versusStart(state, quotes, Date.now()) || {}).gainUsd < 0 ? 'the fund fell while this money waited, so this part is ahead of it' : 'the fund rose while this money waited, so this part is behind it'} (the time before each buy, and money not yet put back in after a sale)`, idle)
-                + sumRow('All markets together', `the whole account, against the same ${usd(state.startingCash).replace(/\.00$/, '')} in an S&amp;P 500 fund since the start: the three lines above added up`, vs.gapUsd, 'value')
-                + `</details>` : '';
+                + `<span class="pp-mkt-vs" data-label="If in its own index">${waiting ? badge('wait') : have.length ? idxHtml(null, aiGain, allGap, aiCost) : badge(null)}<small class="pp-home">in each one’s own index${groups.some(coinRow) ? ' (coins at their own result)' : ''}</small></span></button>`;
             const subs = (g) => Object.values(results).filter(r => r.key[0] === 's' && r.group === g.group).sort(order);
             const all = Object.values(results).filter(r => r.key[0] === 's' && gapOf(r) > -1e11), up = all.filter(r => Math.round(gapOf(r)) > 0), down = all.filter(r => Math.round(gapOf(r)) < 0);
-            const total = (list) => usd(Math.abs(list.reduce((n, r) => n + gapOf(r), 0))).replace(/\.\d\d$/, '');
             const few = Object.values(results).filter(r => r.trades < 30).length;
             const now = isMarket(chartKey) && results[chartKey] ? results[chartKey] : null;
             return `<div class="pp-mkt${mktOpen ? ' open' : ''}" id="pp-mkt">
                 <button type="button" class="pp-mkt-btn" data-pp="mkt-toggle" aria-expanded="${mktOpen}">By market: <strong>${now ? esc(now.label) : chartKey === 'own' ? 'Your own buys' : 'All markets'}</strong> <span aria-hidden="true">▾</span></button>
                 <div class="pp-mkt-panel"${mktOpen ? '' : ' hidden'}>
-                    <div class="pp-mkt-sum">Against its own index, screener by screener: <span class="pp-vs up">${up.length} ahead, by ${total(up)} together</span> · <span class="pp-vs down">${down.length} behind, by ${total(down)}</span>.${few ? ` <strong>Under 30 holdings is too few to tell skill from luck.</strong>` : ''} <details class="pp-mkt-how"><summary>How it is worked out</summary>Each holding is set against the same money put into its own market's index the day it was bought and taken out the day it was sold (or now): a Dow 30 buy against the Dow, an ASX share against the ASX 200, in that market's own currency, so a currency's move is left out. The sector funds and your own buys are set against the S&amp;P 500, coins against nothing. Sold and still held together, ahead first; no trading cost is taken off the index. "Total bought" adds up every buy: the money from a sale is used again for the next buy, so it keeps growing whether the trades win or lose (it is not money lost or at risk). The result's percent is of it: what each dollar traded made on average. The grey line gives the same money in an S&amp;P 500 fund instead, in dollars: whether the market itself was worth being in. An index's price at the moment of a buy or a sale is read between its daily closes, so these figures are an approximation.</details></div>
+                    <div class="pp-mkt-sum">Screener by screener: <span class="pp-vs up">${up.length} did better than their own index</span>, <span class="pp-vs down">${down.length} did worse</span>.${few ? ` <strong>Under 30 holdings is too few to tell skill from luck.</strong>` : ''} <details class="pp-mkt-how"><summary>How it is worked out</summary>"If in its own index" is what the same money would have made in that market's index, put in the day each holding was bought and taken out the day it was sold (or now): a Dow 30 buy in the Dow, an ASX share in the ASX 200, in that market's own currency, so a currency's move is left out. Your own buys and the sector funds go in the S&amp;P 500; coins have no index, so they count at their own result. Sold and still held together, those that did better than their index first; no trading cost is taken off the index. "Total bought" adds up every buy: the money from a sale is used again for the next buy, so it keeps growing whether the trades win or lose (it is not money lost or at risk). The result's percent is of it: what each dollar traded made on average. An index's price at the moment of a buy or a sale is read between its daily closes, so these figures are an approximation.</details></div>
                     <div class="pp-mkt-head" aria-hidden="true"><span>Market and screener</span><span>Total bought</span><span>Result</span><span>If in its own index</span></div>
                     ${allRow}
                     ${groups.map(g => row(g, false) + (subs(g).length > 1 ? subs(g).map(r => row(r, true)).join('') : '')).join('')}
-                    ${tally}
+                    ${own ? row(Object.assign({}, own, { label: 'Your own buys' }), false) : ''}
                 </div></div>`;
         })();
         const chosen = isMarket(chartKey) && results ? results[chartKey] : null;
@@ -1662,7 +1665,8 @@
             'Bought by the user (' + mine.length + '): ' + (mine.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Bought by the autopilot and still held (' + its.length + '): ' + (its.slice(0, 12).map(one).join('; ') || 'none') + '.',
             'Sold so far: ' + state.closed.length + '.']
-            .concat(vs ? ['Against an S&P 500 fund (the second line on the graph): the same ' + usd(STARTING_CASH) + ' put into the fund when the account began and left there would be ' + usd(vs.value) + ' now (' + moved(vs.gainUsd) + '); the account is ' + (Math.abs(vs.gapUsd) < 0.005 ? 'level with that' : (vs.gapUsd > 0 ? 'ahead of' : 'behind') + ' that by ' + usd(Math.abs(vs.gapUsd))) + '.'] : []).join('\n');
+            .concat(vs ? ['Against an S&P 500 fund (the second figure at the top): the same ' + usd(STARTING_CASH) + ' put into the fund when the account began and left there would be ' + usd(vs.value) + ' now (' + moved(vs.gainUsd) + '); the account is ' + (Math.abs(vs.gapUsd) < 0.005 ? 'level with that' : (vs.gapUsd > 0 ? 'ahead of' : 'behind') + ' that by ' + usd(Math.abs(vs.gapUsd))) + '.'] : [])
+            .concat(its.length || state.closed.some(h => h.by === 'ai') ? (() => { const om = ownMarkets(state, quotes); return ['Same markets, no AI (the third figure): each buy\'s money in its own market\'s index instead (the user\'s own buys in the S&P 500, coins at their own result, cash as cash) would be ' + usd(om.value) + ' now (' + moved(om.gainUsd) + ' since the start); the account is ' + (Math.abs(om.gap) < 0.005 ? 'level with that' : (om.gap > 0 ? 'ahead of' : 'behind') + ' that by ' + usd(Math.abs(om.gap))) + '.']; })() : []).join('\n');
     }
     // The account's figures as this tab shows them, at the latest prices, for the Admin page on the same dashboard (17 Oct 2026:
     // the Admin page had its own estimate from the last check-in, which differed by about $230). null until prices are in.
