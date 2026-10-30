@@ -59,8 +59,8 @@
         #admin-panel .ad-tl li:first-child { border-top: 0; }
         #admin-panel .ad-tl-day { color: var(--text-secondary); white-space: nowrap; }
         #admin-panel .ad-tl-items { display: flex; flex-direction: column; gap: 2px; }
-        #admin-panel a.ad-go { color: inherit; text-decoration: underline; text-decoration-color: var(--border-color); text-underline-offset: 3px; }
-        #admin-panel a.ad-go:hover { text-decoration-color: currentColor; }
+        #admin-panel a.ad-go { color: #3b82f6; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+        #admin-panel a.ad-go:hover { color: #60a5fa; }
         #admin-panel .ad-card, #admin-panel details.ad-row { scroll-margin-top: calc(var(--body-padding, 105px) + 12px); }
         #admin-panel .ad-flash { outline: 2px solid #3b82f6; outline-offset: 4px; border-radius: 8px; transition: outline-color 1s; }
         #admin-panel .ad-sub { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
