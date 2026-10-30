@@ -1100,8 +1100,9 @@
             : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start`, om.gap);   // the gap is the card's edge colour (the owner, 31 Oct 2026: the line was clutter)
         // the account against both on one line (31 Oct 2026, the owner: "maybe this should be comparing vs all markets not AI"): the same
         // markets with no AI is the test of the AI's picks; the S&P 500 is the bar for real money (it decides which markets as well)
-        const vsParts = [om && !(indexWait && om.missing) ? `Against the same markets, no AI: ${movedHtml(om.gap, om.gap / state.startingCash * 100)}` : '',
-                         vs ? `Against the S&amp;P 500: ${movedHtml(behind, behind / state.startingCash * 100)}` : ''].filter(Boolean);
+        const aheadWord = (n) => { const r = Math.round(n * 100) / 100; return r === 0 ? ' level' : r > 0 ? ' ahead' : ' behind'; };   // the arrow is the account's (the owner asked which way it reads)
+        const vsParts = [om && !(indexWait && om.missing) ? `Your account against the same markets, no AI: ${movedHtml(om.gap, om.gap / state.startingCash * 100)}${aheadWord(om.gap)}` : '',
+                         vs ? `Your account against the S&amp;P 500: ${movedHtml(behind, behind / state.startingCash * 100)}${aheadWord(behind)}` : ''].filter(Boolean);
         const vsLine = vsParts.map(x => x + '<br>').join('');   // a line each, cash and holdings under them (the owner)
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
