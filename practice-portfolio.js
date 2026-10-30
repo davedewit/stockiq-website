@@ -1193,11 +1193,11 @@
             // Every market's holdings together, on the same holdings both ways (30 Oct 2026, the owner: "so i can see overall if ... the s&p
             // beats holding vs holding in all indicies"): against an S&P 500 fund on the same days, and against each holding's own index
             const sumOf = (k) => groups.reduce((n, r) => n + (r[k] || 0), 0), spPct = sumOf('compared') > 0 ? (sumOf('gainCompared') - sumOf('fundUsd')) / sumOf('compared') * 100 : null;
-            const hmPct = sumOf('homeCost') > 0 ? sumOf('homeGap') / sumOf('homeCost') * 100 : null, sign = (p) => `${p > 0.05 ? '▲ ' : p < -0.05 ? '▼ ' : ''}${Math.abs(p).toFixed(1)}%`;
-            // the dollars first, then the percent a dollar traded (30 Oct 2026, the owner read "0.3%" against the badge's "0.9%": the badge is of
-            // the $100,000, this of every dollar the autopilot put in, which is several times that because sales are bought with again)
-            const spUsd = sumOf('gainCompared') - sumOf('fundUsd'), spRound = Math.round(spUsd), traded = usd(sumOf('compared')).replace(/\.\d\d$/, '');
-            const bothHtml = spPct === null ? '' : `<small class="pp-home">the autopilot’s buys: ${spRound === 0 ? 'level with' : `${spRound > 0 ? '▲' : '▼'} ${usd(Math.abs(spRound)).replace(/\.00$/, '')} ${spRound > 0 ? 'ahead of' : 'behind'}`} the S&amp;P 500, ${sign(spPct)} a dollar of the ${traded} it bought${hmPct === null ? (indexWait ? ' · against their own indexes: …' : '') : ` · against their own indexes ${sign(hmPct)} a dollar${sumOf('homeCost') >= sumOf('homeable') - 0.01 ? '' : ' (part)'}`}</small>`;
+            // in dollars both ways (30 Oct 2026, the owner: "0.2% a dollar" meant nothing; a percent here is of every dollar traded, several
+            // times the $100,000, and read wrongly beside the badge's percent of the $100,000)
+            const money = (n) => { const r = Math.round(n); return r === 0 ? 'level with' : `${r > 0 ? '▲' : '▼'} ${usd(Math.abs(r)).replace(/\.00$/, '')} ${r > 0 ? 'ahead of' : 'behind'}`; };
+            const homeUsd = sumOf('homeCost') > 0 ? sumOf('homeGap') : null;
+            const bothHtml = spPct === null ? '' : `<small class="pp-home">the autopilot’s buys: ${money(sumOf('gainCompared') - sumOf('fundUsd'))} the S&amp;P 500${homeUsd === null ? (indexWait ? ' · their own markets: …' : '') : ` · ${money(homeUsd)} their own markets’ indexes${sumOf('homeCost') >= sumOf('homeable') - 0.01 ? '' : ' (part)'}`}</small>`;
             const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>the whole account since the start, against the same ${usd(start).replace(/\.00$/, '')} in an S&amp;P 500 fund</small></span>`
                 + `<span class="pp-mkt-in" data-label="Total bought">${usd(bought).replace(/\.\d\d$/, '')}</span><span class="pp-mkt-res" data-label="Result">${movedHtml(gainAll, gainAll / start * 100)}</span>`
                 + `<span class="pp-mkt-vs" data-label="Against the S&amp;P 500">${vs ? vsHtml({ aheadUsd: vs.gapUsd, aheadPct: Math.abs(vs.gapUsd) / start * 100 }) : '–'}${bothHtml}</span></button>`;
