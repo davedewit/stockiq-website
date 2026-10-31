@@ -535,8 +535,14 @@
         else if (w) good.push(`the full check passed all ${w.total} (${wAge === 0 ? 'today' : wAge + ' day' + (wAge === 1 ? '' : 's') + ' ago'})`);
         else soon.push('the full check has not run yet');
         const u = d.usage || {};
-        if (u.costStockiq >= 1.5 || ((u.costExplorer || 0) - (u.costExplorerKnown || 0)) > 0.02) urgent.push('the AWS bill needs a look');
-        else if (typeof u.costStockiq === 'number') good.push(`the bill is in order (StockIQ's running cost $${Number(u.costStockiq).toFixed(2)} this month)`);
+        // a month over $1.50 whose cause is found and fixed does not call him in (31 Oct 2026, the owner: "seems suddenly alot to check on
+        // admin dashboard especially the bill?"): plan.billKnown is cost_check.py's KNOWN_OVER; above its amount it is urgent again
+        const month = String(u.costAt || new Date().toISOString()).slice(0, 7), over = (plan.billKnown || {})[month];
+        const ceNew = ((u.costExplorer || 0) - (u.costExplorerKnown || 0)) > 0.02, cost$ = `$${Number(u.costStockiq || 0).toFixed(2)}`;
+        const nextMonth = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 1)).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
+        if (ceNew || (u.costStockiq >= 1.5 && !(over && u.costStockiq <= over.upTo))) urgent.push('the AWS bill needs a look');
+        else if (u.costStockiq >= 1.5) good.push(`the bill is over the $1.50 limit this month (StockIQ's running cost ${cost$}), already explained and fixed: ${over.why}; it starts again from zero on 1 ${nextMonth}`);
+        else if (typeof u.costStockiq === 'number') good.push(`the bill is in order (StockIQ's running cost ${cost$} this month)`);
         // a proposal for a session is built by the next session whatever the answer (the standing mandate, 18 Oct 2026), so it does not
         // call him in; only a change to a setting waits for his yes (25 Oct 2026: the card was amber for three session proposals)
         const openAll = d.open || [], open = openAll.filter(p => p.kind !== 'session').length, forSession = openAll.length - open;
