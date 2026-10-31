@@ -18,11 +18,13 @@
  */
 (function () {
     'use strict';
-    var VERSION = 5;
+    var VERSION = 9;
     if (window.liveMarket && window.liveMarket.version >= VERSION) return;
     var PRICES = 'https://2vl4la6od3vfgbkv6ycbj7ewry0yxvck.lambda-url.us-east-1.on.aws/';
     var T = window.LIVE_MARKET_TEST || {};               // a browser test may shorten the times
-    var FAST = T.fast || [6000, 10000], SLOW = T.slow || 60000, IDLE = T.idle || 90000, MAX = 40;
+    var FAST = T.fast || [6000, 10000], SLOW = T.slow || 60000, IDLE = T.idle || 5 * 60000, STOP = T.stop || 15 * 60000, MAX = 40;
+    // Full speed while someone has touched the page in the last IDLE (5 min: watching without moving is normal), then once a SLOW
+    // (a minute), and nothing after STOP (15 min) without a touch, so a tab left open costs little. Until 31 Oct 2026 it stopped after 90 s.
     var KINDS = [['trend', 'trendingTickersList', 'trendingTickerPrices'], ['gainer', 'gainersTickersList', 'gainersTickerPrices'],
                  ['loser', 'losersTickersList', 'losersTickerPrices'], ['active', 'activeTickersList', 'activeTickerPrices']];
     var lastInput = Date.now(), gap = FAST[0], timer = null, busy = false, rounds = 0, changed = 0, sparks = {}, lastErr = null, allAt = 0;
@@ -34,13 +36,18 @@
     function money(n) { return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function changeText(c, p) { var s = p >= 0 ? '+' : ''; return s + Number(c).toFixed(2) + ' (' + s + Number(p).toFixed(2) + '%)'; }
     var CARDS = [['sp500', '^GSPC'], ['dow', '^DJI'], ['nasdaq', '^IXIC'], ['russell', '^RUT']];
-    function watching() { return !document.hidden && Date.now() - lastInput < IDLE; }
+    function watching() { return !document.hidden && Date.now() - lastInput < STOP; }
 
     function style() {
         if (document.getElementById('lm-style')) return;
         var s = document.createElement('style'); s.id = 'lm-style';
-        s.textContent = '@keyframes lmUp{0%{background:rgba(34,197,94,.35)}100%{background:transparent}}@keyframes lmDown{0%{background:rgba(239,68,68,.35)}100%{background:transparent}}'
-            + '.lm-up{animation:lmUp 1.2s ease-out;border-radius:3px}.lm-down{animation:lmDown 1.2s ease-out;border-radius:3px}'
+        // A change shows as a soft green or red tint, its figures in the page's own text colour while it is held (about half a second),
+        // then a fainter tint fading out over a second (31 Oct 2026, the owner: the old pale tint for 1.2 s was hard to see, then a solid
+        // dark green or red with white figures was too strong). The outline gives the figure a little room without moving anything.
+        s.textContent = '@keyframes lmUp{0%,30%{background:rgba(34,197,94,.42);box-shadow:0 0 0 3px rgba(34,197,94,.42)}40%{background:rgba(34,197,94,.16);box-shadow:0 0 0 3px rgba(34,197,94,.16)}100%{background:transparent;box-shadow:0 0 0 3px transparent}}'
+            + '@keyframes lmDown{0%,30%{background:rgba(239,68,68,.42);box-shadow:0 0 0 3px rgba(239,68,68,.42)}40%{background:rgba(239,68,68,.16);box-shadow:0 0 0 3px rgba(239,68,68,.16)}100%{background:transparent;box-shadow:0 0 0 3px transparent}}'
+            + '@keyframes lmText{0%,75%{color:var(--text-primary,currentColor)}}'
+            + '.lm-up{animation:lmUp 1.6s ease-out,lmText .64s;border-radius:3px}.lm-down{animation:lmDown 1.6s ease-out,lmText .64s;border-radius:3px}'
             + '.market-item-sidebar-chart polyline:not([data-lm]),.index-chart polyline:not([data-lm]){opacity:0}';      // the page's own lines are random: hidden until today's real one is in
         (document.head || document.documentElement).appendChild(s);
     }
@@ -48,9 +55,28 @@
         if (!el || !el.classList) return;
         el.classList.remove('lm-up', 'lm-down'); void el.offsetWidth; el.classList.add(up ? 'lm-up' : 'lm-down');
     }
-    // A change is shown and flashes the moment its price arrives (31 Oct 2026, the owner: as accurate as possible to when the update
-    // occurs). Until then each row waited a random 0 to 2.5 s so that rows changed a moment apart, which put the flash up to 2.5 s late.
-    function later(fn) { fn(); }
+    // Every price arrives in one answer, so shown at once they would all flash in the same instant. Each price carries the time it last
+    // traded (`time`, Unix seconds): the rows that changed flash in that order and with those gaps, starting the moment the answer
+    // arrives, so every row shows the same short delay behind its real trade (31 Oct 2026, the owner: "they should be updating when they
+    // change"). Rows in the same second get a little jitter (the time has no finer grain); with no time (an older answer) a random
+    // 0 to 2.5 s, as before. A row still waiting when a newer answer comes is not shown with the older figure (`tok`).
+    var pending = [], tok = 0;
+    // The colour comes first and the figure changes a moment later, so the eye is drawn to the spot and then sees the figure move
+    // (31 Oct 2026, the owner's idea). Up and down are swapped as classes, so the flash's own class is not wiped.
+    var TEXT_AFTER = 250;
+    function afterFlash(fn) { setTimeout(fn, TEXT_AFTER); }
+    function upDown(el, up) { el.classList.remove('positive', 'negative'); el.classList.add(up ? 'positive' : 'negative'); }
+    function later(fn, el, t) { pending.push({ fn: fn, el: el, t: t }); }
+    function release() {
+        var list = pending; pending = [];
+        var times = list.map(function (x) { return x.t; }).filter(function (t) { return typeof t === 'number' && t > 0; });
+        var t0 = times.length ? Math.min.apply(null, times) : null, cap = Math.max(0, FAST[0] - 1000), seq = ++tok;
+        list.forEach(function (x) {
+            if (x.el) x.el.__lmTok = seq;
+            var wait = t0 !== null && typeof x.t === 'number' && x.t > 0 ? Math.min(cap, (x.t - t0) * 1000) + Math.random() * 600 : Math.random() * 2500;
+            setTimeout(function () { if (!x.el || x.el.__lmTok === seq) x.fn(); }, wait);
+        });
+    }
 
     // What is on show: the movers rows, and the side panel's rows with their symbols (from the data the page saved)
     function movers() {
@@ -123,19 +149,52 @@
         var svg = row.querySelector('.market-item-sidebar-chart'); if (svg) svg.setAttribute('aria-label', 'today so far');
     }
 
+    // One row: its price and its change are compared apart, and only the part whose text changes flashes (31 Oct 2026, the owner:
+    // a flash on a price that had not moved, when only the % had, looked like a fault). Each part says its own direction.
+    function amountOf(text) { var n = parseFloat(String(text || '').replace(/[,+\s]/g, '')); return isNaN(n) ? null : n; }
+    // A part flashes only when its price has traded since the last answer (`time` moved on). The first answer after the page opens,
+    // and a market that is shut, put their figures right without a flash: the page first draws figures from other sources (the
+    // panel's own functions, the last visit's), which differ by a cent or two, and those corrections flashed on every page load
+    // (31 Oct 2026, the owner: the Dow and Nasdaq flashed a few times after a refresh on a Saturday). With no time in the answer
+    // (an older price function) every change flashes, as before.
+    var seenTime = {}, fresh = {};
+    function show(el, ch, price, changeTxt, q, was, first, done) {
+        if (!first && typeof q.time === 'number' && !fresh[q.__sym]) first = true;       // no new trade: put it right quietly
+        var pMove = el && el.textContent.trim() !== price, cMove = ch && ch.textContent.trim() !== changeTxt;
+        if (!pMove && !cMove) return 0;
+        if (first) {                                     // a quiet correction: at once, no flash, and not counted as movement
+            if (el) (el.__lmTok = ++tok);                // a flash still waiting from an older answer must not overwrite it
+            if (pMove) el.textContent = price; if (cMove) ch.textContent = changeTxt; if (done) done();
+            return 0;
+        }
+        var oldCh = ch ? amountOf(ch.textContent) : null;
+        var upP = was === null ? q.change >= 0 : q.price >= was, upC = oldCh === null ? q.change >= 0 : q.change >= oldCh;
+        later(function () {
+            // the panel may have drawn the row again from the newest figures in the meantime: a part that already reads its new figure does not flash
+            pMove = pMove && el.textContent.trim() !== price; cMove = cMove && ch.textContent.trim() !== changeTxt;
+            if (pMove) flash(el, upP); if (cMove) flash(ch, upC);
+            afterFlash(function () {
+                if (pMove) el.textContent = price;
+                if (cMove) ch.textContent = changeTxt;
+                if (done) done();
+            });
+        }, el || ch, q.time);
+        return 1;
+    }
+
     function apply(answer) {
         var moved = 0, saved = {};
+        fresh = {};
+        Object.keys(answer).forEach(function (sym) {
+            var q = answer[sym]; if (!q || q.error) return;
+            q.__sym = sym;
+            if (typeof q.time === 'number') { fresh[sym] = !!seenTime[sym] && q.time > seenTime[sym]; seenTime[sym] = Math.max(seenTime[sym] || 0, q.time); }
+        });
         movers().forEach(function (m) {
             var q = answer[m.sym]; if (!q || q.error) return;
-            var key = m.kind[2], cache = saved[key] || (saved[key] = read(key) || {}), old = cache[m.sym], text = money(q.price);
-            if (m.price.textContent !== text) {
-                var up = old && typeof old.price === 'number' ? q.price >= old.price : q.change >= 0, el = m.price, ch = m.change;
-                moved++;
-                later(function () {
-                    el.textContent = text; flash(el, up);
-                    if (ch) { ch.textContent = changeText(q.change, q.changePercent); ch.style.color = q.changePercent >= 0 ? '#22c55e' : '#ef4444'; flash(ch, up); }
-                });
-            }
+            var key = m.kind[2], cache = saved[key] || (saved[key] = read(key) || {}), old = cache[m.sym], ch = m.change;
+            moved += show(m.price, ch, money(q.price), changeText(q.change, q.changePercent), q, old && typeof old.price === 'number' ? old.price : null, false,
+                function () { if (ch) ch.style.color = q.changePercent >= 0 ? '#22c55e' : '#ef4444'; });
             cache[m.sym] = { name: q.name || m.sym, price: q.price, change: q.change, changePercent: q.changePercent };
         });
         Object.keys(saved).forEach(function (k) { write(k, saved[k]); });
@@ -144,15 +203,8 @@
             var q = answer[r.sym]; if (!q || q.error) return;
             if (q.spark) { sparks[r.sym] = { spark: q.spark, prev: q.prev, at: Date.now() }; drawSpark(r.row, sparks[r.sym]); sparked = true; }
             var valEl = r.row.querySelector('.market-item-sidebar-value'), chEl = r.row.querySelector('.market-item-sidebar-change');
-            var text = panelValue(q.price, r.cat);
-            if (valEl && valEl.textContent.trim() !== text) {
-                var up = q.price >= (r.info.value || 0); moved++;
-                later(function () {
-                    valEl.textContent = text; flash(valEl, up);
-                    if (chEl) { chEl.textContent = changeText(q.change, q.changePercent); chEl.className = 'market-item-sidebar-change ' + (q.change >= 0 ? 'positive' : 'negative'); flash(chEl, up); }
-                    if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]);
-                });
-            }
+            if (valEl) moved += show(valEl, chEl, panelValue(q.price, r.cat), changeText(q.change, q.changePercent), q, typeof r.info.value === 'number' ? r.info.value : null, false,
+                function () { if (chEl) upDown(chEl, q.change >= 0); if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); });
             if (store && store[r.cat] && store[r.cat][r.name]) {
                 store[r.cat][r.name] = Object.assign({}, store[r.cat][r.name], { value: q.price, change: q.change, changePercent: q.changePercent }); touched = true;
             }
@@ -161,18 +213,12 @@
         cards().forEach(function (c) {
             var q = answer[c.sym]; if (!q || q.error) return;
             if (q.spark) { sparks[c.sym] = { spark: q.spark, prev: q.prev, at: Date.now() }; drawCard(c, sparks[c.sym]); sparked = true; }
-            var text = money(q.price);
-            if (c.value.textContent.trim() !== text) {
-                var was = parseFloat(c.value.textContent.replace(/,/g, '')), up = isNaN(was) ? q.change >= 0 : q.price >= was, el = c.value, ch = c.change, first = isNaN(was);
-                moved++;
-                later(function () {
-                    el.textContent = text; if (!first) flash(el, up);
-                    if (ch) { ch.textContent = changeText(q.change, q.changePercent); ch.className = 'index-change ' + (q.change >= 0 ? 'positive' : 'negative'); if (!first) flash(ch, up); }
-                    if (sparks[c.sym]) drawCard(c, sparks[c.sym]);
-                });
-            }
+            var was = amountOf(c.value.textContent), ch = c.change;
+            moved += show(c.value, ch, money(q.price), changeText(q.change, q.changePercent), q, was, was === null,
+                function () { if (ch) { if (!ch.classList.contains('index-change')) ch.classList.add('index-change'); upDown(ch, q.change >= 0); } if (sparks[c.sym]) drawCard(c, sparks[c.sym]); });
         });
         if (sparked) saveSparks();
+        release();
         return moved;
     }
 
@@ -197,6 +243,7 @@
     function schedule() {
         if (timer) clearTimeout(timer);
         var wait = gap <= FAST[0] ? FAST[0] + Math.random() * (FAST[1] - FAST[0]) : gap;
+        if (Date.now() - lastInput >= IDLE) wait = Math.max(wait, SLOW);       // still there, not touching: once a minute
         timer = setTimeout(round, watching() ? wait : 15000);
     }
     function woke() {                                   // back after a pause: a round straight away, at the quick pace
