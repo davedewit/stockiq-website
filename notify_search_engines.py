@@ -8,8 +8,8 @@ def notify_indexnow():
     url = "https://api.indexnow.org/indexnow"
     data = {
         "host": "stockiq.tech",
-        "key": "stockiq2026",
-        "keyLocation": "https://stockiq.tech/stockiq2026.txt",
+        "key": "5d95459bdfa249efa511862a23fb9791",   # 31 Oct 2026: a new key; "stockiq2026" was blocked by Bing after its file was missing (25 Sep - 31 Oct)
+        "keyLocation": "https://stockiq.tech/5d95459bdfa249efa511862a23fb9791.txt",
         "urlList": [
             "https://stockiq.tech/",
             "https://stockiq.tech/sitemap.xml"
