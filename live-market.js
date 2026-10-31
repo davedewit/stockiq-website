@@ -18,11 +18,11 @@
  */
 (function () {
     'use strict';
-    var VERSION = 9;
+    var VERSION = 12;
     if (window.liveMarket && window.liveMarket.version >= VERSION) return;
     var PRICES = 'https://2vl4la6od3vfgbkv6ycbj7ewry0yxvck.lambda-url.us-east-1.on.aws/';
     var T = window.LIVE_MARKET_TEST || {};               // a browser test may shorten the times
-    var FAST = T.fast || [6000, 10000], SLOW = T.slow || 60000, IDLE = T.idle || 5 * 60000, STOP = T.stop || 15 * 60000, MAX = 40;
+    var FAST = T.fast || [6000, 10000], SLOW = T.slow || 60000, IDLE = T.idle || 5 * 60000, STOP = T.stop || 15 * 60000, QUICK = T.quick || 2500, MAX = 40;
     // Full speed while someone has touched the page in the last IDLE (5 min: watching without moving is normal), then once a SLOW
     // (a minute), and nothing after STOP (15 min) without a touch, so a tab left open costs little. Until 31 Oct 2026 it stopped after 90 s.
     var KINDS = [['trend', 'trendingTickersList', 'trendingTickerPrices'], ['gainer', 'gainersTickersList', 'gainersTickerPrices'],
@@ -41,13 +41,13 @@
     function style() {
         if (document.getElementById('lm-style')) return;
         var s = document.createElement('style'); s.id = 'lm-style';
-        // A change shows as a soft green or red tint, its figures in the page's own text colour while it is held (about half a second),
+        // A change shows as a soft green or red tint, its figures in the page's own text colour while it is held (a little over half a second; the figure changes 0.35 s in),
         // then a fainter tint fading out over a second (31 Oct 2026, the owner: the old pale tint for 1.2 s was hard to see, then a solid
         // dark green or red with white figures was too strong). The outline gives the figure a little room without moving anything.
-        s.textContent = '@keyframes lmUp{0%,30%{background:rgba(34,197,94,.42);box-shadow:0 0 0 3px rgba(34,197,94,.42)}40%{background:rgba(34,197,94,.16);box-shadow:0 0 0 3px rgba(34,197,94,.16)}100%{background:transparent;box-shadow:0 0 0 3px transparent}}'
-            + '@keyframes lmDown{0%,30%{background:rgba(239,68,68,.42);box-shadow:0 0 0 3px rgba(239,68,68,.42)}40%{background:rgba(239,68,68,.16);box-shadow:0 0 0 3px rgba(239,68,68,.16)}100%{background:transparent;box-shadow:0 0 0 3px transparent}}'
+        s.textContent = '@keyframes lmUp{0%,35%{background:rgba(34,197,94,.42);box-shadow:0 0 0 3px rgba(34,197,94,.42)}45%{background:rgba(34,197,94,.16);box-shadow:0 0 0 3px rgba(34,197,94,.16)}100%{background:transparent;box-shadow:0 0 0 3px transparent}}'
+            + '@keyframes lmDown{0%,35%{background:rgba(239,68,68,.42);box-shadow:0 0 0 3px rgba(239,68,68,.42)}45%{background:rgba(239,68,68,.16);box-shadow:0 0 0 3px rgba(239,68,68,.16)}100%{background:transparent;box-shadow:0 0 0 3px transparent}}'
             + '@keyframes lmText{0%,75%{color:var(--text-primary,currentColor)}}'
-            + '.lm-up{animation:lmUp 1.6s ease-out,lmText .64s;border-radius:3px}.lm-down{animation:lmDown 1.6s ease-out,lmText .64s;border-radius:3px}'
+            + '.lm-up{animation:lmUp 1.6s ease-out,lmText .75s;border-radius:3px}.lm-down{animation:lmDown 1.6s ease-out,lmText .75s;border-radius:3px}'
             + '.market-item-sidebar-chart polyline:not([data-lm]),.index-chart polyline:not([data-lm]){opacity:0}';      // the page's own lines are random: hidden until today's real one is in
         (document.head || document.documentElement).appendChild(s);
     }
@@ -63,7 +63,7 @@
     var pending = [], tok = 0;
     // The colour comes first and the figure changes a moment later, so the eye is drawn to the spot and then sees the figure move
     // (31 Oct 2026, the owner's idea). Up and down are swapped as classes, so the flash's own class is not wiped.
-    var TEXT_AFTER = 250;
+    var TEXT_AFTER = 350;                               // 250 until the owner asked for a little more (31 Oct 2026)
     function afterFlash(fn) { setTimeout(fn, TEXT_AFTER); }
     function upDown(el, up) { el.classList.remove('positive', 'negative'); el.classList.add(up ? 'positive' : 'negative'); }
     function later(fn, el, t) { pending.push({ fn: fn, el: el, t: t }); }
@@ -157,7 +157,9 @@
     // panel's own functions, the last visit's), which differ by a cent or two, and those corrections flashed on every page load
     // (31 Oct 2026, the owner: the Dow and Nasdaq flashed a few times after a refresh on a Saturday). With no time in the answer
     // (an older price function) every change flashes, as before.
-    var seenTime = {}, fresh = {};
+    // The trade times seen are kept in the browser for 2 minutes, so that after a refresh a new trade flashes at once and a market
+    // that is shut stays quiet (31 Oct 2026). After a longer absence the first answer only puts the figures right, as before.
+    var SEEN_KEEP = 2 * 60 * 1000, seenTime = (function () { var k = read('lmSeen'); return k && Date.now() - k.at < SEEN_KEEP && k.t ? k.t : {}; })(), fresh = {};
     function show(el, ch, price, changeTxt, q, was, first, done) {
         if (!first && typeof q.time === 'number' && !fresh[q.__sym]) first = true;       // no new trade: put it right quietly
         var pMove = el && el.textContent.trim() !== price, cMove = ch && ch.textContent.trim() !== changeTxt;
@@ -167,8 +169,12 @@
             if (pMove) el.textContent = price; if (cMove) ch.textContent = changeTxt; if (done) done();
             return 0;
         }
-        var oldCh = ch ? amountOf(ch.textContent) : null;
-        var upP = was === null ? q.change >= 0 : q.price >= was, upC = oldCh === null ? q.change >= 0 : q.change >= oldCh;
+        // One direction a row (31 Oct 2026, the owner: XRP flashed a green price beside a red %): the price's, up or down against the
+        // figure shown. Only when the price shows no change does the % decide, by its own figure (the change in money is rounded to
+        // cents on the page, so for a coin under $1 it cannot be compared)
+        var oldPct = ch ? parseFloat((String(ch.textContent).match(/\(([+\-\u2212]?[\d.]+)%\)/) || [])[1]) : NaN;
+        var upP = was === null ? q.change >= 0 : q.price > was || (q.price === was && q.changePercent >= (isNaN(oldPct) ? 0 : oldPct));
+        var upC = pMove ? upP : (isNaN(oldPct) ? q.changePercent >= 0 : q.changePercent >= oldPct);
         later(function () {
             // the panel may have drawn the row again from the newest figures in the meantime: a part that already reads its new figure does not flash
             pMove = pMove && el.textContent.trim() !== price; cMove = cMove && ch.textContent.trim() !== changeTxt;
@@ -190,6 +196,7 @@
             q.__sym = sym;
             if (typeof q.time === 'number') { fresh[sym] = !!seenTime[sym] && q.time > seenTime[sym]; seenTime[sym] = Math.max(seenTime[sym] || 0, q.time); }
         });
+        write('lmSeen', { at: Date.now(), t: seenTime });
         movers().forEach(function (m) {
             var q = answer[m.sym]; if (!q || q.error) return;
             var key = m.kind[2], cache = saved[key] || (saved[key] = read(key) || {}), old = cache[m.sym], ch = m.change;
@@ -203,7 +210,7 @@
             var q = answer[r.sym]; if (!q || q.error) return;
             if (q.spark) { sparks[r.sym] = { spark: q.spark, prev: q.prev, at: Date.now() }; drawSpark(r.row, sparks[r.sym]); sparked = true; }
             var valEl = r.row.querySelector('.market-item-sidebar-value'), chEl = r.row.querySelector('.market-item-sidebar-change');
-            if (valEl) moved += show(valEl, chEl, panelValue(q.price, r.cat), changeText(q.change, q.changePercent), q, typeof r.info.value === 'number' ? r.info.value : null, false,
+            if (valEl) moved += show(valEl, chEl, panelValue(q.price, r.cat), changeText(q.change, q.changePercent), q, amountOf(valEl.textContent), false,
                 function () { if (chEl) upDown(chEl, q.change >= 0); if (sparks[r.sym]) drawSpark(r.row, sparks[r.sym]); });
             if (store && store[r.cat] && store[r.cat][r.name]) {
                 store[r.cat][r.name] = Object.assign({}, store[r.cat][r.name], { value: q.price, change: q.change, changePercent: q.changePercent }); touched = true;
@@ -227,6 +234,7 @@
         if (!watching()) return schedule();           // looked at again at the next input or return to the tab
         var syms = movers().map(function (m) { return m.sym; }).concat(panelRows().map(function (r) { return r.sym; }), cards().map(function (c) { return c.sym; }));
         syms = syms.filter(function (s, i) { return syms.indexOf(s) === i; }).slice(0, MAX);
+        if (!syms.length && rounds === 0) { timer = setTimeout(round, 500); return; }   // the page has not drawn its rows yet: look again shortly
         if (!syms.length || busy) return schedule();
         busy = true; rounds++;
         fetch(PRICES, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tickers: syms, spark: true }) })
@@ -244,6 +252,9 @@
         if (timer) clearTimeout(timer);
         var wait = gap <= FAST[0] ? FAST[0] + Math.random() * (FAST[1] - FAST[0]) : gap;
         if (Date.now() - lastInput >= IDLE) wait = Math.max(wait, SLOW);       // still there, not touching: once a minute
+        // The first answer after the page opens only puts the figures right (no flash); the second comes 2.5 s later, so a new trade
+        // flashes within a few seconds of a refresh, not after the full gap (31 Oct 2026, the owner: about 10 s before any flash)
+        if (rounds === 1) wait = Math.min(wait, QUICK);
         timer = setTimeout(round, watching() ? wait : 15000);
     }
     function woke() {                                   // back after a pause: a round straight away, at the quick pace
@@ -293,7 +304,7 @@
         }
     }
 
-    function start() { loadSparks(); style(); watchPanel(); drawAll(); setTimeout(watchPanel, 3000); timer = setTimeout(round, 1500); }
+    function start() { loadSparks(); style(); watchPanel(); drawAll(); setTimeout(watchPanel, 3000); timer = setTimeout(round, 500); }
     window.liveMarket = { version: VERSION, round: round, apply: apply, movers: movers, panelRows: panelRows, cards: cards, sparkPoints: sparkPoints,
         state: function () { return { gap: gap, rounds: rounds, changed: changed, watching: watching(), busy: busy, lastErr: lastErr }; } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

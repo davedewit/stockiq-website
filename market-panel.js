@@ -79,9 +79,19 @@
             box.appendChild(item);
         });
     };
+    // Rows already on show with the same items are not drawn again: their figures are live-market.js's to change, so that a change
+    // flashes (31 Oct 2026, the owner: after a refresh the figures changed without a flash, then flashed only seconds later). A redraw
+    // is for a tab chosen, or items that changed.
+    function names(data) { return Object.keys(data || {}).slice(0, 6).filter(function (n) { var i = data[n]; return i && !i.error && typeof i.value === 'number'; }); }
+    function sameRows(tab) {
+        var box = container(); if (!box) return false;
+        var shown = Array.prototype.map.call(box.querySelectorAll('.market-item-sidebar-name'), function (e) { return e.textContent; });
+        return shown.length > 0 && shown.join('|') === names((window.marketDataSidebar || {})[tab]).join('|');
+    }
+    function cardsShown() { var v = document.getElementById('sp500-value'); return !!(v && /\d/.test(v.textContent)); }
     window.fetchMarketDataSidebar = function (force) {
         var tab = window.currentTabSidebar;
-        window.renderMarketDataSidebar(tab);                          // what was kept, at once
+        if (!sameRows(tab)) window.renderMarketDataSidebar(tab);     // what was kept, at once
         if (document.hidden) return Promise.resolve();
         var due = function (c) { return force || !fetchedAt[c] || Date.now() - fetchedAt[c] >= EVERY - 1000; };
         var one = function (c) {
@@ -92,8 +102,8 @@
                 if (!d || !Object.keys(d).length) return;
                 window.marketDataSidebar[c] = d; window.marketDataSidebar.timestamp = new Date().toISOString();
                 write('marketDataSidebar', window.marketDataSidebar);
-                if (c === window.currentTabSidebar) window.renderMarketDataSidebar(c);
-                if (c === 'us' && typeof window.updateTopCardsFromData === 'function') window.updateTopCardsFromData(d);   // the home page's four cards
+                if (c === window.currentTabSidebar && !sameRows(c)) window.renderMarketDataSidebar(c);
+                if (c === 'us' && typeof window.updateTopCardsFromData === 'function' && !cardsShown()) window.updateTopCardsFromData(d);   // the home page's four cards, until they show figures
             }).catch(function () { fetchedAt[c] = 0; });
         };
         // the tab on show first, the others a moment later so that a click on another tab finds its figures ready
@@ -210,6 +220,12 @@
     window.renderActiveTickers = function (t) { renderList('active', t); };
     function listOf(kind) { return (read(LISTS[kind][2]) || []).slice(0, SHOWN); }
     function renderLists() { Object.keys(LISTS).forEach(function (k) { renderList(k, listOf(k)); }); }
+    function listShown(k) {                              // the shares a list shows now, in order
+        return Array.prototype.map.call(document.querySelectorAll('[id^="' + LISTS[k][0] + '-price-"]'), function (e) { return e.id.slice(LISTS[k][0].length + 7); });
+    }
+    function renderChangedLists() {                      // a list is drawn again only when its shares change; prices are live-market.js's
+        Object.keys(LISTS).forEach(function (k) { var want = listOf(k); if (listShown(k).join('|') !== want.map(idOf).join('|')) renderList(k, want); });
+    }
     // Which shares are on each list (four small requests), then their prices together (one request), then the lists drawn
     window.fetchSidebarTickers = function () {
         if (listsBusy || document.hidden) return Promise.resolve();
@@ -227,7 +243,7 @@
                     write(LISTS[k][3], cache);
                 });
             });
-        }).catch(function () { }).then(function () { listsBusy = false; renderLists(); });
+        }).catch(function () { }).then(function () { listsBusy = false; renderChangedLists(); });
     };
     ['fetchTrendingTickers', 'fetchTopGainers', 'fetchTopLosers', 'fetchMostActive'].forEach(function (n) { window[n] = function () { return window.fetchSidebarTickers(); }; });
 
@@ -258,6 +274,6 @@
     window.addEventListener('storage', function (e) {                // another tab of the site fetched newer figures
         if (e.key === 'marketDataSidebar' && e.newValue) { try { window.marketDataSidebar = JSON.parse(e.newValue); window.renderMarketDataSidebar(window.currentTabSidebar); } catch (x) { } }
     });
-    window.marketPanel = { version: 3, hasPage: hasPage, openTab: openTab, refresh: refresh, renderLists: renderLists, deskStyle: function (np) { return np.getAttribute('data-desk-style'); } };
+    window.marketPanel = { version: 4, hasPage: hasPage, openTab: openTab, refresh: refresh, renderLists: renderLists, deskStyle: function (np) { return np.getAttribute('data-desk-style'); } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
