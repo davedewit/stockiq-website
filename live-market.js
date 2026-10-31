@@ -18,7 +18,7 @@
  */
 (function () {
     'use strict';
-    var VERSION = 4;
+    var VERSION = 5;
     if (window.liveMarket && window.liveMarket.version >= VERSION) return;
     var PRICES = 'https://2vl4la6od3vfgbkv6ycbj7ewry0yxvck.lambda-url.us-east-1.on.aws/';
     var T = window.LIVE_MARKET_TEST || {};               // a browser test may shorten the times
@@ -48,7 +48,9 @@
         if (!el || !el.classList) return;
         el.classList.remove('lm-up', 'lm-down'); void el.offsetWidth; el.classList.add(up ? 'lm-up' : 'lm-down');
     }
-    function later(fn) { setTimeout(fn, Math.random() * 2500); }      // rows change a moment apart, not all at once
+    // A change is shown and flashes the moment its price arrives (31 Oct 2026, the owner: as accurate as possible to when the update
+    // occurs). Until then each row waited a random 0 to 2.5 s so that rows changed a moment apart, which put the flash up to 2.5 s late.
+    function later(fn) { fn(); }
 
     // What is on show: the movers rows, and the side panel's rows with their symbols (from the data the page saved)
     function movers() {
