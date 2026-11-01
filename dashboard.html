@@ -1112,7 +1112,40 @@ if (window.marketPanel) window.marketPanel.refresh();
                 <button class="select-all-btn" onclick="refreshDashboard()" style="background: #28a745;">
                     🔄 Refresh Dashboard
                 </button>
-                <!-- "Recently Deleted" went on 1 Nov 2026: deleted reports are removed for good a week later, and it could not restore one -->
+                <div style="display: flex; align-items: center; gap: 8px; color: var(--text-primary);">
+                    <div style="position: relative; width: 44px; height: 24px; background: var(--border-color); border-radius: 12px; cursor: pointer; transition: background 0.3s;" onclick="document.getElementById('show-deleted-toggle').click()" id="toggle-bg">
+                        <input type="checkbox" id="show-deleted-toggle" onchange="toggleShowDeleted()" style="display: none;">
+                        <div id="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: transform 0.3s;"></div>
+                    </div>
+                    <span style="user-select: none;">Recently Deleted</span>
+                </div>
+                <script>
+                    // Initialize toggle state from localStorage
+                    window.addEventListener('DOMContentLoaded', function() {
+                        const toggle = document.getElementById('show-deleted-toggle');
+                        const bg = document.getElementById('toggle-bg');
+                        const slider = document.getElementById('toggle-slider');
+                        const saved = localStorage.getItem('showDeleted') === 'true';
+                        
+                        if (saved) {
+                            toggle.checked = true;
+                            bg.style.background = '#007bff';
+                            slider.style.transform = 'translateX(20px)';
+                        }
+                    });
+                    
+                    document.getElementById('show-deleted-toggle').addEventListener('change', function() {
+                        const bg = document.getElementById('toggle-bg');
+                        const slider = document.getElementById('toggle-slider');
+                        if (this.checked) {
+                            bg.style.background = '#007bff';
+                            slider.style.transform = 'translateX(20px)';
+                        } else {
+                            bg.style.background = 'var(--border-color)';
+                            slider.style.transform = 'translateX(0)';
+                        }
+                    });
+                </script>
             </div>
             <div id="history-list" class="loading">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px;">
@@ -1301,8 +1334,7 @@ if (window.marketPanel) window.marketPanel.refresh();
         
         let analysisHistory = [];
         let selectedAnalyses = new Set();
-        const showDeleted = false;              // deleted reports are not shown (the "Recently Deleted" switch went on 1 Nov 2026)
-        try { localStorage.removeItem('showDeleted'); } catch (e) {}
+        let showDeleted = localStorage.getItem('showDeleted') === 'true';
         let currentPage = 1;
         const itemsPerPage = 20;
         
@@ -2132,6 +2164,11 @@ ${analysis.report}
             }
         }
         
+        function toggleShowDeleted() {
+            showDeleted = document.getElementById('show-deleted-toggle').checked;
+            localStorage.setItem('showDeleted', showDeleted);
+            loadDashboard();
+        }
         
 
         
