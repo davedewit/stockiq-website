@@ -541,8 +541,17 @@
         const why = [g.spy < g.avg200 ? 'the S&amp;P 500 is below its 200-day average' : 'the S&amp;P 500 is above its 200-day average',
                      g.spy < g.avg50 ? 'below its 50-day average' : 'above its 50-day average',
                      `the VIX (the swings the market expects) is ${g.vix}` + (g.vix > 30 ? ', over 30' : g.vix > 20 ? ', over 20' : ', under 20')];
-        return `<div class="ap-section" id="ap-gauge"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><strong>Market risk now: ${esc(g.name)}</strong><span aria-label="${esc(g.name)}, ${g.level} of 4">${steps}</span></div>`
-            + `<details data-ap-fold="gauge" ${openDetails.gauge ? 'open' : ''} style="margin-top: 4px;"><summary class="ap-sub">What it is, and why it does not hold cash</summary><div class="ap-help" style="margin-top: 4px;">One point each when the S&amp;P 500 is below its 200-day average, below its 50-day average, and when the VIX is over 20 and over 30. Now: ${why.join('; ')}. It is shown for information and recorded with every buy; it does not make the autopilot hold cash. Tested on four years of prices, holding more cash when it was high made less than staying invested (the worst falls were a little smaller). The record will show whether buys made at a high reading do worse.</div></details></div>`;
+        // what made the reading, on show (1 Nov 2026, the owner: "is this right? ... how was this determined?"; the reasons were only in
+        // the fold): the points it has, and any reading close to adding one (a VIX within 1.5 of 20 or 30, the S&P 500 within 1% of an average)
+        const pct = (a) => (g.spy / a - 1) * 100;
+        const got = [g.spy < g.avg200 ? 'the S&amp;P 500 is below its 200-day average' : '', g.spy < g.avg50 ? 'the S&amp;P 500 is below its 50-day average' : '',
+                     g.vix > 20 ? `the VIX is ${g.vix}, over ${g.vix > 30 ? 30 : 20}` : ''].filter(Boolean);
+        const near = [g.spy >= g.avg200 && pct(g.avg200) < 1 ? `the S&amp;P 500 is ${pct(g.avg200).toFixed(1)}% above its 200-day average` : '',
+                      g.spy >= g.avg50 && pct(g.avg50) < 1 ? `the S&amp;P 500 is ${pct(g.avg50).toFixed(1)}% above its 50-day average` : '',
+                      (g.vix <= 20 && g.vix > 18.5) || (g.vix <= 30 && g.vix > 28.5) ? `the VIX is ${g.vix}, close to ${g.vix > 28.5 ? 30 : 20}` : ''].filter(Boolean);
+        const said = `${g.level} of 4${got.length ? ': ' + got.join('; ') : ': none of its warning signs'}${near.length ? ' · close to the next level: ' + near.join('; ') : ''}`;
+        return `<div class="ap-section" id="ap-gauge"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><strong>Market risk now: ${esc(g.name)}</strong><span aria-label="${esc(g.name)}, ${g.level} of 4">${steps}</span></div><div class="ap-sub" id="ap-gauge-why" style="margin-top: 2px;">${said}. The same for every account: it reads the whole market, not your holdings.</div>`
+            + `<details data-ap-fold="gauge" ${openDetails.gauge ? 'open' : ''} style="margin-top: 4px;"><summary class="ap-sub">How it is worked out, and why it does not hold cash</summary><div class="ap-help" style="margin-top: 4px;">One point each when the S&amp;P 500 is below its 200-day average, below its 50-day average, and when the VIX is over 20 and over 30. Now: ${why.join('; ')}. It is shown for information and recorded with every buy; it does not make the autopilot hold cash. Tested on four years of prices, holding more cash when it was high made less than staying invested (the worst falls were a little smaller). The record will show whether buys made at a high reading do worse.</div></details></div>`;
     }
     function comingHtml() {
         const list = data.coming;
