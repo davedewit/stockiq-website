@@ -215,6 +215,37 @@
         const part = (n) => `<b class="${n >= 0 ? 'ok' : 'red'}">${n >= 0 ? '▲' : '▼'} ${usd(Math.abs(n))}</b>`;
         return `<div style="margin-top: 8px;"><b>Where the gap to the S&amp;P 500 comes from:</b> choosing shares ${part(shares)} (the account against the same markets with no AI) · choosing markets ${part(markets)} (those markets against the S&amp;P 500${typeof f.coinGap === 'number' && Math.abs(f.coinGap) >= 1 ? `; the coin trades ${part(f.coinGap)} of it` : ''}) = ${part(shares + markets)} in all.</div>`;
     }
+    // The progress score and the day's summary (1 Nov 2026, the owner: "a points scale ... starts at say 50 and goes down if we do
+    // worse and up if it gets better ... some detail on why", and "a massive summary ... i can read in 30 seconds"). Both from the
+    // function's item _digest, written once a day after the US close: the score moves only on the account against an S&P 500 fund.
+    function scoreSvg(days, start) {
+        if (!days || days.length < 2) return '';
+        const vals = days.map(d => d.score), lo = Math.min(start, ...vals) - 2, hi = Math.max(start, ...vals) + 2;
+        const w = 320, h = 70, x = (i) => 4 + i * (w - 8) / (days.length - 1), y = (v) => h - 4 - (v - lo) / (hi - lo) * (h - 8);
+        return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="The progress score day by day">
+            <line x1="4" x2="${w - 4}" y1="${y(start).toFixed(1)}" y2="${y(start).toFixed(1)}" stroke="var(--text-secondary)" stroke-dasharray="4 4" opacity="0.6"/>
+            <polyline points="${days.map((d, i) => x(i).toFixed(1) + ',' + y(d.score).toFixed(1)).join(' ')}" fill="none" stroke="var(--ad-blue)" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>`;
+    }
+    function digestHtml(g) {
+        if (!g || !(g.days || []).length) return '';
+        const days = g.days, last = days[days.length - 1], start = g.start || 50, owner = g.owner || {};
+        const move = (p) => `<span class="${p > 0 ? 'ok' : p < 0 ? 'red' : 'ad-sub'}">${p > 0 ? '▲' : p < 0 ? '▼' : '–'} ${Math.abs(p).toFixed(1)}</span>`;
+        const week = days.filter(d => d.d >= new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)).reduce((a, d) => a + d.pts, 0);
+        const lines = (owner.lines || []).map(l => `<li>${esc(l)}</li>`).join('');
+        const row = (d) => `<tr><td>${esc(d.d)}</td><td style="text-align: right;">${d.score.toFixed(1)}</td><td style="text-align: right;">${move(d.pts)}</td><td style="text-align: right;">${d.acct >= 0 ? '+' : ''}${d.acct.toFixed(2)}%</td><td style="text-align: right;">${d.fund >= 0 ? '+' : ''}${d.fund.toFixed(2)}%</td><td class="ad-sub">${esc((d.why || []).join('; ') || '')}</td></tr>`;
+        return `<div class="ad-card plan" id="ad-digest"><span class="ad-label">📋 Today in 30 seconds</span>
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 6px;">
+              <div><div class="ad-sub">Progress score</div><div class="ad-goal-now" style="font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums;">${last.score.toFixed(1)}</div>
+                <div class="ad-sub">last trading day ${move(last.pts)} · 7 days ${move(Math.round(week * 10) / 10)}</div></div>
+              <div style="flex: 1; min-width: 200px;">${scoreSvg(days, start)}<div class="ad-sub">It began at ${start} when the account started (the dashed line). A point for each 0.1% a day the account does better than an S&P 500 fund, a point off for each 0.1% worse. Nothing else moves it.</div></div>
+            </div>
+            ${lines ? `<ul style="list-style: none; padding: 0; margin: 10px 0 0; line-height: 1.6;">${lines}</ul>
+              <div class="ad-sub" style="margin-top: 4px;">Written ${esc(day(owner.at))} by the AI from what the site recorded${owner.how === 'facts' ? ' (the AI\'s version did not pass the figure check, so these are the records themselves)' : '; every figure checked against those records'}. A new one each day after the US close.</div>`
+              : `<div class="ad-sub" style="margin-top: 8px;">The first daily summary is written tonight, just after the US market closes (about 21:10 UTC).</div>`}
+            <details style="margin-top: 8px;"><summary class="ad-sub" style="cursor: pointer;">Day by day: what moved the score</summary>
+              <div style="overflow-x: auto;"><table class="ad-bd" style="width: 100%; font-size: 0.85rem; margin-top: 6px;"><tr><th style="text-align: left;">Day</th><th>Score</th><th>Move</th><th>Account</th><th>S&P 500</th><th style="text-align: left;">What drove it</th></tr>${days.slice().reverse().map(row).join('')}</table></div>
+              <div class="ad-sub">The days before 2 Nov 2026 were filled in from the graph's own figures, so they have no breakdown.</div></details></div>`;
+    }
     function decisionHtml() {
         const f = liveAccount();
         if (!f || !f.versus || !(f.fundValue > 0) || !f.createdAt) return '';
@@ -659,7 +690,7 @@
         }
         el.innerHTML = `<h3 style="margin: 0 0 4px;">🛠 Admin</h3>${tabs}<div class="ad-sub">Only your account sees this page. The autopilot runs by itself; this is where it tells you how it is doing and asks you the big questions.</div>
             ${message ? `<div class="ad-msg${/^Not done/.test(message) ? ' bad' : ''}">${esc(message)}</div>` : ''}
-            ${needMeHtml(data)}${decisionHtml()}${goalHtml(data.goal)}${(data.open || []).length ? propsHtml(data.open) : ''}${changesHtml((data.plan || {}).changes)}
+            ${needMeHtml(data)}${digestHtml(data.digest)}${decisionHtml()}${goalHtml(data.goal)}${(data.open || []).length ? propsHtml(data.open) : ''}${changesHtml((data.plan || {}).changes)}
             <div class="ad-rows">${rowsHtml(data)}</div>`;
     }
 

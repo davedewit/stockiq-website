@@ -165,6 +165,8 @@
         @media (max-width: 640px) { #practice-autopilot .ap-only-phone { display: inline; } }
         #practice-autopilot .ap-countline { margin-top: 6px; color: var(--text-primary); }
         #practice-autopilot .ap-count { display: inline-block; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        #practice-autopilot .ap-digest { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.88rem; line-height: 1.5; color: var(--text-primary); background: rgba(59, 130, 246, 0.07); border: 1px solid rgba(59, 130, 246, 0.35); }
+        #practice-autopilot .ap-digest ul { list-style: none; padding: 0; margin: 4px 0 0; }
         #practice-autopilot .ap-needs { margin-top: 10px; padding: 9px 12px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); background: rgba(217, 119, 6, 0.12); border: 1px solid rgba(217, 119, 6, 0.5); } .ap-trial { margin: 10px 0; padding: 10px 14px; border: 1px solid #3b82f6; border-radius: 8px; background: rgba(59,130,246,0.08); font-size: 0.92rem; line-height: 1.45; }
         #practice-autopilot .ap-needs.none { background: none; border: 0; padding: 0; color: var(--text-secondary); }
         #practice-autopilot .ap-needs ul { margin: 4px 0 0 18px; padding: 0; }
@@ -489,6 +491,13 @@
         return `<div class="ap-trial">🎁 <strong>Included in your free trial</strong>: it runs until the end of ${esc(day)}, then pauses. To keep it running, <a href="#upgrade" onclick="if (window.dashboardTabs) window.dashboardTabs.show('reports');">choose a plan</a> (from $4.99 a month).</div>`;
     }
 
+    // The day's summary of this account, written by the AI after the US close from what the record shows (1 Nov 2026): a few lines,
+    // every figure checked against the record by the function; shown for 3 days at most
+    function digestHtml() {
+        const g = data.digest;
+        if (!g || !Array.isArray(g.lines) || !g.lines.length) return '';
+        return `<div id="ap-digest" class="ap-digest"><strong>📋 Your day in short</strong> <span class="ap-sub">${esc(when(g.at))}</span><ul>${g.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
+    }
     function needsHtml() {
         if (!Array.isArray(data.needs)) return '';
         if (!data.needs.length) return `<div id="ap-needs" class="ap-needs none">✓ Nothing needs you right now${data.settings.enabled ? ': its settings, cash and screeners are all in order, and it runs by itself' : ''}.</div>`;
@@ -928,6 +937,7 @@
                 <p class="ap-intro">An AI model buys and sells with the fake money of your <a href="#practice">practice portfolio</a>, from the screeners below and inside your limits. Not advice; in beta.</p>
                 <div id="ap-status" class="ap-status ${on ? 'on' : ''}">${esc(statusText())}${countLine()}</div>
                 ${trialHtml()}
+                ${digestHtml()}
                 ${needsHtml()}
 
                 <div class="ap-actions">

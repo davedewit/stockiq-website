@@ -698,6 +698,12 @@
         #practice-portfolio .pp-top { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
         #practice-portfolio .pp-top .pp-card-value { font-size: 1.7rem; }
         #practice-portfolio .pp-top .pp-card-value .pp-delta { font-weight: 700 !important; }
+        #practice-portfolio .pp-cashline { font-size: 0.88rem; color: var(--text-secondary); margin: 0 2px 8px; }
+        #practice-portfolio .pp-cashline strong { color: var(--text-primary); }
+        #practice-portfolio .pp-lead { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0; text-transform: none; background: rgba(201, 133, 0, 0.16); color: #a86f00; border: 1px solid rgba(201, 133, 0, 0.45); }
+        [data-theme="dark"] #practice-portfolio .pp-lead { color: #f0b429; background: rgba(240, 180, 41, 0.14); border-color: rgba(240, 180, 41, 0.45); }
+        #practice-portfolio .pp-card.lead { box-shadow: 0 0 0 2px rgba(201, 133, 0, 0.35); position: relative; }
+        #practice-portfolio .pp-card.lead .pp-lead { position: absolute; top: 9px; right: 10px; margin: 0; }   /* in the corner: the three titles and figures stay level */
         #practice-portfolio .pp-facts { font-size: 0.88rem; color: var(--text-secondary); margin: 0 2px 8px; line-height: 1.6; }
         #practice-portfolio .pp-facts strong { color: var(--text-primary); }
         #practice-portfolio #pp-more { margin-bottom: 14px; }
@@ -1006,7 +1012,9 @@
 
         const s = summarize(state, quotes);
         try { document.dispatchEvent(new CustomEvent('practice-portfolio:figures')); } catch (e) {}     // the Admin page takes the same figure
-        const card = (label, value, sub, way) => `<div class="pp-card${way > 0.004 ? ' up' : way < -0.004 ? ' down' : ''}"><div class="pp-card-label">${label}</div><div class="pp-card-value">${value}</div><div class="pp-card-sub">${sub || '&nbsp;'}</div></div>`;
+        // `lead`: the highest of the three cards (1 Nov 2026, the owner: "highlight the one thats winning ... not whole box winning as it
+        // should still be red if its negative"), a small tag only; its figures keep their own colours
+        const card = (label, value, sub, way, lead) => `<div class="pp-card${way > 0.004 ? ' up' : way < -0.004 ? ' down' : ''}${lead ? ' lead' : ''}"><div class="pp-card-label">${label}${lead ? ' <span class="pp-lead" title="The highest of the three now">🏆 Leading</span>' : ''}</div><div class="pp-card-value">${value}</div>${sub ? `<div class="pp-card-sub">${sub}</div>` : ''}</div>`;
         const cell = 'padding: 8px 6px; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap;';
         const left = cell.replace('text-align: right', 'text-align: left');
 
@@ -1085,33 +1093,40 @@
         // the gap to the S&P 500 sits in the line under the cards (31 Oct 2026, the owner: the cards show which is higher; the exact gap
         // in each card was clutter, and it is the main figure to see), so the three cards read alike: the value, today, since the start
         // its own change since the start too (30 Oct 2026, the owner: the card did not say how much the fund was down since the $100,000)
-        const fundCard = vs ? card('If all in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`,
-            `${movedHtml(vs.gainUsd, vs.gainUsd / state.startingCash * 100)} since the start`, behind)
+        // the three values side by side; the highest carries a tag (each "since the start" line went, 1 Nov 2026, the owner: they all
+        // started at $100,000, so the values themselves say it; one line under the cards says so)
+        const anyAiBuy = state.holdings.concat(state.closed).some(h => h.by === 'ai');
+        if (anyAiBuy) ensureIndexes();
+        const om = anyAiBuy ? ownMarkets(state, quotes) : null, om0 = om && !(indexWait && om.missing) ? om : null;
+        const tops = [['acct', s.accountValue], ['own', om0 ? om0.value : null], ['fund', vs ? vs.value : null]].filter(x => typeof x[1] === 'number' && isFinite(x[1]));
+        const best = tops.length > 1 ? tops.reduce((a, b) => b[1] > a[1] ? b : a) : null;
+        const leads = (k) => !!best && best[0] === k && tops.filter(x => Math.abs(x[1] - best[1]) < 0.01).length === 1;
+        const fundCard = vs ? card('If all in the S&amp;P 500 instead', `${usd(vs.value)}${fd ? dayChip(fd.usd, fd.pct, usShut) : ''}`, '', behind, leads('fund'))
             : s.marketPct === null ? card('Against the S&amp;P 500', '–', 'nothing to compare with yet', 0)
             : s.marketFlat ? card('Against the S&amp;P 500', '–', 'no change yet to compare with: the US market has not traded since the buys', 0)
             : card('Against the S&amp;P 500', gap === null ? pctHtml(s.marketPct) : Math.abs(gap) < 0.005 ? 'level' : `${gap > 0 ? '▲' : '▼'} ${Math.abs(gap).toFixed(2)}%`, 'what is still held, against an S&amp;P 500 fund over the same days', gap === null ? 0 : gap);
         // The third figure (30 Oct 2026, the owner: "it looked alot better with a 3rd box"): the account had each buy's money gone into its
         // own market instead (the autopilot's into the index its screener comes from, the owner's own into an S&P 500 fund, coins at their
         // own result, cash as cash): the end of the graph's gold line on All markets. Shown once the autopilot has bought and the indexes are in.
-        const anyAiBuy = state.holdings.concat(state.closed).some(h => h.by === 'ai');
-        if (anyAiBuy) ensureIndexes();
-        const om = anyAiBuy ? ownMarkets(state, quotes) : null;
         const homeCard = !om ? '' : indexWait && om.missing ? card('Same markets, no AI', '…', 'getting each market’s index', 0)
-            : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, `${movedHtml(om.gainUsd, om.gainUsd / state.startingCash * 100)} since the start`, om.gap);   // the gap is the card's edge colour (the owner, 31 Oct 2026: the line was clutter)
+            : card('Same markets, no AI', `${usd(om.value)}${dayChip(om.dayUsd, om.dayPct, s.dayClosed)}`, '', om.gap, leads('own'));   // the gap is the card's edge colour (the owner, 31 Oct 2026: the line was clutter)
         // the account against both on one line (31 Oct 2026, the owner: "maybe this should be comparing vs all markets not AI"): the same
         // markets with no AI is the test of the AI's picks; the S&P 500 is the bar for real money (it decides which markets as well)
         const aheadWord = (n) => { const r = Math.round(n * 100) / 100; return r === 0 ? ' level' : r > 0 ? ' ahead' : ' behind'; };   // the arrow is the account's (the owner asked which way it reads)
         const vsParts = [om && !(indexWait && om.missing) ? `Your account against the same markets, no AI: ${movedHtml(om.gap, om.gap / state.startingCash * 100)}${aheadWord(om.gap)}` : '',
                          vs ? `Your account against the S&amp;P 500: ${movedHtml(behind, behind / state.startingCash * 100)}${aheadWord(behind)}` : ''].filter(Boolean);
-        const vsLine = vsParts.map(x => x + '<br>').join('');   // a line each, cash and holdings under them (the owner)
+        const vsLine = vsParts.map(x => x + '<br>').join('');   // a line each
+        const began = new Date(state.createdAt || Date.now()).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        const startLine = `${tops.length > 1 ? 'All three started' : 'It started'} with ${usd(state.startingCash).replace(/\.00$/, '')} on ${esc(began)} · fake money`;
         const breakdown = document.getElementById('pp-more');
         if (breakdown && typeof breakdown.open === 'boolean') moreOpen = breakdown.open;
         el.innerHTML = `
+            <div class="pp-cashline">Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
             <div class="pp-top">
-                ${card('Your account', `${usd(s.accountValue)}${dayChip(s.dayUsd, dayOfAccount, s.dayClosed)}`, `${movedHtml(s.gainUsd, s.gainPct)} since it started with ${usd(state.startingCash).replace(/\.00$/, '')} · fake money`, s.gainUsd)}
+                ${card('Your account', `${usd(s.accountValue)}${dayChip(s.dayUsd, dayOfAccount, s.dayClosed)}`, '', s.gainUsd, leads('acct'))}
                 ${homeCard}${fundCard}
             </div>
-            <div class="pp-facts">${vsLine}Cash <strong>${usd(s.cash)}</strong> · In holdings <strong>${usd(s.holdingsValue)}</strong></div>
+            <div class="pp-facts">${vsLine}${startLine}</div>
             <details id="pp-more"${moreOpen ? ' open' : ''}><summary>The breakdown: profit and loss, yours and the autopilot’s, and the index fund</summary>
             ${breakdownHtml(s, split)}
             </details>
