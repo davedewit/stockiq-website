@@ -452,7 +452,7 @@
         const r = withHoldings(data.options.risk[String(s.risk)] || {}, s);
         const t = data.themes && data.themes.on ? data.themes : null, forShares = t ? s.budgetUsd * (1 - t.share) : s.budgetUsd;
         const holding = data.holding ? ` Holding ${data.holding.count}${data.holding.count > r.positions ? ` (its number of holdings is now ${r.positions}, so it buys again once fewer are held)` : ` of up to ${r.positions}`}: ${usd0(data.holding.investedUsd)} of the ${usd0(forShares)} ${t ? 'for shares' : 'budget'} is invested.`
-            + (t ? ` The sector funds (trial) hold ${t.held.length} fund${t.held.length === 1 ? '' : 's'} (${usd0(t.invested)} of its ${usd0(t.target)}).` : '') : '';
+            + (t ? ` The sector funds (trial) hold ${t.held.length} fund${t.held.length === 1 ? '' : 's'} (${usd0(t.invested)} put in; its share of the budget is ${usd0(t.target)}).` : '') : '';
         const next = data.nextCheck && data.nextCheck.at
             ? ` Next check-in about ${when(data.nextCheck.at)}, when the ${andList(data.nextCheck.markets)} market${data.nextCheck.markets.length > 1 ? 's are' : ' is'} open.`
             : (data.nextCheck === null ? ' No check-in is due in the next ten days.' : '');
