@@ -280,7 +280,7 @@
             <span><span class="ad-goal-now">${now}</span> <span class="ad-pill ${met ? 'good' : 'warn'}">${met ? '✓ target ' : 'target '}${goal}</span></span></div>
             ${fill === null ? '' : `<div class="ad-bar${met ? ' met' : ''}"><span style="width: ${Math.max(2, Math.min(100, fill)).toFixed(0)}%;"></span></div>`}</div>`;
         const avgOk = g.n > 0 && g.avg > g.avgGoal;
-        return `<div class="ad-card goal" id="ad-month"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft} days left</span></span>
+        return `<div class="ad-card goal" id="ad-month"><span class="ad-label">🎯 ${esc(g.name)} <span class="ad-sub">due ${esc(g.due)}, ${g.daysLeft <= 0 ? 'the last day' : g.daysLeft === 1 ? '1 day left' : g.daysLeft + ' days left'}</span></span>
             ${row('Finished trades in all', String(g.trades), g.tradesGoal, g.trades >= g.tradesGoal, g.trades / g.tradesGoal * 100)}
             ${row('Average a trade this month, after costs', `<span class="${avgOk ? 'ok' : 'red'}">${signed(g.avg, 2)}%</span> <span class="ad-sub">(${g.n} trades; the real average is probably between ${signed(g.avg - 2 * g.se, 2)}% and ${signed(g.avg + 2 * g.se, 2)}%)</span>`, `above ${signed(g.avgGoal, 1)}%`, avgOk, null)}
             ${row(g.live ? 'The practice account, at the latest prices' : g.waiting ? 'The practice account (getting the latest prices)' : 'The practice account, about (an estimate: the latest prices did not come in)', g.waiting ? '…' : `<span class="${g.value >= g.valueGoal ? 'ok' : 'red'}">${usd(g.value)}</span>`, usd(g.valueGoal), g.value >= g.valueGoal, g.waiting ? null : Math.max(0, (g.value - START) / (g.valueGoal - START) * 100))}
