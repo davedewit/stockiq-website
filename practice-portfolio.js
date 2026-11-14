@@ -1339,7 +1339,7 @@
             // The list keeps the latest 200 sales; the result of older ones (about -$2,140 on 12 Nov 2026) is in the account but in no row, so the
             // All row said -$5,074 while the account and the third card said -$7,213 (found by the weekly check). It is added to the All row, with
             // its own words, and has no index figure of its own (its dates are gone), so it counts as level with its index, as in the third card.
-            const earlier = (() => { const f = valueSeries(state, quotes, now, autoRealized, 0); return Math.abs(f.undated) > 0.5 ? f.undated : 0; })();
+            const earlier = (() => { const f = valueSeries(state, quotes, Date.now(), autoRealized, 0); return Math.abs(f.undated) > 0.5 ? f.undated : 0; })();
             const allGain = aiGain + earlier;
             const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>every buy${own ? ', the autopilot’s and yours (yours beside the S&amp;P 500)' : ''}${earlier ? `, and earlier sales that have left the list (${moved(earlier)})` : ''}</small></span>`
                 + `<span class="pp-mkt-res" data-label="Result">${movedHtml(allGain)}</span>`
