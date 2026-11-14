@@ -1226,7 +1226,7 @@ if (window.marketPanel) window.marketPanel.refresh();
                     <ul style="list-style: none; padding: 0; margin-bottom: 25px; color: var(--text-secondary); flex-grow: 1;">
                         <li style="margin-bottom: 8px;">✓ 50 analyses/screeners per day</li>
                         <li style="margin-bottom: 8px;">✓ Everything in Starter</li>
-                        <li style="margin-bottom: 8px;">✓ Priority email support</li>
+                        <li style="margin-bottom: 8px;">✓ Email support</li>
                         <li style="margin-bottom: 8px;">✓ AI autopilot (Beta) for your practice portfolio (fake money)</li>
                         <li style="margin-bottom: 8px; color: #22c55e; font-weight: 500;">✓ Cancel anytime from dashboard</li>
                         <li style="margin: 10px 0 4px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8;">Coming soon</li>
@@ -1242,7 +1242,7 @@ if (window.marketPanel) window.marketPanel.refresh();
                     <ul style="list-style: none; padding: 0; margin-bottom: 25px; color: var(--text-secondary); flex-grow: 1;">
                         <li style="margin-bottom: 8px;">✓ Unlimited analyses/screeners per day</li>
                         <li style="margin-bottom: 8px;">✓ Everything in Pro</li>
-                        <li style="margin-bottom: 8px;">✓ Top-priority email support</li>
+                        <li style="margin-bottom: 8px;">✓ Email support</li>
                         <li style="margin-bottom: 8px;">✓ AI autopilot (Beta) for your practice portfolio (fake money)</li>
                         <li style="margin-bottom: 8px; color: #22c55e; font-weight: 500;">✓ Cancel anytime from dashboard</li>
                         <li style="margin: 10px 0 4px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8;">Coming soon</li>
@@ -3240,77 +3240,55 @@ ${analysis.report}
             }
         });
         
+        // What the payment function needs to know who is cancelling (Admin #15): the proof the sign-in left in this browser, never an
+        // address or a subscription id. A Cognito ID token is renewed first when it is close to its hour; a Google credential or a
+        // Facebook token cannot be renewed here, so after an hour the member is asked to sign in again.
+        async function cancelProof() {
+            const idToken = localStorage.getItem('idToken') || '', access = localStorage.getItem('accessToken') || '';
+            if (idToken.startsWith('google_')) return { provider: 'google', token: access.replace(/^google_/, '') };
+            if (idToken.startsWith('facebook_')) return { provider: 'facebook', token: access.replace(/^facebook_/, '') };
+            try {
+                const claims = typeof authManager !== 'undefined' ? authManager.parseJWT(idToken) : null;
+                if (typeof authManager !== 'undefined' && (!claims || claims.exp * 1000 < Date.now() + 120000)) await authManager.refreshTokens();
+            } catch (e) { /* the call below says if the token is no good */ }
+            return { provider: 'cognito', token: localStorage.getItem('idToken') || '' };
+        }
+
         async function cancelSubscription() {
             if (!confirm('Are you sure you want to cancel your subscription? You\'ll lose access when your current billing period ends.')) {
                 return;
             }
-            
+
             try {
                 const userId = localStorage.getItem('userId');
-                console.log('DEBUG: Starting cancellation for userId:', userId);
-                
                 if (!userId || userId === 'anonymous') {
                     alert('Please log in to cancel subscription.');
                     return;
                 }
-                
-                // Get subscription ID from dashboard endpoint
-                console.log('DEBUG: Fetching subscription ID...');
-                const response = await fetch('https://nwdjnlcbtj34ywy6sgawmwhcx40ologt.lambda-url.us-east-1.on.aws/?v=' + Date.now(), {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        action: 'get_subscription_id',
-                        userId: userId
-                    })
-                });
-                
-                console.log('DEBUG: Response status:', response.status);
-                
-                if (!response.ok) {
-                    console.error('DEBUG: Response not OK:', response.status, response.statusText);
-                    throw new Error('Failed to get subscription info');
-                }
-                
-                const data = await response.json();
-                console.log('DEBUG: Response data:', data);
-                
-                if (!data.success || !data.subscriptionId) {
-                    console.error('DEBUG: No subscription ID found:', data);
-                    alert('No active subscription found. Please contact support@stockiq.tech');
-                    return;
-                }
-                
-                const subscriptionId = data.subscriptionId;
-                console.log('DEBUG: Found subscription ID:', subscriptionId);
-                
-                console.log('DEBUG: Attempting cancellation...');
+
+                const proof = await cancelProof();
                 const cancelResponse = await fetch('https://4bdl3f63dflte5fihrhjd7elm40hjqmy.lambda-url.us-east-1.on.aws/?v=' + Date.now(), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        action: 'cancel_subscription',
-                        subscription_id: subscriptionId
-                    })
+                    body: JSON.stringify({ action: 'cancel_subscription', provider: proof.provider, token: proof.token })
                 });
-                
-                console.log('DEBUG: Cancel response status:', cancelResponse.status);
-                
-                const cancelData = await cancelResponse.json();
-                console.log('DEBUG: Cancel response data:', cancelData);
-                
+                const cancelData = await cancelResponse.json().catch(() => ({}));
+
                 if (cancelData.success) {
                     alert('Subscription cancelled successfully. You\'ll continue to have access until your current billing period ends.');
                     location.reload();
+                } else if (cancelResponse.status === 401) {
+                    alert('For your security, please sign out and sign in again, then cancel once more.');
+                } else if (cancelResponse.status === 404) {
+                    alert('No active subscription found. Please contact support@stockiq.tech');
                 } else {
                     alert('Failed to cancel subscription: ' + (cancelData.error || 'Unknown error'));
                 }
             } catch (error) {
-                console.error('DEBUG: Cancellation error:', error);
                 alert('Failed to cancel subscription. Please contact support@stockiq.tech');
             }
         }
-        
+
         async function updateAutoDeleteSetting() {
             const days = document.getElementById('auto-delete-days').value;
             const userId = localStorage.getItem('userId');
@@ -4333,10 +4311,10 @@ ${analysis.report}
         }
     </style>
     <script src="news.js"></script>
-    <script src="practice-portfolio.js?v=81"></script>
+    <script src="practice-portfolio.js?v=82"></script>
     <!-- the AI autopilot's buys and sells in the notification bell (other pages get this script through theme.js) -->
     <script>(function(){try{if(!window.autopilotBell){var s=document.createElement('script');s.src='autopilot-bell.js?h='+Math.floor(Date.now()/36e5);s.async=true;document.head.appendChild(s);}}catch(e){}})();</script>
-    <script src="practice-autopilot.js?v=78"></script>
+    <script src="practice-autopilot.js?v=79"></script>
     <script src="admin-panel.js?v=58"></script>      <!-- the owner's Admin page: shown only when the autopilot's function answers "admin" for this account -->
     <script src="ai-chat.js?v=3"></script>
     <script src="js/timezone-converter.js"></script>

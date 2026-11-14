@@ -1120,6 +1120,14 @@ body {
     font-weight: 500;
     color: var(--text-primary);
 }
+.option-sub {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.82rem;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--text-secondary);
+}
 
 
 

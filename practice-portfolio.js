@@ -1336,9 +1336,14 @@
             const gb = every.map(bench), waiting = gb.some(b => b === 'wait'), have = gb.filter(b => b && b !== 'wait');
             const allGap = have.reduce((n, b) => n + b.usd, 0);
             const aiCost = sumOf('cost'), aiGain = sumOf('gainUsd');
-            const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>every buy${own ? ', the autopilot’s and yours (yours beside the S&amp;P 500)' : ''}</small></span>`
-                + `<span class="pp-mkt-res" data-label="Result">${movedHtml(aiGain)}</span>`
-                + `<span class="pp-mkt-vs" data-label="If in its own index">${waiting ? badge('wait') : have.length ? idxHtml(null, aiGain, allGap, aiCost) : badge(null)}<small class="pp-home">in each one’s own index${groups.some(coinRow) ? ' (coins at their own result)' : ''}</small></span></button>`;
+            // The list keeps the latest 200 sales; the result of older ones (about -$2,140 on 12 Nov 2026) is in the account but in no row, so the
+            // All row said -$5,074 while the account and the third card said -$7,213 (found by the weekly check). It is added to the All row, with
+            // its own words, and has no index figure of its own (its dates are gone), so it counts as level with its index, as in the third card.
+            const earlier = (() => { const f = valueSeries(state, quotes, now, autoRealized, 0); return Math.abs(f.undated) > 0.5 ? f.undated : 0; })();
+            const allGain = aiGain + earlier;
+            const allRow = `<button type="button" class="pp-mkt-row all total${isMarket(chartKey) ? '' : ' on'}" data-pp="market" data-id="" aria-pressed="${!isMarket(chartKey)}"><span class="pp-mkt-name">All markets<small>every buy${own ? ', the autopilot’s and yours (yours beside the S&amp;P 500)' : ''}${earlier ? `, and earlier sales that have left the list (${moved(earlier)})` : ''}</small></span>`
+                + `<span class="pp-mkt-res" data-label="Result">${movedHtml(allGain)}</span>`
+                + `<span class="pp-mkt-vs" data-label="If in its own index">${waiting ? badge('wait') : have.length ? idxHtml(null, allGain, allGap, aiCost) : badge(null)}<small class="pp-home">in each one’s own index${groups.some(coinRow) ? ' (coins at their own result)' : ''}</small></span></button>`;
             const subs = (g) => Object.values(results).filter(r => r.key[0] === 's' && r.group === g.group).sort(order);
             const all = Object.values(results).filter(r => r.key[0] === 's' && gapOf(r) > -1e11), up = all.filter(r => Math.round(gapOf(r)) > 0), down = all.filter(r => Math.round(gapOf(r)) < 0);
             const few = Object.values(results).filter(r => r.trades < 30).length;
